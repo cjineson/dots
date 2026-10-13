@@ -1,1 +1,5 @@
-{ "cli": { "version": ">= 3.0.0" }, "projectId": "5ab636c4-3a19-4f7b-a73e-c59bb0f7705e" }
+{
+  "cli": {
+    "version": ">= 3.0.0"
+  }
+}
