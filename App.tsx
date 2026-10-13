@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, SafeAreaView, StyleSheet } from 'react-native';
+import { Alert, Pressable, SafeAreaView, StyleSheet, Text } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -14,6 +14,8 @@ import FlowScreen from './src/screens/FlowScreen';
 import LivePerformanceScreen from './src/screens/LivePerformanceScreen';
 import SongEditorScreen from './src/screens/SongEditorScreen';
 import {
+  copySetlist,
+  copySongToSetlist,
   createSetlist,
   deleteSetlist,
   getSetlistsWithSongs,
@@ -47,14 +49,24 @@ void SplashScreen.preventAutoHideAsync().catch((error: unknown) => {
 export default function App() {
   const [setlists, setSetlists] = useState<SetlistWithSongs[]>([]);
   const [isReady, setIsReady] = useState(false);
+  const [startupError, setStartupError] = useState<string | null>(null);
+  const [startupAttempt, setStartupAttempt] = useState(0);
 
   const refreshSetlists = () => {
     setSetlists(getSetlistsWithSongs());
   };
 
   useEffect(() => {
-    initializeDatabase();
-    refreshSetlists();
+    try {
+      initializeDatabase();
+      refreshSetlists();
+      setStartupError(null);
+    } catch (error) {
+      setStartupError(
+        error instanceof Error ? error.message : 'An unexpected startup error occurred.',
+      );
+      console.error('GigBox failed to initialize its local database.', error);
+    }
 
     const remainingSplashTime = Math.max(
       0,
@@ -62,7 +74,7 @@ export default function App() {
     );
     const timeout = setTimeout(() => setIsReady(true), remainingSplashTime);
     return () => clearTimeout(timeout);
-  }, []);
+  }, [startupAttempt]);
 
   useEffect(() => {
     if (isReady) {
@@ -106,6 +118,16 @@ export default function App() {
 
   const handleDeleteSetlist = (setlistId: string) => {
     deleteSetlist(setlistId);
+    refreshSetlists();
+  };
+
+  const handleCopySetlist = (setlistId: string) => {
+    copySetlist(setlistId);
+    refreshSetlists();
+  };
+
+  const handleCopySong = (songId: string, targetSetlistId: string) => {
+    copySongToSetlist(songId, targetSetlistId);
     refreshSetlists();
   };
 
@@ -168,10 +190,25 @@ export default function App() {
   };
 
   if (!isReady) {
+    return null;
+  }
+
+  if (startupError) {
     return (
       <GestureHandlerRootView style={styles.root}>
-        <SafeAreaView style={styles.container}>
-          <ActivityIndicator size="large" color={theme.colors.accent_highlight} />
+        <SafeAreaView style={styles.startupErrorContainer}>
+          <Text style={styles.startupErrorTitle}>GigBox couldn’t start</Text>
+          <Text style={styles.startupErrorMessage}>{startupError}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setIsReady(false);
+              setStartupAttempt((attempt) => attempt + 1);
+            }}
+            style={styles.retryButton}
+          >
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </Pressable>
         </SafeAreaView>
       </GestureHandlerRootView>
     );
@@ -200,6 +237,8 @@ export default function App() {
                 }}
                 onRenameSetlist={handleRenameSetlist}
                 onDeleteSetlist={handleDeleteSetlist}
+                onCopySetlist={handleCopySetlist}
+                onCopySong={handleCopySong}
                 onOpenFlow={(setlist) =>
                   navigation.navigate('Flow', {
                     setlistName: setlist.name,
@@ -292,11 +331,38 @@ export default function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
-  container: {
+  startupErrorContainer: {
     flex: 1,
     backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
+  },
+  startupErrorTitle: {
+    color: theme.colors.text_primary,
+    fontSize: 20,
+    fontWeight: theme.typography.font_weight_bold,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  startupErrorMessage: {
+    color: theme.colors.text_secondary,
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: theme.colors.surface_card,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  retryButtonText: {
+    color: theme.colors.accent_highlight,
+    fontWeight: theme.typography.font_weight_bold,
   },
 });

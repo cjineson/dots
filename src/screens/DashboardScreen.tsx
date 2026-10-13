@@ -5,6 +5,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -25,6 +26,8 @@ type DashboardScreenProps = {
   onCreateSetlist: () => void;
   onRenameSetlist: (setlistId: string, name: string) => void;
   onDeleteSetlist: (setlistId: string) => void;
+  onCopySetlist: (setlistId: string) => void;
+  onCopySong: (songId: string, targetSetlistId: string) => void;
   onOpenFlow: (setlist: SetlistWithSongs) => void;
   onOpenSongForEdit: (setlistId: string, song?: Song) => void;
   onOpenPerformance: (songs: Song[], index: number) => void;
@@ -39,6 +42,8 @@ export default function DashboardScreen({
   onCreateSetlist,
   onRenameSetlist,
   onDeleteSetlist,
+  onCopySetlist,
+  onCopySong,
   onOpenFlow,
   onOpenSongForEdit,
   onOpenPerformance,
@@ -49,6 +54,10 @@ export default function DashboardScreen({
 }: DashboardScreenProps) {
   const [editingSetlist, setEditingSetlist] = React.useState<SetlistWithSongs | null>(null);
   const [setlistName, setSetlistName] = React.useState('');
+  const [copyingSong, setCopyingSong] = React.useState<{
+    song: Song;
+    sourceSetlistId: string;
+  } | null>(null);
 
   const openRenameSetlist = (setlist: SetlistWithSongs) => {
     setEditingSetlist(setlist);
@@ -92,6 +101,33 @@ export default function DashboardScreen({
         },
       ],
     );
+  };
+
+  const copyEntireSetlist = (setlist: SetlistWithSongs) => {
+    try {
+      onCopySetlist(setlist.id);
+      Alert.alert('Setlist copied', `"Copy of ${setlist.name}" was added to your library.`);
+    } catch (error) {
+      Alert.alert(
+        'Copy failed',
+        error instanceof Error ? error.message : 'An unexpected error occurred.',
+      );
+    }
+  };
+
+  const copySongTo = (targetSetlistId: string) => {
+    if (!copyingSong) {
+      return;
+    }
+    try {
+      onCopySong(copyingSong.song.id, targetSetlistId);
+      setCopyingSong(null);
+    } catch (error) {
+      Alert.alert(
+        'Copy failed',
+        error instanceof Error ? error.message : 'An unexpected error occurred.',
+      );
+    }
   };
 
   return (
@@ -152,11 +188,19 @@ export default function DashboardScreen({
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
+                    accessibilityLabel={`Copy ${setlist.name}`}
+                    onPress={() => copyEntireSetlist(setlist)}
+                    style={styles.compactIconButton}
+                  >
+                    <MaterialCommunityIcons name="content-copy" size={21} color="#4FC3F7" />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
                     accessibilityLabel={`Add song to ${setlist.name}`}
                     onPress={() => onOpenNewSong(setlist.id)}
-                    style={styles.iconButton}
+                    style={styles.compactIconButton}
                   >
-                    <MaterialCommunityIcons name="plus-circle" size={27} color="#4FC3F7" />
+                    <MaterialCommunityIcons name="plus-circle" size={24} color="#4FC3F7" />
                   </Pressable>
                 </View>
               </View>
@@ -183,14 +227,32 @@ export default function DashboardScreen({
                         </Pressable>
                         <Text style={styles.songTitle}>{song.title}</Text>
                         <View style={styles.songActions}>
-                          <Pressable style={styles.actionButton} onPress={() => onOpenSongForEdit(setlist.id, song)}>
-                            <Text style={styles.actionText}>Edit</Text>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Edit ${song.title}`}
+                            style={styles.songIconButton}
+                            onPress={() => onOpenSongForEdit(setlist.id, song)}
+                          >
+                            <MaterialCommunityIcons name="pencil" size={21} color="#FFB74D" />
                           </Pressable>
                           <Pressable
-                            style={styles.primaryActionButton}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Play ${song.title}`}
+                            style={styles.songIconButton}
                             onPress={() => onOpenPerformance(setlist.songs, setlist.songs.findIndex((item) => item.id === song.id))}
                           >
-                            <Text style={styles.primaryActionText}>Play</Text>
+                            <MaterialCommunityIcons name="play-circle" size={24} color="#4FC3F7" />
+                          </Pressable>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Copy ${song.title} to a setlist`}
+                            style={styles.songIconButton}
+                            onPress={() => setCopyingSong({
+                              song,
+                              sourceSetlistId: setlist.id,
+                            })}
+                          >
+                            <MaterialCommunityIcons name="content-copy" size={20} color="#B39DDB" />
                           </Pressable>
                         </View>
                       </View>
@@ -251,6 +313,48 @@ export default function DashboardScreen({
                 style={[styles.dialogButton, !setlistName.trim() && styles.disabledAction]}
               >
                 <Text style={styles.saveText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={copyingSong !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCopyingSong(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.renameDialog}>
+            <Text style={styles.dialogTitle}>Copy song to setlist</Text>
+            <Text style={styles.copyHint}>
+              Choose a destination for “{copyingSong?.song.title}”.
+            </Text>
+            <ScrollView style={styles.destinationList}>
+              {setlists.map((setlist) => (
+                <Pressable
+                  key={setlist.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Copy song to ${setlist.name}`}
+                  onPress={() => copySongTo(setlist.id)}
+                  style={styles.destinationButton}
+                >
+                  <MaterialCommunityIcons
+                    name="playlist-plus"
+                    size={22}
+                    color="#4FC3F7"
+                  />
+                  <Text numberOfLines={1} style={styles.destinationText}>
+                    {setlist.name}
+                    {setlist.id === copyingSong?.sourceSetlistId ? ' (current)' : ''}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <View style={styles.dialogActions}>
+              <Pressable onPress={() => setCopyingSong(null)} style={styles.dialogButton}>
+                <Text style={styles.cancelText}>Cancel</Text>
               </Pressable>
             </View>
           </View>
@@ -329,7 +433,13 @@ const styles = StyleSheet.create({
   setlistActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 0,
+  },
+  compactIconButton: {
+    width: 34,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalBackdrop: {
     flex: 1,
@@ -379,6 +489,27 @@ const styles = StyleSheet.create({
   disabledAction: {
     opacity: 0.4,
   },
+  copyHint: {
+    color: theme.colors.text_secondary,
+    marginBottom: 10,
+  },
+  destinationList: {
+    maxHeight: 280,
+  },
+  destinationButton: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border_contrast,
+    paddingHorizontal: 4,
+  },
+  destinationText: {
+    flex: 1,
+    color: theme.colors.text_primary,
+    fontSize: 16,
+  },
   emptyState: {
     color: theme.colors.text_secondary,
     fontSize: 16,
@@ -420,27 +551,13 @@ const styles = StyleSheet.create({
   },
   songActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 2,
     alignItems: 'center',
   },
-  actionButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border_contrast,
-  },
-  actionText: {
-    color: theme.colors.text_primary,
-  },
-  primaryActionButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: theme.colors.box_active_state,
-  },
-  primaryActionText: {
-    color: theme.colors.text_primary,
-    fontWeight: theme.typography.font_weight_bold,
+  songIconButton: {
+    width: 34,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

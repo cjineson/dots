@@ -9,6 +9,7 @@ Local-first dark-mode live setlist app for musicians.
 ## Features
 - Dashboard with setlist list and quick setlist creation, plus bottom-bar JSON import/export
 - Rename and delete setlists, and browse a complete setlist in a vertically scrolling Flow view
+- Copy complete setlists or individual songs between setlists; copied songs can be edited independently
 - Song editor with title, cue sections, styled cue blocks, and editable tables
 - Rendered cue preview while editing
 - Live performance view with one cue box per song, preserving cue line breaks
