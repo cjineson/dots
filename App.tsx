@@ -202,6 +202,7 @@ export default function App() {
             name="Performance"
             options={({ navigation, route }) => ({
               title: route.params.songs[route.params.index]?.title ?? 'Performance',
+              gestureEnabled: false,
               headerLeft: () => (
                 <Pressable
                   accessibilityRole="button"
