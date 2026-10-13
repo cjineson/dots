@@ -8,14 +8,15 @@ Local-first dark-mode live setlist app for musicians.
 
 ## Features
 - Dashboard with setlist list and quick setlist creation, plus bottom-bar JSON import/export
-- Rename and delete setlists, and browse a complete setlist in a vertically scrolling Flow view
+- Rename setlists and add optional location, date, and time details; delete setlists and browse the full setlist in a vertically scrolling Flow view
+- Add standalone breaks with optional display-only durations, reorder them with songs, and see them in Flow and performance mode
 - Copy complete setlists or individual songs between setlists; copied songs can be edited independently
 - Song editor with title, cue sections, styled cue blocks, and editable tables
 - Rendered cue preview while editing
 - Live performance view with one cue box per song, preserving cue line breaks
-- Swipe left/right in performance mode to move through songs in the current setlist
+- Swipe left/right in performance mode to move through songs and breaks in the current setlist
 - Dark theme tokens matching the stage-ready spec
-- Reorder songs in a setlist by dragging the handle beside a song
+- Reorder songs and breaks in a setlist by dragging their handles
 - Long cue lines automatically scale down to fit the performance boxes
 - Adjust performance text size per song from the performance top bar; preferences are saved locally and included in JSON archives
 - Export the library to a shareable JSON file and import JSON exports as additional setlists
@@ -86,8 +87,9 @@ The app uses SQLite locally on device with these tables:
 - setlists
 - songs
 - setlist_songs
+- setlist_breaks
 
-New songs store a versioned cue document for sections, per-block text size/color, and tables. Older plain-text cues remain readable and are preserved as a single cue block; exports use archive version 2 and the importer continues to accept version 1.
+New songs store a versioned cue document for sections, per-block text size/color, and tables. Older plain-text cues remain readable and are preserved as a single cue block. JSON exports use archive version 4, including ordered song/break items and optional setlist location/date/time details; imports continue to accept versions 1 through 3.
 
 ## Future phases
 - Local P2P sync pathing

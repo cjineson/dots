@@ -18,11 +18,13 @@ import {
   getVisibleCueBlocks,
   parseCueDocument,
 } from '../lib/cueDocument';
-import type { CueBlock, Song } from '../types';
+import type { CueBlock, SetlistItem, Song } from '../types';
 
 type LivePerformanceScreenProps = {
-  songs: Song[];
+  items: SetlistItem[];
   index: number;
+  setlistName?: string;
+  setlistDetails?: string;
   onGoToDashboard: () => void;
   onIndexChange: (index: number) => void;
   onFontSizeChange: (songId: string, fontSize: number) => void;
@@ -33,27 +35,33 @@ const MAX_FONT_SIZE = 64;
 const FONT_SIZE_STEP = 2;
 
 export default function LivePerformanceScreen({
-  songs,
+  items,
   index,
+  setlistName,
+  setlistDetails,
   onGoToDashboard,
   onIndexChange,
   onFontSizeChange,
 }: LivePerformanceScreenProps) {
-  const song = songs[index];
-  const cueDocument = song.cue_document
+  const item = items[index];
+  const song = item?.kind === 'song' ? item.song : undefined;
+  const cueDocument = song?.cue_document
     ? parseCueDocument(song.cue_document)
-    : createCueDocumentFromText(song.notes_raw_text);
+    : createCueDocumentFromText(song?.notes_raw_text ?? '');
   const cueBlocks = getVisibleCueBlocks(cueDocument);
   const [boxSize, setBoxSize] = useState({ width: 0, height: 0 });
   const [fontSizeBySong, setFontSizeBySong] = useState<Record<string, number>>({});
   const fontSize =
-    fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size;
+    song ? fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size
+      : theme.typography.box_text_size;
   const hasManualFontSize =
-    fontSizeBySong[song.id] !== undefined ||
-    song.font_size !== undefined && song.font_size !== theme.typography.box_text_size;
+    song !== undefined && (
+      fontSizeBySong[song.id] !== undefined ||
+      song.font_size !== undefined && song.font_size !== theme.typography.box_text_size
+    );
   const availableWidth = Math.max(0, boxSize.width - theme.layout.box_padding * 2);
   const availableHeight = Math.max(0, boxSize.height - theme.layout.box_padding * 2);
-  const songFontScale = fontSize / (song.font_size ?? theme.typography.box_text_size);
+  const songFontScale = fontSize / (song?.font_size ?? theme.typography.box_text_size);
 
   const baseSizeForBlock = (block: CueBlock) =>
     (block.font_size ?? theme.typography.box_text_size) * songFontScale;
@@ -106,14 +114,14 @@ export default function LivePerformanceScreen({
         onMoveShouldSetPanResponder: (_, gesture) =>
           Math.abs(gesture.dx) > 24 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
         onPanResponderRelease: (_, gesture) => {
-          if (gesture.dx <= -60 && index < songs.length - 1) {
+          if (gesture.dx <= -60 && index < items.length - 1) {
             onIndexChange(index + 1);
           } else if (gesture.dx >= 60 && index > 0) {
             onIndexChange(index - 1);
           }
         },
       }),
-    [index, onIndexChange, songs.length],
+    [index, items.length, onIndexChange],
   );
 
   const handleBoxLayout = (event: LayoutChangeEvent) => {
@@ -126,6 +134,9 @@ export default function LivePerformanceScreen({
   };
 
   const changeFontSize = (delta: number) => {
+    if (!song) {
+      return;
+    }
     const nextFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, fontSize + delta));
     setFontSizeBySong((current) => ({ ...current, [song.id]: nextFontSize }));
     onFontSizeChange(song.id, nextFontSize);
@@ -148,41 +159,68 @@ export default function LivePerformanceScreen({
             accessibilityLabel="GigBox"
           />
         </Pressable>
-        <Text numberOfLines={1} style={styles.songTitle}>
-          {song.title}
-        </Text>
-        <View style={styles.zoomControls}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Zoom out"
-            disabled={fontSize <= MIN_FONT_SIZE}
-            onPress={() => changeFontSize(-FONT_SIZE_STEP)}
-            style={[styles.zoomButton, fontSize <= MIN_FONT_SIZE && styles.disabledButton]}
-          >
-            <MaterialCommunityIcons
-              name="magnify-minus-outline"
-              size={25}
-              color={theme.colors.accent_highlight}
-            />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Zoom in"
-            disabled={fontSize >= MAX_FONT_SIZE}
-            onPress={() => changeFontSize(FONT_SIZE_STEP)}
-            style={[styles.zoomButton, fontSize >= MAX_FONT_SIZE && styles.disabledButton]}
-          >
-            <MaterialCommunityIcons
-              name="magnify-plus-outline"
-              size={25}
-              color={theme.colors.accent_highlight}
-            />
-          </Pressable>
+        <View style={styles.performanceHeading}>
+          <Text numberOfLines={1} style={styles.songTitle}>
+            {song?.title ?? 'Break'}
+          </Text>
+          {setlistName && (
+            <Text numberOfLines={1} style={styles.setlistName}>
+              {setlistName}
+            </Text>
+          )}
+          {setlistDetails && (
+            <Text numberOfLines={1} style={styles.setlistDetails}>
+              {setlistDetails}
+            </Text>
+          )}
         </View>
+        {song && (
+          <View style={styles.zoomControls}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Zoom out"
+              disabled={fontSize <= MIN_FONT_SIZE}
+              onPress={() => changeFontSize(-FONT_SIZE_STEP)}
+              style={[styles.zoomButton, fontSize <= MIN_FONT_SIZE && styles.disabledButton]}
+            >
+              <MaterialCommunityIcons
+                name="magnify-minus-outline"
+                size={25}
+                color={theme.colors.accent_highlight}
+              />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Zoom in"
+              disabled={fontSize >= MAX_FONT_SIZE}
+              onPress={() => changeFontSize(FONT_SIZE_STEP)}
+              style={[styles.zoomButton, fontSize >= MAX_FONT_SIZE && styles.disabledButton]}
+            >
+              <MaterialCommunityIcons
+                name="magnify-plus-outline"
+                size={25}
+                color={theme.colors.accent_highlight}
+              />
+            </Pressable>
+          </View>
+        )}
       </View>
 
       <View style={styles.boxGestureArea} {...swipeResponder.panHandlers}>
         <View onLayout={handleBoxLayout} style={[styles.box, { backgroundColor: theme.colors.surface_card }]}>
+          {item?.kind === 'break' ? (
+            <View style={styles.breakContent}>
+              <MaterialCommunityIcons
+                name="coffee"
+                size={52}
+                color={theme.colors.accent_highlight}
+              />
+              <Text style={styles.breakTitle}>BREAK</Text>
+              {item.duration_minutes !== undefined && (
+                <Text style={styles.breakDuration}>{item.duration_minutes} minutes</Text>
+              )}
+            </View>
+          ) : (
           <ScrollView contentContainerStyle={styles.cueBlocks}>
             {cueBlocks.map((block) => {
               const blockFontSize = Math.max(MIN_FONT_SIZE, baseSizeForBlock(block) * lowScale);
@@ -228,6 +266,7 @@ export default function LivePerformanceScreen({
               );
             })}
           </ScrollView>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -258,10 +297,37 @@ const styles = StyleSheet.create({
     height: 24,
   },
   songTitle: {
-    flex: 1,
     color: theme.colors.text_primary,
     fontSize: 18,
     fontWeight: theme.typography.font_weight_bold,
+  },
+  performanceHeading: {
+    flex: 1,
+    minWidth: 0,
+  },
+  setlistDetails: {
+    color: theme.colors.text_secondary,
+    fontSize: 12,
+  },
+  setlistName: {
+    color: theme.colors.text_secondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  breakContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  breakTitle: {
+    color: theme.colors.accent_highlight,
+    fontSize: 32,
+    fontWeight: theme.typography.font_weight_bold,
+  },
+  breakDuration: {
+    color: theme.colors.text_secondary,
+    fontSize: 20,
   },
   zoomControls: {
     flexDirection: 'row',

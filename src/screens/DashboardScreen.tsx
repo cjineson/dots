@@ -19,20 +19,31 @@ import {
 } from 'react-native-draggable-flatlist';
 
 import { theme } from '../theme';
-import type { SetlistWithSongs, Song } from '../types';
+import type { SetlistItem, SetlistWithSongs, Song } from '../types';
 
 type DashboardScreenProps = {
   setlists: SetlistWithSongs[];
   onCreateSetlist: () => void;
-  onRenameSetlist: (setlistId: string, name: string) => void;
+  onRenameSetlist: (
+    setlistId: string,
+    name: string,
+    details: { location?: string; date?: string; time?: string },
+  ) => void;
   onDeleteSetlist: (setlistId: string) => void;
   onCopySetlist: (setlistId: string) => void;
   onCopySong: (songId: string, targetSetlistId: string) => void;
+  onDeleteSong: (setlistId: string, songId: string) => void;
+  onDeleteBreak: (setlistId: string, breakId: string) => void;
+  onCreateBreak: (setlistId: string, durationMinutes?: number) => void;
   onOpenFlow: (setlist: SetlistWithSongs) => void;
   onOpenSongForEdit: (setlistId: string, song?: Song) => void;
-  onOpenPerformance: (songs: Song[], index: number) => void;
+  onOpenPerformance: (
+    setlist: SetlistWithSongs,
+    items: SetlistItem[],
+    index: number,
+  ) => void;
   onOpenNewSong: (setlistId: string) => void;
-  onReorderSongs: (setlistId: string, songs: Song[]) => void;
+  onReorderItems: (setlistId: string, items: SetlistItem[]) => void;
   onExportLibrary: () => void;
   onImportLibrary: () => void;
 };
@@ -44,16 +55,24 @@ export default function DashboardScreen({
   onDeleteSetlist,
   onCopySetlist,
   onCopySong,
+  onDeleteSong,
+  onDeleteBreak,
+  onCreateBreak,
   onOpenFlow,
   onOpenSongForEdit,
   onOpenPerformance,
   onOpenNewSong,
-  onReorderSongs,
+  onReorderItems,
   onExportLibrary,
   onImportLibrary,
 }: DashboardScreenProps) {
   const [editingSetlist, setEditingSetlist] = React.useState<SetlistWithSongs | null>(null);
   const [setlistName, setSetlistName] = React.useState('');
+  const [setlistLocation, setSetlistLocation] = React.useState('');
+  const [setlistDate, setSetlistDate] = React.useState('');
+  const [setlistTime, setSetlistTime] = React.useState('');
+  const [addingBreakTo, setAddingBreakTo] = React.useState<string | null>(null);
+  const [breakDuration, setBreakDuration] = React.useState('');
   const [copyingSong, setCopyingSong] = React.useState<{
     song: Song;
     sourceSetlistId: string;
@@ -62,6 +81,9 @@ export default function DashboardScreen({
   const openRenameSetlist = (setlist: SetlistWithSongs) => {
     setEditingSetlist(setlist);
     setSetlistName(setlist.name);
+    setSetlistLocation(setlist.location ?? '');
+    setSetlistDate(setlist.date ?? '');
+    setSetlistTime(setlist.time ?? '');
   };
 
   const saveSetlistName = () => {
@@ -69,7 +91,11 @@ export default function DashboardScreen({
       return;
     }
     try {
-      onRenameSetlist(editingSetlist.id, setlistName);
+      onRenameSetlist(editingSetlist.id, setlistName, {
+        location: setlistLocation,
+        date: setlistDate,
+        time: setlistTime,
+      });
       setEditingSetlist(null);
     } catch (error) {
       Alert.alert(
@@ -82,7 +108,7 @@ export default function DashboardScreen({
   const confirmDeleteSetlist = (setlist: SetlistWithSongs) => {
     Alert.alert(
       'Delete setlist?',
-      `Delete "${setlist.name}" and its songs? Songs used in other setlists will be kept.`,
+      `Delete "${setlist.name}" and its songs and breaks? Songs used in other setlists will be kept.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -130,6 +156,77 @@ export default function DashboardScreen({
     }
   };
 
+  const confirmDeleteSong = (setlistId: string, song: Song) => {
+    Alert.alert(
+      'Delete song from setlist?',
+      `Remove "${song.title}" from this setlist? Songs used in other setlists will be kept.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            try {
+              onDeleteSong(setlistId, song.id);
+            } catch (error) {
+              Alert.alert(
+                'Delete failed',
+                error instanceof Error ? error.message : 'An unexpected error occurred.',
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const saveBreak = () => {
+    if (!addingBreakTo) {
+      return;
+    }
+    const durationMinutes = breakDuration.trim() ? Number(breakDuration) : undefined;
+    if (
+      durationMinutes !== undefined &&
+      (!Number.isSafeInteger(durationMinutes) || durationMinutes < 1)
+    ) {
+      return;
+    }
+    try {
+      onCreateBreak(addingBreakTo, durationMinutes);
+      setAddingBreakTo(null);
+      setBreakDuration('');
+    } catch (error) {
+      Alert.alert(
+        'Could not add break',
+        error instanceof Error ? error.message : 'An unexpected error occurred.',
+      );
+    }
+  };
+
+  const confirmDeleteBreak = (setlistId: string, breakId: string) => {
+    Alert.alert('Delete break?', 'Remove this break from the setlist?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          try {
+            onDeleteBreak(setlistId, breakId);
+          } catch (error) {
+            Alert.alert(
+              'Delete failed',
+              error instanceof Error ? error.message : 'An unexpected error occurred.',
+            );
+          }
+        },
+      },
+    ]);
+  };
+
+  const durationIsValid =
+    !breakDuration.trim() ||
+    Number.isSafeInteger(Number(breakDuration)) && Number(breakDuration) > 0;
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
@@ -156,16 +253,24 @@ export default function DashboardScreen({
           setlists.map((setlist) => (
             <View key={setlist.id} style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text numberOfLines={1} style={styles.setlistName}>{setlist.name}</Text>
+                <View style={styles.setlistHeading}>
+                  <Text numberOfLines={1} style={styles.setlistName}>{setlist.name}</Text>
+                  {(setlist.location || setlist.date || setlist.time) && (
+                    <Text numberOfLines={1} style={styles.setlistDetails}>
+                      {[setlist.location, setlist.date, setlist.time].filter(Boolean).join(' · ')}
+                    </Text>
+                  )}
+                </View>
                 <View style={styles.setlistActions}>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Open ${setlist.name} flow view`}
-                    disabled={setlist.songs.length === 0}
+                    accessibilityHint="Shows all songs and breaks in this setlist."
+                    disabled={setlist.items.length === 0}
                     onPress={() => onOpenFlow(setlist)}
                     style={[
                       styles.iconButton,
-                      setlist.songs.length === 0 && styles.disabledIconButton,
+                      setlist.items.length === 0 && styles.disabledIconButton,
                     ]}
                   >
                     <MaterialCommunityIcons name="playlist-play" size={27} color="#4FC3F7" />
@@ -180,14 +285,6 @@ export default function DashboardScreen({
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`Delete ${setlist.name}`}
-                    onPress={() => confirmDeleteSetlist(setlist)}
-                    style={styles.iconButton}
-                  >
-                    <MaterialCommunityIcons name="minus-circle" size={27} color="#FF8A80" />
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
                     accessibilityLabel={`Copy ${setlist.name}`}
                     onPress={() => copyEntireSetlist(setlist)}
                     style={styles.compactIconButton}
@@ -197,65 +294,139 @@ export default function DashboardScreen({
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Add song to ${setlist.name}`}
+                    accessibilityHint="Opens the song editor to add a song."
                     onPress={() => onOpenNewSong(setlist.id)}
                     style={styles.compactIconButton}
                   >
                     <MaterialCommunityIcons name="plus-circle" size={24} color="#4FC3F7" />
                   </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Add break to ${setlist.name}`}
+                    accessibilityHint="Adds a standalone break, optionally with a display-only duration."
+                    onPress={() => {
+                      setBreakDuration('');
+                      setAddingBreakTo(setlist.id);
+                    }}
+                    style={styles.compactIconButton}
+                  >
+                    <MaterialCommunityIcons name="coffee" size={22} color="#FFB74D" />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${setlist.name}`}
+                    onPress={() => confirmDeleteSetlist(setlist)}
+                    style={styles.iconButton}
+                  >
+                    <MaterialCommunityIcons name="minus-circle" size={27} color="#FF8A80" />
+                  </Pressable>
                 </View>
               </View>
 
-              {setlist.songs.length === 0 ? (
-                <Text style={styles.songHint}>No songs in this setlist yet.</Text>
+              {setlist.items.length === 0 ? (
+                <Text style={styles.songHint}>No songs or breaks in this setlist yet.</Text>
               ) : (
                 <NestableDraggableFlatList
-                  data={setlist.songs}
-                  keyExtractor={(song) => song.id}
+                  data={setlist.items}
+                  keyExtractor={(item) => `${item.kind}-${item.kind === 'song' ? item.song.id : item.id}`}
                   activationDistance={24}
-                  onDragEnd={({ data }) => onReorderSongs(setlist.id, data)}
-                  renderItem={({ item: song, drag, isActive }) => (
+                  onDragEnd={({ data }) => onReorderItems(setlist.id, data)}
+                  renderItem={({ item, drag, isActive }) => (
                     <ScaleDecorator>
-                      <View style={[styles.songRow, isActive && styles.songRowDragging]}>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={`Reorder ${song.title}`}
-                          onLongPress={drag}
-                          delayLongPress={180}
-                          style={styles.dragHandle}
-                        >
-                          <Text style={styles.dragHandleText}>☰</Text>
-                        </Pressable>
-                        <Text style={styles.songTitle}>{song.title}</Text>
-                        <View style={styles.songActions}>
+                      {item.kind === 'song' ? (
+                        <View style={[styles.songRow, isActive && styles.songRowDragging]}>
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel={`Edit ${song.title}`}
-                            style={styles.songIconButton}
-                            onPress={() => onOpenSongForEdit(setlist.id, song)}
+                            accessibilityLabel={`Reorder ${item.song.title}`}
+                            onLongPress={drag}
+                            delayLongPress={180}
+                            style={styles.dragHandle}
                           >
-                            <MaterialCommunityIcons name="pencil" size={21} color="#FFB74D" />
+                            <Text style={styles.dragHandleText}>☰</Text>
                           </Pressable>
+                          <Text style={styles.songTitle}>{item.song.title}</Text>
+                          <View style={styles.songActions}>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Edit ${item.song.title}`}
+                              style={styles.songIconButton}
+                              onPress={() => onOpenSongForEdit(setlist.id, item.song)}
+                            >
+                              <MaterialCommunityIcons name="pencil" size={21} color="#FFB74D" />
+                            </Pressable>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Play ${item.song.title}`}
+                              style={styles.songIconButton}
+                              onPress={() => onOpenPerformance(
+                                setlist,
+                                setlist.items,
+                                setlist.items.findIndex((entry) =>
+                                  entry.kind === 'song' && entry.song.id === item.song.id,
+                                ),
+                              )}
+                            >
+                              <MaterialCommunityIcons name="play-circle" size={24} color="#4FC3F7" />
+                            </Pressable>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Copy ${item.song.title} to a setlist`}
+                              style={styles.songIconButton}
+                              onPress={() => setCopyingSong({
+                                song: item.song,
+                                sourceSetlistId: setlist.id,
+                              })}
+                            >
+                              <MaterialCommunityIcons name="content-copy" size={20} color="#B39DDB" />
+                            </Pressable>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Delete ${item.song.title} from ${setlist.name}`}
+                              style={styles.songIconButton}
+                              onPress={() => confirmDeleteSong(setlist.id, item.song)}
+                            >
+                              <MaterialCommunityIcons name="delete" size={21} color="#FF8A80" />
+                            </Pressable>
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={[styles.songRow, isActive && styles.songRowDragging]}>
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel={`Play ${song.title}`}
+                            accessibilityLabel="Reorder break"
+                            onLongPress={drag}
+                            delayLongPress={180}
+                            style={styles.dragHandle}
+                          >
+                            <Text style={styles.dragHandleText}>☰</Text>
+                          </Pressable>
+                          <Text style={[styles.songTitle, styles.breakTitle]}>
+                            Break{item.duration_minutes ? ` · ${item.duration_minutes} min` : ''}
+                          </Text>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Show break${item.duration_minutes ? `, ${item.duration_minutes} minutes` : ''} in performance`}
                             style={styles.songIconButton}
-                            onPress={() => onOpenPerformance(setlist.songs, setlist.songs.findIndex((item) => item.id === song.id))}
+                            onPress={() => onOpenPerformance(
+                              setlist,
+                              setlist.items,
+                              setlist.items.findIndex(
+                                (entry) => entry.kind === 'break' && entry.id === item.id,
+                              ),
+                            )}
                           >
                             <MaterialCommunityIcons name="play-circle" size={24} color="#4FC3F7" />
                           </Pressable>
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel={`Copy ${song.title} to a setlist`}
+                            accessibilityLabel={`Delete break from ${setlist.name}`}
                             style={styles.songIconButton}
-                            onPress={() => setCopyingSong({
-                              song,
-                              sourceSetlistId: setlist.id,
-                            })}
+                            onPress={() => confirmDeleteBreak(setlist.id, item.id)}
                           >
-                            <MaterialCommunityIcons name="content-copy" size={20} color="#B39DDB" />
+                            <MaterialCommunityIcons name="delete" size={21} color="#FF8A80" />
                           </Pressable>
                         </View>
-                      </View>
+                      )}
                     </ScaleDecorator>
                   )}
                 />
@@ -292,7 +463,7 @@ export default function DashboardScreen({
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.renameDialog}>
-            <Text style={styles.dialogTitle}>Rename setlist</Text>
+            <Text style={styles.dialogTitle}>Setlist details</Text>
             <TextInput
               autoFocus
               value={setlistName}
@@ -302,6 +473,30 @@ export default function DashboardScreen({
               selectTextOnFocus
               style={styles.renameInput}
               accessibilityLabel="Setlist name"
+            />
+            <TextInput
+              value={setlistLocation}
+              onChangeText={setSetlistLocation}
+              placeholder="Location (optional)"
+              placeholderTextColor={theme.colors.text_secondary}
+              style={[styles.renameInput, styles.metadataInput]}
+              accessibilityLabel="Setlist location"
+            />
+            <TextInput
+              value={setlistDate}
+              onChangeText={setSetlistDate}
+              placeholder="Date (optional)"
+              placeholderTextColor={theme.colors.text_secondary}
+              style={[styles.renameInput, styles.metadataInput]}
+              accessibilityLabel="Setlist date"
+            />
+            <TextInput
+              value={setlistTime}
+              onChangeText={setSetlistTime}
+              placeholder="Time (optional)"
+              placeholderTextColor={theme.colors.text_secondary}
+              style={[styles.renameInput, styles.metadataInput]}
+              accessibilityLabel="Setlist time"
             />
             <View style={styles.dialogActions}>
               <Pressable onPress={() => setEditingSetlist(null)} style={styles.dialogButton}>
@@ -313,6 +508,41 @@ export default function DashboardScreen({
                 style={[styles.dialogButton, !setlistName.trim() && styles.disabledAction]}
               >
                 <Text style={styles.saveText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={addingBreakTo !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAddingBreakTo(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.renameDialog}>
+            <Text style={styles.dialogTitle}>Add a break</Text>
+            <Text style={styles.copyHint}>Duration in minutes (optional; display only).</Text>
+            <TextInput
+              value={breakDuration}
+              onChangeText={setBreakDuration}
+              keyboardType="number-pad"
+              placeholder="e.g. 15"
+              placeholderTextColor={theme.colors.text_secondary}
+              style={styles.renameInput}
+              accessibilityLabel="Break duration in minutes"
+            />
+            <View style={styles.dialogActions}>
+              <Pressable onPress={() => setAddingBreakTo(null)} style={styles.dialogButton}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={saveBreak}
+                disabled={!durationIsValid}
+                style={[styles.dialogButton, !durationIsValid && styles.disabledAction]}
+              >
+                <Text style={styles.saveText}>Add break</Text>
               </Pressable>
             </View>
           </View>
@@ -421,6 +651,15 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: theme.typography.font_weight_bold,
   },
+  setlistHeading: {
+    flex: 1,
+    minWidth: 0,
+  },
+  setlistDetails: {
+    color: theme.colors.text_secondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
   iconButton: {
     width: 40,
     height: 40,
@@ -468,6 +707,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  metadataInput: {
+    marginTop: 10,
   },
   dialogActions: {
     flexDirection: 'row',
@@ -553,6 +795,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 2,
     alignItems: 'center',
+  },
+  breakTitle: {
+    color: theme.colors.accent_highlight,
+    fontStyle: 'italic',
   },
   songIconButton: {
     width: 34,

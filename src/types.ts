@@ -2,7 +2,12 @@ export type Setlist = {
   id: string;
   name: string;
   order_index: number;
+  location?: string;
+  date?: string;
+  time?: string;
 };
+
+export type SetlistHeaderDetails = Pick<Setlist, 'name' | 'location' | 'date' | 'time'>;
 
 export type Song = {
   id: string;
@@ -11,6 +16,10 @@ export type Song = {
   font_size?: number;
   cue_document?: string;
 };
+
+export type SetlistItem =
+  | { kind: 'song'; song: Song }
+  | { kind: 'break'; id: string; duration_minutes?: number };
 
 export type CueBlockStyle = {
   font_size?: number;
@@ -46,19 +55,44 @@ export type SetlistSong = {
 
 export type SetlistWithSongs = Setlist & {
   songs: Song[];
+  items: SetlistItem[];
 };
 
 export type SetlistArchive = {
   format: 'gigbox-setlists';
-  version: 2;
+  version: 4;
   exportedAt: string;
   setlists: Array<{
     name: string;
-    songs: Array<{
-      title: string;
-      notes_raw_text: string;
-      font_size?: number;
-      cue_document?: CueDocument;
-    }>;
+    location?: string;
+    date?: string;
+    time?: string;
+    items: Array<
+      | {
+          type: 'song';
+          title: string;
+          notes_raw_text: string;
+          font_size?: number;
+          cue_document?: CueDocument;
+        }
+      | { type: 'break'; duration_minutes?: number }
+    >;
   }>;
+};
+
+export type ImportedSetlist = {
+  name: string;
+  location?: string;
+  date?: string;
+  time?: string;
+  items: Array<
+    | {
+        type: 'song';
+        title: string;
+        notes_raw_text: string;
+        font_size?: number;
+        cue_document?: CueDocument;
+      }
+    | { type: 'break'; duration_minutes?: number }
+  >;
 };

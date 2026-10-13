@@ -26,29 +26,47 @@ import SongEditorScreen from './src/screens/SongEditorScreen';
 import {
   copySetlist,
   copySongToSetlist,
+  createBreakForSetlist,
   createSetlist,
+  deleteBreakFromSetlist,
+  deleteSongFromSetlist,
   deleteSetlist,
   getSetlistsWithSongs,
   importSetlists,
   initializeDatabase,
   renameSetlist,
-  reorderSongsForSetlist,
+  reorderItemsForSetlist,
   saveSongForSetlist,
   updateSongFontSize,
 } from './src/lib/db';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
 import { decodeTextFile } from './src/lib/textEncoding';
 import { theme } from './src/theme';
-import type { Song, SetlistWithSongs } from './src/types';
+import type { SetlistHeaderDetails, SetlistItem, Song, SetlistWithSongs } from './src/types';
 
 type RootStackParamList = {
   Dashboard: undefined;
   Editor: { setlistId: string; song?: Song };
-  Performance: { songs: Song[]; index: number };
-  Flow: { setlistName: string; songs: Song[] };
+  Performance: {
+    items: SetlistItem[];
+    index: number;
+    setlistName?: string;
+    setlistDetails?: string;
+  };
+  Flow: { setlistName: string; setlistDetails?: string; items: SetlistItem[] };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+function formatSetlistDetails(setlist: SetlistHeaderDetails | undefined): string | undefined {
+  if (!setlist) {
+    return undefined;
+  }
+  const details = [setlist.location, setlist.date, setlist.time]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+  return details.length > 0 ? details.join(' · ') : undefined;
+}
 
 export default function App() {
   const [setlists, setSetlists] = useState<SetlistWithSongs[]>([]);
@@ -98,13 +116,17 @@ export default function App() {
     onSaved();
   };
 
-  const handleReorderSongs = (setlistId: string, songs: Song[]) => {
-    reorderSongsForSetlist(setlistId, songs);
+  const handleReorderItems = (setlistId: string, items: SetlistItem[]) => {
+    reorderItemsForSetlist(setlistId, items);
     refreshSetlists();
   };
 
-  const handleRenameSetlist = (setlistId: string, name: string) => {
-    renameSetlist(setlistId, name);
+  const handleRenameSetlist = (
+    setlistId: string,
+    name: string,
+    details: { location?: string; date?: string; time?: string },
+  ) => {
+    renameSetlist(setlistId, name, details);
     refreshSetlists();
   };
 
@@ -244,20 +266,38 @@ export default function App() {
                 onDeleteSetlist={handleDeleteSetlist}
                 onCopySetlist={handleCopySetlist}
                 onCopySong={handleCopySong}
+                onDeleteSong={(setlistId, songId) => {
+                  deleteSongFromSetlist(setlistId, songId);
+                  refreshSetlists();
+                }}
+                onDeleteBreak={(setlistId, breakId) => {
+                  deleteBreakFromSetlist(setlistId, breakId);
+                  refreshSetlists();
+                }}
+                onCreateBreak={(setlistId, durationMinutes) => {
+                  createBreakForSetlist(setlistId, durationMinutes);
+                  refreshSetlists();
+                }}
                 onOpenFlow={(setlist) =>
                   navigation.navigate('Flow', {
                     setlistName: setlist.name,
-                    songs: setlist.songs,
+                    setlistDetails: formatSetlistDetails(setlist),
+                    items: setlist.items,
                   })
                 }
                 onOpenSongForEdit={(setlistId, song) =>
                   navigation.navigate('Editor', { setlistId, song })
                 }
-                onOpenPerformance={(songs, index) =>
-                  navigation.navigate('Performance', { songs, index })
+                onOpenPerformance={(setlist, items, index) =>
+                  navigation.navigate('Performance', {
+                    items,
+                    index,
+                    setlistName: setlist.name,
+                    setlistDetails: formatSetlistDetails(setlist),
+                  })
                 }
                 onOpenNewSong={(setlistId) => navigation.navigate('Editor', { setlistId })}
-                onReorderSongs={handleReorderSongs}
+                onReorderItems={handleReorderItems}
                 onExportLibrary={handleExportLibrary}
                 onImportLibrary={handleImportLibrary}
               />
@@ -273,7 +313,8 @@ export default function App() {
             {({ navigation, route }) => (
               <FlowScreen
                 setlistName={route.params.setlistName}
-                songs={route.params.songs}
+                setlistDetails={route.params.setlistDetails}
+                items={route.params.items}
                 onGoToDashboard={() => navigation.popToTop()}
                 onFontSizeChange={handleSongFontSizeChange}
               />
@@ -294,18 +335,30 @@ export default function App() {
                   )
                 }
                 onPlay={(song) => {
-                  const storedSongs = setlists.find(
+                  const storedSetlist = setlists.find(
                     (setlist) => setlist.id === route.params.setlistId,
-                  )?.songs;
-                  const storedSongIndex = storedSongs?.findIndex(
-                    (storedSong) => storedSong.id === song.id,
                   );
-                  const songs =
-                    storedSongs && storedSongIndex !== undefined && storedSongIndex >= 0
-                    ? storedSongs.map((storedSong) => (storedSong.id === song.id ? song : storedSong))
-                    : [song];
-                  const index = songs.findIndex((setlistSong) => setlistSong.id === song.id);
-                  navigation.navigate('Performance', { songs, index });
+                  const storedItems = storedSetlist?.items;
+                  const storedSongIndex = storedItems?.findIndex(
+                    (item) => item.kind === 'song' && item.song.id === song.id,
+                  );
+                  const items =
+                    storedItems && storedSongIndex !== undefined && storedSongIndex >= 0
+                      ? storedItems.map((item) =>
+                          item.kind === 'song' && item.song.id === song.id
+                            ? { kind: 'song' as const, song }
+                            : item,
+                        )
+                      : [{ kind: 'song' as const, song }];
+                  const index = items.findIndex(
+                    (item) => item.kind === 'song' && item.song.id === song.id,
+                  );
+                  navigation.navigate('Performance', {
+                    items,
+                    index,
+                    setlistName: storedSetlist?.name,
+                    setlistDetails: formatSetlistDetails(storedSetlist),
+                  });
                 }}
               />
             )}
@@ -319,8 +372,10 @@ export default function App() {
           >
             {({ navigation, route }) => (
               <LivePerformanceScreen
-                songs={route.params.songs}
+                items={route.params.items}
                 index={route.params.index}
+                setlistName={route.params.setlistName}
+                setlistDetails={route.params.setlistDetails}
                 onGoToDashboard={() => navigation.popToTop()}
                 onIndexChange={(index) => navigation.setParams({ index })}
                 onFontSizeChange={handleSongFontSizeChange}
