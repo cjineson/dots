@@ -29,6 +29,7 @@ jobs:
       - name: Publish to Expo
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          CI: '1'
         run: |
           npx expo-cli --version
-          CI=1 npx expo publish --non-interactive --platform all
+          CI=1 npx expo publish --platform all
