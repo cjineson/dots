@@ -27,15 +27,6 @@
     },
     "plugins": [
       "expo-sharing",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/branding/gigbox-splash.png",
-          "imageWidth": 320,
-          "resizeMode": "contain",
-          "backgroundColor": "#000000"
-        }
-      ],
       "expo-font"
     ]
   }
