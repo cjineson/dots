@@ -37,6 +37,7 @@ import {
   updateSongFontSize,
 } from './src/lib/db';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
+import { decodeUtf8 } from './src/lib/utf8';
 import { theme } from './src/theme';
 import type { Song, SetlistWithSongs } from './src/types';
 
@@ -167,7 +168,7 @@ export default function App() {
         return;
       }
 
-      const json = await new File(result.assets[0].uri).text();
+      const json = decodeUtf8(await new File(result.assets[0].uri).bytes());
       const importedSetlists = parseSetlistArchive(json);
       importSetlists(importedSetlists);
       refreshSetlists();
