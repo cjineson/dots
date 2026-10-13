@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, SafeAreaView, StyleSheet } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, StyleSheet } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -200,8 +200,23 @@ export default function App() {
           </Stack.Screen>
           <Stack.Screen
             name="Performance"
-            options={({ route }) => ({
+            options={({ navigation, route }) => ({
               title: route.params.songs[route.params.index]?.title ?? 'Performance',
+              headerLeft: () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Go to Dashboard"
+                  onPress={() => navigation.popToTop()}
+                  hitSlop={8}
+                >
+                  <Image
+                    source={require('./assets/branding/gigbox-logo.png')}
+                    style={styles.headerLogo}
+                    resizeMode="contain"
+                    accessibilityLabel="GigBox"
+                  />
+                </Pressable>
+              ),
             })}
           >
             {({ navigation, route }) => (
@@ -228,5 +243,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerLogo: {
+    width: 76,
+    height: 26,
   },
 });

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Button,
   Image,
@@ -51,14 +52,6 @@ export default function DashboardScreen({
           accessibilityLabel="GigBox"
         />
         <Text style={styles.subtitle}>Your entire setlist, just the cues you need.</Text>
-        <View style={styles.libraryActions}>
-          <Pressable style={styles.libraryAction} onPress={onExportLibrary}>
-            <Text style={styles.actionText}>Export JSON</Text>
-          </Pressable>
-          <Pressable style={styles.libraryAction} onPress={onImportLibrary}>
-            <Text style={styles.actionText}>Import JSON</Text>
-          </Pressable>
-        </View>
       </View>
 
       <View style={styles.createRow}>
@@ -77,7 +70,7 @@ export default function DashboardScreen({
         }} />
       </View>
 
-      <NestableScrollContainer contentContainerStyle={styles.list}>
+      <NestableScrollContainer style={styles.scroll} contentContainerStyle={styles.list}>
         {setlists.length === 0 ? (
           <Text style={styles.emptyState}>No setlists yet. Create one to begin.</Text>
         ) : (
@@ -131,6 +124,33 @@ export default function DashboardScreen({
           ))
         )}
       </NestableScrollContainer>
+
+      <View style={styles.bottomBar}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Export setlists as JSON"
+          style={styles.bottomBarButton}
+          onPress={onExportLibrary}
+        >
+          <MaterialCommunityIcons
+            name="file-export"
+            size={24}
+            color={theme.colors.text_primary}
+          />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Import setlists from JSON"
+          style={styles.bottomBarButton}
+          onPress={onImportLibrary}
+        >
+          <MaterialCommunityIcons
+            name="file-import"
+            size={24}
+            color={theme.colors.text_primary}
+          />
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
@@ -144,6 +164,9 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 14,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border_contrast,
   },
   logo: {
     width: 112,
@@ -153,18 +176,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text_secondary,
     fontSize: 14,
     marginTop: 4,
-  },
-  libraryActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  libraryAction: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border_contrast,
   },
   createRow: {
     flexDirection: 'row',
@@ -185,6 +196,27 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: 24,
     gap: 14,
+  },
+  scroll: {
+    flex: 1,
+  },
+  bottomBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    minHeight: 64,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border_contrast,
+  },
+  bottomBarButton: {
+    width: 56,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 10,
   },
   card: {
     backgroundColor: theme.colors.surface,

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   LayoutChangeEvent,
   PanResponder,
@@ -97,7 +98,16 @@ export default function LivePerformanceScreen({
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.controls}>
+      <View style={styles.boxGestureArea} {...swipeResponder.panHandlers}>
+        <View
+          onLayout={handleBoxLayout}
+          style={[styles.box, { backgroundColor: theme.colors.surface_card }]}
+        >
+          <Text style={[styles.boxText, { fontSize: displayedFontSize }]}>{song.notes_raw_text}</Text>
+        </View>
+      </View>
+
+      <View style={styles.bottomBar}>
         <Text style={styles.controlLabel}>Text size</Text>
         <Pressable
           accessibilityRole="button"
@@ -106,7 +116,11 @@ export default function LivePerformanceScreen({
           onPress={() => changeFontSize(-FONT_SIZE_STEP)}
           style={[styles.sizeButton, fontSize <= MIN_FONT_SIZE && styles.disabledButton]}
         >
-          <Text style={styles.sizeButtonText}>A−</Text>
+          <MaterialCommunityIcons
+            name="format-font-size-decrease"
+            size={24}
+            color={theme.colors.text_primary}
+          />
         </Pressable>
         <Text style={styles.sizeValue}>{fontSize}</Text>
         <Pressable
@@ -116,17 +130,12 @@ export default function LivePerformanceScreen({
           onPress={() => changeFontSize(FONT_SIZE_STEP)}
           style={[styles.sizeButton, fontSize >= MAX_FONT_SIZE && styles.disabledButton]}
         >
-          <Text style={styles.sizeButtonText}>A+</Text>
+          <MaterialCommunityIcons
+            name="format-font-size-increase"
+            size={24}
+            color={theme.colors.text_primary}
+          />
         </Pressable>
-      </View>
-
-      <View style={styles.boxGestureArea} {...swipeResponder.panHandlers}>
-        <View
-          onLayout={handleBoxLayout}
-          style={[styles.box, { backgroundColor: theme.colors.surface_card }]}
-        >
-          <Text style={[styles.boxText, { fontSize: displayedFontSize }]}>{song.notes_raw_text}</Text>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -139,13 +148,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
-  controls: {
-    minHeight: 56,
+  bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginBottom: 12,
+    justifyContent: 'center',
+    gap: 16,
+    minHeight: 64,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border_contrast,
   },
   boxGestureArea: {
     flex: 1,
@@ -153,7 +164,6 @@ const styles = StyleSheet.create({
   controlLabel: {
     color: theme.colors.text_secondary,
     fontSize: 14,
-    marginRight: 4,
   },
   sizeButton: {
     minWidth: 48,
@@ -163,11 +173,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border_contrast,
     borderRadius: 10,
-  },
-  sizeButtonText: {
-    color: theme.colors.text_primary,
-    fontSize: 16,
-    fontWeight: '600',
   },
   disabledButton: {
     opacity: 0.4,
