@@ -54,6 +54,7 @@ export default function SongEditorScreen({
       title: title.trim() || 'Untitled Song',
       notes_raw_text: flattenCueDocument(document),
       cue_document: serializeCueDocument(document),
+      font_size: initialSong?.font_size ?? theme.typography.box_text_size,
     }),
     [document, title, initialSong],
   );
@@ -143,6 +144,42 @@ export default function SongEditorScreen({
             ),
           }
         : current,
+    );
+  };
+
+  const renderPreviewBlock = (block: CueBlock) => {
+    const textColor = block.color ?? theme.colors.text_primary;
+    const fontSize = block.font_size ?? theme.typography.box_text_size;
+    if (block.type === 'table') {
+      return (
+        <View key={block.id} style={styles.previewTable}>
+          {block.rows.map((row, rowIndex) => (
+            <View key={`${block.id}-preview-row-${rowIndex}`} style={styles.previewTableRow}>
+              {row.map((cell, columnIndex) => (
+                <Text
+                  key={`${block.id}-preview-cell-${rowIndex}-${columnIndex}`}
+                  style={[styles.previewTableCell, { color: textColor, fontSize }]}
+                >
+                  {cell}
+                </Text>
+              ))}
+            </View>
+          ))}
+        </View>
+      );
+    }
+
+    return (
+      <Text
+        key={block.id}
+        style={[
+          styles.previewText,
+          block.type === 'section' && styles.previewSection,
+          { color: textColor, fontSize },
+        ]}
+      >
+        {block.text || (block.type === 'section' ? 'Section title' : 'Cue text')}
+      </Text>
     );
   };
 
@@ -276,6 +313,15 @@ export default function SongEditorScreen({
           <Pressable onPress={addTable} style={styles.addBlockButton}>
             <Text style={styles.addBlockText}>+ Table</Text>
           </Pressable>
+        </View>
+
+        <Text style={styles.label}>Cue preview</Text>
+        <View style={styles.cuePreview}>
+          {document.blocks.length > 0 ? (
+            document.blocks.map(renderPreviewBlock)
+          ) : (
+            <Text style={styles.helperText}>Add a section, cue, or table to preview it.</Text>
+          )}
         </View>
 
         <View style={styles.actions}>
@@ -444,6 +490,39 @@ const styles = StyleSheet.create({
   addBlockText: {
     color: theme.colors.text_primary,
     fontWeight: '600',
+  },
+  cuePreview: {
+    backgroundColor: theme.colors.surface_card,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    gap: 8,
+  },
+  previewText: {
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  previewSection: {
+    fontWeight: '700',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border_contrast,
+    paddingBottom: 4,
+  },
+  previewTable: {
+    width: '100%',
+    marginVertical: 4,
+  },
+  previewTableRow: {
+    flexDirection: 'row',
+  },
+  previewTableCell: {
+    flex: 1,
+    textAlign: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    padding: 6,
   },
   actions: {
     flexDirection: 'row',

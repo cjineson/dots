@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, SafeAreaView, StyleSheet } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -9,13 +10,16 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import DashboardScreen from './src/screens/DashboardScreen';
+import FlowScreen from './src/screens/FlowScreen';
 import LivePerformanceScreen from './src/screens/LivePerformanceScreen';
 import SongEditorScreen from './src/screens/SongEditorScreen';
 import {
   createSetlist,
+  deleteSetlist,
   getSetlistsWithSongs,
   importSetlists,
   initializeDatabase,
+  renameSetlist,
   reorderSongsForSetlist,
   saveSongForSetlist,
   updateSongFontSize,
@@ -28,9 +32,17 @@ type RootStackParamList = {
   Dashboard: undefined;
   Editor: { setlistId: string; song?: Song };
   Performance: { songs: Song[]; index: number };
+  Flow: { setlistName: string; songs: Song[] };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const MINIMUM_SPLASH_DURATION_MS = 2000;
+const appStartedAt = Date.now();
+
+void SplashScreen.preventAutoHideAsync().catch((error: unknown) => {
+  console.error('Failed to keep the splash screen visible during startup.', error);
+});
 
 export default function App() {
   const [setlists, setSetlists] = useState<SetlistWithSongs[]>([]);
@@ -43,8 +55,22 @@ export default function App() {
   useEffect(() => {
     initializeDatabase();
     refreshSetlists();
-    setIsReady(true);
+
+    const remainingSplashTime = Math.max(
+      0,
+      MINIMUM_SPLASH_DURATION_MS - (Date.now() - appStartedAt),
+    );
+    const timeout = setTimeout(() => setIsReady(true), remainingSplashTime);
+    return () => clearTimeout(timeout);
   }, []);
+
+  useEffect(() => {
+    if (isReady) {
+      void SplashScreen.hideAsync().catch((error: unknown) => {
+        console.error('Failed to hide the splash screen after startup.', error);
+      });
+    }
+  }, [isReady]);
 
   const handleSaveSong = (
     setlistId: string,
@@ -70,6 +96,16 @@ export default function App() {
 
   const handleReorderSongs = (setlistId: string, songs: Song[]) => {
     reorderSongsForSetlist(setlistId, songs);
+    refreshSetlists();
+  };
+
+  const handleRenameSetlist = (setlistId: string, name: string) => {
+    renameSetlist(setlistId, name);
+    refreshSetlists();
+  };
+
+  const handleDeleteSetlist = (setlistId: string) => {
+    deleteSetlist(setlistId);
     refreshSetlists();
   };
 
@@ -162,6 +198,14 @@ export default function App() {
                   createSetlist('New Setlist');
                   refreshSetlists();
                 }}
+                onRenameSetlist={handleRenameSetlist}
+                onDeleteSetlist={handleDeleteSetlist}
+                onOpenFlow={(setlist) =>
+                  navigation.navigate('Flow', {
+                    setlistName: setlist.name,
+                    songs: setlist.songs,
+                  })
+                }
                 onOpenSongForEdit={(setlistId, song) =>
                   navigation.navigate('Editor', { setlistId, song })
                 }
@@ -172,6 +216,22 @@ export default function App() {
                 onReorderSongs={handleReorderSongs}
                 onExportLibrary={handleExportLibrary}
                 onImportLibrary={handleImportLibrary}
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen
+            name="Flow"
+            options={{
+              headerShown: false,
+              gestureEnabled: false,
+            }}
+          >
+            {({ navigation, route }) => (
+              <FlowScreen
+                setlistName={route.params.setlistName}
+                songs={route.params.songs}
+                onGoToDashboard={() => navigation.popToTop()}
+                onFontSizeChange={handleSongFontSizeChange}
               />
             )}
           </Stack.Screen>

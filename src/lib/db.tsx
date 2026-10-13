@@ -54,6 +54,28 @@ export function createSetlist(name: string): Setlist {
   };
 }
 
+export function renameSetlist(setlistId: string, name: string): void {
+  const cleanedName = name.trim();
+  if (!cleanedName) {
+    throw new Error('Setlist name cannot be empty.');
+  }
+
+  db.runSync('UPDATE setlists SET name = ? WHERE id = ?', [cleanedName, setlistId]);
+}
+
+export function deleteSetlist(setlistId: string): void {
+  db.withTransactionSync(() => {
+    db.runSync('DELETE FROM setlist_songs WHERE setlist_id = ?', [setlistId]);
+    db.runSync('DELETE FROM setlists WHERE id = ?', [setlistId]);
+    db.runSync(
+      `DELETE FROM songs
+       WHERE NOT EXISTS (
+         SELECT 1 FROM setlist_songs WHERE setlist_songs.song_id = songs.id
+       )`,
+    );
+  });
+}
+
 export function getSetlistsWithSongs(): SetlistWithSongs[] {
   const setlists = db.getAllSync('SELECT * FROM setlists ORDER BY order_index ASC, name ASC') as Setlist[];
 

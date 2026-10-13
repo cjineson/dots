@@ -8,6 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "convert:notes": "tsx scripts/convert-notes.ts",
     "test": "tsx --test src/lib/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
