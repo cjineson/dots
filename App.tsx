@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, SafeAreaView, StyleSheet } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -32,6 +33,13 @@ type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const MINIMUM_SPLASH_DURATION_MS = 2000;
+const appStartedAt = Date.now();
+
+void SplashScreen.preventAutoHideAsync().catch((error: unknown) => {
+  console.error('Failed to keep the splash screen visible during startup.', error);
+});
+
 export default function App() {
   const [setlists, setSetlists] = useState<SetlistWithSongs[]>([]);
   const [isReady, setIsReady] = useState(false);
@@ -43,8 +51,22 @@ export default function App() {
   useEffect(() => {
     initializeDatabase();
     refreshSetlists();
-    setIsReady(true);
+
+    const remainingSplashTime = Math.max(
+      0,
+      MINIMUM_SPLASH_DURATION_MS - (Date.now() - appStartedAt),
+    );
+    const timeout = setTimeout(() => setIsReady(true), remainingSplashTime);
+    return () => clearTimeout(timeout);
   }, []);
+
+  useEffect(() => {
+    if (isReady) {
+      void SplashScreen.hideAsync().catch((error: unknown) => {
+        console.error('Failed to hide the splash screen after startup.', error);
+      });
+    }
+  }, [isReady]);
 
   const handleSaveSong = (
     setlistId: string,
