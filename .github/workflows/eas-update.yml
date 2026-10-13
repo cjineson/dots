@@ -16,7 +16,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install dependencies
         run: |
@@ -29,13 +29,26 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Login to Expo
+      - name: Login to Expo (using EXPO_TOKEN)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           eas whoami || eas login --token "$EXPO_TOKEN"
 
-      - name: EAS Update
+      - name: Link project (non-interactive)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+        run: |
+          # Link this repo to the Expo project (non-interactive)
+          eas init --id "$EAS_PROJECT_ID" --non-interactive || true
+          # Show eas.json/app.json to help debug
+          echo "eas.json:"
+          cat eas.json || true
+          echo "app.json expo block:"
+          node -e "try{console.log(require('./app.json').expo)}catch(e){console.log('no app.json or parse error')}" || true
+
+      - name: EAS Update (create OTA update)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           CI: '1'
