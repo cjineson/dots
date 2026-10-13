@@ -5,7 +5,6 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
-  View,
 } from 'react-native';
 
 import { parseBoxes } from '../lib/parser';
@@ -14,10 +13,9 @@ import type { Song } from '../types';
 
 type LivePerformanceScreenProps = {
   song: Song;
-  onBack: () => void;
 };
 
-export default function LivePerformanceScreen({ song, onBack }: LivePerformanceScreenProps) {
+export default function LivePerformanceScreen({ song }: LivePerformanceScreenProps) {
   const [activeIndexes, setActiveIndexes] = useState<number[]>([]);
   const boxes = parseBoxes(song.notes_raw_text);
 
@@ -31,13 +29,6 @@ export default function LivePerformanceScreen({ song, onBack }: LivePerformanceS
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{song.title}</Text>
-        <Pressable onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
-      </View>
-
       <FlatList
         data={boxes}
         numColumns={2}
@@ -71,28 +62,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     paddingHorizontal: 12,
     paddingTop: 18,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  title: {
-    color: theme.colors.text_primary,
-    fontSize: theme.typography.headline_size,
-    fontWeight: theme.typography.font_weight_bold,
-    flex: 1,
-  },
-  backButton: {
-    borderWidth: 1,
-    borderColor: theme.colors.border_contrast,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  backText: {
-    color: theme.colors.text_primary,
   },
   list: {
     paddingBottom: 24,

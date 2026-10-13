@@ -1,21 +1,26 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, StyleSheet } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import DashboardScreen from './src/screens/DashboardScreen';
 import LivePerformanceScreen from './src/screens/LivePerformanceScreen';
 import SongEditorScreen from './src/screens/SongEditorScreen';
 import { createSetlist, getSetlistsWithSongs, initializeDatabase, saveSongForSetlist } from './src/lib/db';
 import { theme } from './src/theme';
-import type { SetlistWithSongs, Song } from './src/types';
+import type { Song, SetlistWithSongs } from './src/types';
 
-type Screen = 'dashboard' | 'editor' | 'performance';
+type RootStackParamList = {
+  Dashboard: undefined;
+  Editor: { setlistId: string; song?: Song };
+  Performance: { song: Song };
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('dashboard');
   const [setlists, setSetlists] = useState<SetlistWithSongs[]>([]);
-  const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(null);
-  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   const refreshSetlists = () => {
@@ -28,46 +33,21 @@ export default function App() {
     setIsReady(true);
   }, []);
 
-  const openDashboard = () => {
-    setSelectedSetlistId(null);
-    setSelectedSong(null);
-    setScreen('dashboard');
-    refreshSetlists();
-  };
-
-  const openSongEditor = (setlistId: string, song?: Song | null) => {
-    setSelectedSetlistId(setlistId);
-    setSelectedSong(song ?? null);
-    setScreen('editor');
-  };
-
-  const openPerformance = (song: Song) => {
-    setSelectedSong(song);
-    setScreen('performance');
-  };
-
-  const handleCreateSetlist = (name: string) => {
-    const createdSetlist = createSetlist(name);
-    setSelectedSetlistId(createdSetlist.id);
-    refreshSetlists();
-    setScreen('editor');
-  };
-
-  const handleSaveSong = ({ title, notesRawText }: { title: string; notesRawText: string }) => {
-    if (!selectedSetlistId) {
-      return;
-    }
-
+  const handleSaveSong = (
+    setlistId: string,
+    existingSong: Song | undefined,
+    { title, notesRawText }: { title: string; notesRawText: string },
+    onSaved: () => void,
+  ) => {
     const savedSong = saveSongForSetlist({
-      setlistId: selectedSetlistId,
-      songId: selectedSong?.id,
+      setlistId,
+      songId: existingSong?.id,
       title,
       notes_raw_text: notesRawText,
     });
 
-    setSelectedSong(savedSong);
     refreshSetlists();
-    setScreen('dashboard');
+    onSaved();
   };
 
   if (!isReady) {
@@ -79,32 +59,60 @@ export default function App() {
   }
 
   return (
-    <>
+    <NavigationContainer>
       <StatusBar style="light" />
-      {screen === 'dashboard' && (
-        <DashboardScreen
-          setlists={setlists}
-          onCreateSetlist={handleCreateSetlist}
-          onOpenSongForEdit={openSongEditor}
-          onOpenPerformance={openPerformance}
-          onOpenNewSong={(setlistId) => openSongEditor(setlistId, null)}
-        />
-      )}
-
-      {screen === 'editor' && selectedSetlistId && (
-        <SongEditorScreen
-          setlistId={selectedSetlistId}
-          initialSong={selectedSong ?? undefined}
-          onCancel={openDashboard}
-          onSave={handleSaveSong}
-          onPlay={openPerformance}
-        />
-      )}
-
-      {screen === 'performance' && selectedSong && (
-        <LivePerformanceScreen song={selectedSong} onBack={openDashboard} />
-      )}
-    </>
+      <Stack.Navigator
+        screenOptions={{
+          contentStyle: { backgroundColor: theme.colors.background },
+          headerStyle: { backgroundColor: theme.colors.background },
+          headerTintColor: theme.colors.text_primary,
+          headerTitleStyle: { color: theme.colors.text_primary },
+          gestureEnabled: true,
+        }}
+      >
+        <Stack.Screen name="Dashboard" options={{ headerShown: false }}>
+          {({ navigation }) => (
+            <DashboardScreen
+              setlists={setlists}
+              onCreateSetlist={(name) => {
+                const createdSetlist = createSetlist(name);
+                refreshSetlists();
+                navigation.navigate('Editor', { setlistId: createdSetlist.id });
+              }}
+              onOpenSongForEdit={(setlistId, song) =>
+                navigation.navigate('Editor', { setlistId, song })
+              }
+              onOpenPerformance={(song) => navigation.navigate('Performance', { song })}
+              onOpenNewSong={(setlistId) => navigation.navigate('Editor', { setlistId })}
+            />
+          )}
+        </Stack.Screen>
+        <Stack.Screen
+          name="Editor"
+          options={({ route }) => ({ title: route.params.song ? 'Edit Song' : 'New Song' })}
+        >
+          {({ navigation, route }) => (
+            <SongEditorScreen
+              setlistId={route.params.setlistId}
+              initialSong={route.params.song}
+              onCancel={() => navigation.goBack()}
+              onSave={(payload) =>
+                handleSaveSong(route.params.setlistId, route.params.song, payload, () =>
+                  navigation.popToTop(),
+                )
+              }
+              onPlay={(song) => navigation.navigate('Performance', { song })}
+            />
+          )}
+        </Stack.Screen>
+        <Stack.Screen
+          name="Performance"
+          options={({ route }) => ({ title: route.params.song.title })}
+        >
+          {({ route }) => <LivePerformanceScreen song={route.params.song} />}
+        </Stack.Screen>
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
