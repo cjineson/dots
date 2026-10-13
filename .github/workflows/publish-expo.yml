@@ -31,4 +31,4 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           npx expo-cli --version
-          npx expo publish --non-interactive --platform all
+          CI=1 npx expo publish --non-interactive --platform all
