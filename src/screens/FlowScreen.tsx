@@ -16,11 +16,12 @@ import {
   parseCueDocument,
 } from '../lib/cueDocument';
 import { theme } from '../theme';
-import type { CueBlock, Song } from '../types';
+import type { CueBlock, SetlistItem, Song } from '../types';
 
 type FlowScreenProps = {
   setlistName: string;
-  songs: Song[];
+  setlistDetails?: string;
+  items: SetlistItem[];
   onGoToDashboard: () => void;
   onFontSizeChange: (songId: string, fontSize: number) => void;
 };
@@ -31,21 +32,23 @@ const FONT_SIZE_STEP = 2;
 
 export default function FlowScreen({
   setlistName,
-  songs,
+  setlistDetails,
+  items,
   onGoToDashboard,
   onFontSizeChange,
 }: FlowScreenProps) {
   const [fontSizeBySong, setFontSizeBySong] = useState<Record<string, number>>(() =>
     Object.fromEntries(
-      songs.map((song) => [
-        song.id,
-        song.font_size ?? theme.typography.box_text_size,
-      ]),
+      items.flatMap((item) => item.kind === 'song' ? [[
+        item.song.id,
+        item.song.font_size ?? theme.typography.box_text_size,
+      ]] : []),
     ),
   );
 
   const songFontSize = (song: Song) =>
     fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size;
+  const songs = items.flatMap((item) => item.kind === 'song' ? [item.song] : []);
   const canZoomIn = songs.some((song) => songFontSize(song) < MAX_FONT_SIZE);
   const canZoomOut = songs.some((song) => songFontSize(song) > MIN_FONT_SIZE);
 
@@ -100,6 +103,7 @@ export default function FlowScreen({
     );
   };
 
+  let songNumber = 0;
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
@@ -117,9 +121,16 @@ export default function FlowScreen({
             accessibilityLabel="GigBox"
           />
         </Pressable>
-        <Text numberOfLines={1} style={styles.setlistTitle}>
-          {setlistName}
-        </Text>
+        <View style={styles.setlistHeading}>
+          <Text numberOfLines={1} style={styles.setlistTitle}>
+            {setlistName}
+          </Text>
+          {setlistDetails && (
+            <Text numberOfLines={1} style={styles.setlistDetails}>
+              {setlistDetails}
+            </Text>
+          )}
+        </View>
         <View style={styles.zoomControls}>
           <Pressable
             accessibilityRole="button"
@@ -151,7 +162,22 @@ export default function FlowScreen({
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {songs.map((song, songIndex) => {
+        {items.map((item) => {
+          if (item.kind === 'break') {
+            return (
+              <View key={`break-${item.id}`} style={styles.break}>
+                <View style={styles.breakRule} />
+                <Text style={styles.breakTitle}>BREAK</Text>
+                {item.duration_minutes !== undefined && (
+                  <Text style={styles.breakDuration}>{item.duration_minutes} minutes</Text>
+                )}
+                <View style={styles.breakRule} />
+              </View>
+            );
+          }
+
+          const song = item.song;
+          songNumber += 1;
           const cueDocument = song.cue_document
             ? parseCueDocument(song.cue_document)
             : createCueDocumentFromText(song.notes_raw_text);
@@ -161,7 +187,7 @@ export default function FlowScreen({
           return (
             <View key={song.id} style={styles.song}>
               <Text style={styles.songTitle}>
-                {songIndex + 1}. {song.title}
+                {songNumber}. {song.title}
               </Text>
               <View style={styles.cueContent}>
                 {cueBlocks.map((block) =>
@@ -204,10 +230,17 @@ const styles = StyleSheet.create({
     height: 24,
   },
   setlistTitle: {
-    flex: 1,
     color: theme.colors.text_primary,
     fontSize: 18,
     fontWeight: theme.typography.font_weight_bold,
+  },
+  setlistHeading: {
+    flex: 1,
+    minWidth: 0,
+  },
+  setlistDetails: {
+    color: theme.colors.text_secondary,
+    fontSize: 12,
   },
   zoomControls: {
     flexDirection: 'row',
@@ -233,6 +266,32 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: theme.layout.box_padding,
     marginBottom: 14,
+  },
+  break: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginVertical: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surface,
+  },
+  breakRule: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.border_contrast,
+  },
+  breakTitle: {
+    color: theme.colors.accent_highlight,
+    fontSize: 16,
+    fontWeight: theme.typography.font_weight_bold,
+  },
+  breakDuration: {
+    color: theme.colors.text_secondary,
+    fontSize: 14,
   },
   songTitle: {
     color: theme.colors.accent_highlight,

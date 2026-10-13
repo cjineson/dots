@@ -33,11 +33,11 @@ test('converts multiple Markdown setlists and multiline cue table cells', () => 
   const archive = convertNotesMarkdown(markdown);
 
   assert.equal(archive.format, 'gigbox-setlists');
-  assert.equal(archive.version, 2);
+  assert.equal(archive.version, 4);
   assert.deepEqual(
-    parseSetlistArchive(JSON.stringify(archive)).map(({ name, songs }) => [
+    parseSetlistArchive(JSON.stringify(archive)).map(({ name, items }) => [
       name,
-      songs.map((song) => song.title),
+      items.flatMap((item) => item.type === 'song' ? [item.title] : []),
     ]),
     [
       ['Friday set', ['First song', 'Second song']],
@@ -45,28 +45,35 @@ test('converts multiple Markdown setlists and multiline cue table cells', () => 
     ],
   );
   assert.deepEqual(
-    archive.setlists.map(({ name, songs }) => [name, songs.map((song) => song.title)]),
+    archive.setlists.map(({ name, items }) => [
+      name,
+      items.flatMap((item) => item.type === 'song' ? [item.title] : []),
+    ]),
     [
       ['Friday set', ['First song', 'Second song']],
       ['Saturday set', ['Third song']],
     ],
   );
 
-  const firstCueDocument = parseCueDocument(
-    JSON.stringify(archive.setlists[0].songs[0].cue_document),
-  );
+  const firstSong = archive.setlists[0].items[0];
+  assert.equal(firstSong.type, 'song');
+  const firstCueDocument = parseCueDocument(JSON.stringify(
+    firstSong.type === 'song' ? firstSong.cue_document : undefined,
+  ));
   assert.deepEqual(
     firstCueDocument.blocks.map((block) => block.type === 'table' ? '' : block.text),
     ['Key / capo', 'E\nCapo 2', 'Chords', 'Am\nG\nC', 'Lyrics / cues', 'Count in\nHold the last chord'],
   );
   assert.equal(
-    archive.setlists[0].songs[0].notes_raw_text,
+    firstSong.type === 'song' ? firstSong.notes_raw_text : '',
     'Key / capo\nE\nCapo 2\nChords\nAm\nG\nC\nLyrics / cues\nCount in\nHold the last chord',
   );
 
-  const headerCueDocument = parseCueDocument(
-    JSON.stringify(archive.setlists[1].songs[0].cue_document),
-  );
+  const headerSong = archive.setlists[1].items[0];
+  assert.equal(headerSong.type, 'song');
+  const headerCueDocument = parseCueDocument(JSON.stringify(
+    headerSong.type === 'song' ? headerSong.cue_document : undefined,
+  ));
   assert.deepEqual(
     headerCueDocument.blocks.map((block) => block.type === 'table' ? '' : block.text),
     ['Key / capo', 'G', 'Chords', 'G\nC', 'Lyrics / cues', 'Start here'],
@@ -96,7 +103,7 @@ Am |
 `);
 
   assert.deepEqual(
-    archive.setlists[0].songs.map((song) => song.title),
+    archive.setlists[0].items.flatMap((item) => item.type === 'song' ? [item.title] : []),
     ['Song name'],
   );
 });

@@ -65,7 +65,10 @@ function main(): void {
   const archive = convertNotesMarkdown(readMarkdownFile(resolvedInputPath));
   writeFileSync(resolvedOutputPath, `${JSON.stringify(archive, null, 2)}\n`, { flag: 'wx' });
 
-  const songCount = archive.setlists.reduce((total, setlist) => total + setlist.songs.length, 0);
+  const songCount = archive.setlists.reduce(
+    (total, setlist) => total + setlist.items.filter((item) => item.type === 'song').length,
+    0,
+  );
   console.log(
     `Converted ${songCount} songs across ${archive.setlists.length} setlists to ${resolvedOutputPath}`,
   );

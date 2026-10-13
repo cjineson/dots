@@ -3,9 +3,10 @@ import { flattenCueDocument } from './cueDocument';
 import { makeId } from './uuid';
 
 type ImportedSetlist = SetlistArchive['setlists'][number];
+type ImportedSong = Extract<ImportedSetlist['items'][number], { type: 'song' }>;
 type MutableSetlist = {
   name: string;
-  songs: ImportedSetlist['songs'];
+  songs: ImportedSong[];
   headers?: string[];
 };
 
@@ -140,6 +141,7 @@ function appendSong(setlist: MutableSetlist, cells: string[]): void {
 
   const cueDocument = createCueDocument(blocks);
   setlist.songs.push({
+    type: 'song',
     title,
     notes_raw_text: flattenCueDocument(cueDocument),
     cue_document: cueDocument,
@@ -231,8 +233,8 @@ export function convertNotesMarkdown(markdown: string): SetlistArchive {
 
   return {
     format: 'gigbox-setlists',
-    version: 2,
+    version: 4,
     exportedAt: new Date().toISOString(),
-    setlists: populatedSetlists.map(({ name, songs }) => ({ name, songs })),
+    setlists: populatedSetlists.map(({ name, songs }) => ({ name, items: songs })),
   };
 }

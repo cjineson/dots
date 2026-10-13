@@ -8,7 +8,7 @@ Read the section relevant to the current task rather than treating this as a sec
 - `src/lib/db.tsx` owns synchronous SQLite persistence and schema migrations.
 - `src/types.ts` defines shared models.
 - `src/lib/cueDocument.ts` validates and serializes structured cue blocks. Songs retain `notes_raw_text` for legacy/plain-text compatibility; structured content is stored in `cue_document`.
-- `src/lib/setlistArchive.ts` handles JSON import/export. Exports use archive version 2; imports must continue to accept version 1.
+- `src/lib/setlistArchive.ts` handles JSON import/export. Exports use archive version 4; imports must continue to accept versions 1 through 3.
 - `src/theme.ts` owns shared colors and layout tokens. Pure logic tests are colocated as `*.test.ts`.
 
 ## Implementation conventions

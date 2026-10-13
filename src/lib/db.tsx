@@ -1,7 +1,13 @@
 import * as SQLite from 'expo-sqlite';
 
 import { makeId } from './uuid';
-import type { Setlist, SetlistArchive, SetlistWithSongs, Song } from '../types';
+import type {
+  ImportedSetlist,
+  Setlist,
+  SetlistItem,
+  SetlistWithSongs,
+  Song,
+} from '../types';
 
 const db = SQLite.openDatabaseSync('gigbox.db');
 
@@ -29,6 +35,14 @@ export function initializeDatabase(): void {
       FOREIGN KEY (setlist_id) REFERENCES setlists(id),
       FOREIGN KEY (song_id) REFERENCES songs(id)
     );
+
+    CREATE TABLE IF NOT EXISTS setlist_breaks (
+      id TEXT PRIMARY KEY,
+      setlist_id TEXT NOT NULL,
+      sort_order INTEGER NOT NULL,
+      duration_minutes INTEGER,
+      FOREIGN KEY (setlist_id) REFERENCES setlists(id)
+    );
   `);
 
   const songColumns = db.getAllSync<{ name: string }>('PRAGMA table_info(songs)');
@@ -38,6 +52,12 @@ export function initializeDatabase(): void {
   if (!songColumns.some((column) => column.name === 'cue_document')) {
     db.execSync('ALTER TABLE songs ADD COLUMN cue_document TEXT');
   }
+  const setlistColumns = db.getAllSync<{ name: string }>('PRAGMA table_info(setlists)');
+  for (const column of ['location', 'date', 'time']) {
+    if (!setlistColumns.some((existing) => existing.name === column)) {
+      db.execSync(`ALTER TABLE setlists ADD COLUMN ${column} TEXT`);
+    }
+  }
 }
 
 export function createSetlist(name: string): Setlist {
@@ -45,7 +65,10 @@ export function createSetlist(name: string): Setlist {
   const id = makeId();
   const orderIndex = getNextSetlistOrderIndex();
 
-  db.runSync('INSERT INTO setlists (id, name, order_index) VALUES (?, ?, ?)', [id, cleanedName, orderIndex]);
+  db.runSync(
+    'INSERT INTO setlists (id, name, order_index) VALUES (?, ?, ?)',
+    [id, cleanedName, orderIndex],
+  );
 
   return {
     id,
@@ -54,18 +77,32 @@ export function createSetlist(name: string): Setlist {
   };
 }
 
-export function renameSetlist(setlistId: string, name: string): void {
+export function renameSetlist(
+  setlistId: string,
+  name: string,
+  details: { location?: string; date?: string; time?: string } = {},
+): void {
   const cleanedName = name.trim();
   if (!cleanedName) {
     throw new Error('Setlist name cannot be empty.');
   }
 
-  db.runSync('UPDATE setlists SET name = ? WHERE id = ?', [cleanedName, setlistId]);
+  db.runSync(
+    'UPDATE setlists SET name = ?, location = ?, date = ?, time = ? WHERE id = ?',
+    [
+      cleanedName,
+      details.location?.trim() || null,
+      details.date?.trim() || null,
+      details.time?.trim() || null,
+      setlistId,
+    ],
+  );
 }
 
 export function deleteSetlist(setlistId: string): void {
   db.withTransactionSync(() => {
     db.runSync('DELETE FROM setlist_songs WHERE setlist_id = ?', [setlistId]);
+    db.runSync('DELETE FROM setlist_breaks WHERE setlist_id = ?', [setlistId]);
     db.runSync('DELETE FROM setlists WHERE id = ?', [setlistId]);
     db.runSync(
       `DELETE FROM songs
@@ -82,44 +119,49 @@ export function copySetlist(setlistId: string): Setlist {
     throw new Error('The setlist to copy could not be found.');
   }
 
+  const sourceSetlist = getSetlistsWithSongs().find((setlist) => setlist.id === setlistId);
+  if (!sourceSetlist) {
+    throw new Error('The setlist to copy could not be found.');
+  }
+
   const copy: Setlist = {
     id: makeId(),
     name: `Copy of ${source.name}`,
     order_index: getNextSetlistOrderIndex(),
+    location: source.location,
+    date: source.date,
+    time: source.time,
   };
 
   db.withTransactionSync(() => {
-    db.runSync('INSERT INTO setlists (id, name, order_index) VALUES (?, ?, ?)', [
-      copy.id,
-      copy.name,
-      copy.order_index,
-    ]);
+    db.runSync(
+      'INSERT INTO setlists (id, name, order_index, location, date, time) VALUES (?, ?, ?, ?, ?, ?)',
+      [copy.id, copy.name, copy.order_index, copy.location ?? null, copy.date ?? null, copy.time ?? null],
+    );
 
-    const songs = db.getAllSync(
-      `SELECT s.*
-       FROM songs s
-       INNER JOIN setlist_songs ss ON ss.song_id = s.id
-       WHERE ss.setlist_id = ?
-       ORDER BY ss.sort_order ASC, s.title ASC`,
-      [setlistId],
-    ) as Song[];
-
-    songs.forEach((song, index) => {
-      const songId = makeId();
-      db.runSync(
-        'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document) VALUES (?, ?, ?, ?, ?)',
-        [
-          songId,
-          song.title,
-          song.notes_raw_text,
-          song.font_size ?? 18,
-          song.cue_document ?? null,
-        ],
-      );
-      db.runSync(
-        'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
-        [copy.id, songId, index],
-      );
+    sourceSetlist.items.forEach((item, index) => {
+      if (item.kind === 'song') {
+        const songId = makeId();
+        db.runSync(
+          'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document) VALUES (?, ?, ?, ?, ?)',
+          [
+            songId,
+            item.song.title,
+            item.song.notes_raw_text,
+            item.song.font_size ?? 18,
+            item.song.cue_document ?? null,
+          ],
+        );
+        db.runSync(
+          'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+          [copy.id, songId, index],
+        );
+      } else {
+        db.runSync(
+          'INSERT INTO setlist_breaks (id, setlist_id, sort_order, duration_minutes) VALUES (?, ?, ?, ?)',
+          [makeId(), copy.id, index, item.duration_minutes ?? null],
+        );
+      }
     });
   });
 
@@ -168,20 +210,111 @@ export function getSetlistsWithSongs(): SetlistWithSongs[] {
   const setlists = db.getAllSync('SELECT * FROM setlists ORDER BY order_index ASC, name ASC') as Setlist[];
 
   return setlists.map((setlist) => {
-    const songs = db.getAllSync(
-      `SELECT s.*
+    const rows = db.getAllSync<{
+      kind: 'song' | 'break';
+      id: string;
+      sort_order: number;
+      title: string | null;
+      notes_raw_text: string | null;
+      font_size: number | null;
+      cue_document: string | null;
+      duration_minutes: number | null;
+    }>(
+      `SELECT 'song' AS kind, s.id, ss.sort_order, s.title, s.notes_raw_text,
+              s.font_size, s.cue_document, NULL AS duration_minutes
        FROM songs s
        INNER JOIN setlist_songs ss ON ss.song_id = s.id
        WHERE ss.setlist_id = ?
-       ORDER BY ss.sort_order ASC, s.title ASC`,
-      [setlist.id],
-    ) as Song[];
+       UNION ALL
+       SELECT 'break' AS kind, id, sort_order, NULL, NULL, NULL, NULL, duration_minutes
+       FROM setlist_breaks
+       WHERE setlist_id = ?
+       ORDER BY sort_order ASC`,
+      [setlist.id, setlist.id],
+    );
+    const items: SetlistItem[] = rows.map((row) => {
+      if (row.kind === 'break') {
+        return {
+          kind: 'break',
+          id: row.id,
+          ...(row.duration_minutes !== null
+            ? { duration_minutes: row.duration_minutes }
+            : {}),
+        };
+      }
+      if (row.title === null || row.notes_raw_text === null) {
+        throw new Error(`Song ${row.id} in setlist "${setlist.name}" is incomplete.`);
+      }
+      return {
+        kind: 'song',
+        song: {
+          id: row.id,
+          title: row.title,
+          notes_raw_text: row.notes_raw_text,
+          font_size: row.font_size ?? undefined,
+          cue_document: row.cue_document ?? undefined,
+        },
+      };
+    });
 
     return {
       ...setlist,
-      songs,
+      location: setlist.location ?? undefined,
+      date: setlist.date ?? undefined,
+      time: setlist.time ?? undefined,
+      songs: items.flatMap((item) => item.kind === 'song' ? [item.song] : []),
+      items,
     };
   });
+}
+
+export function createBreakForSetlist(
+  setlistId: string,
+  durationMinutes?: number,
+): void {
+  if (
+    durationMinutes !== undefined &&
+    (!Number.isSafeInteger(durationMinutes) || durationMinutes < 1)
+  ) {
+    throw new Error('Break duration must be a positive whole number of minutes.');
+  }
+  const setlist = db.getFirstSync('SELECT id FROM setlists WHERE id = ?', [setlistId]);
+  if (!setlist) {
+    throw new Error('The setlist to add a break to could not be found.');
+  }
+  db.runSync(
+    'INSERT INTO setlist_breaks (id, setlist_id, sort_order, duration_minutes) VALUES (?, ?, ?, ?)',
+    [
+      makeId(),
+      setlistId,
+      getNextSortOrderForSetlist(setlistId),
+      durationMinutes ?? null,
+    ],
+  );
+}
+
+export function deleteSongFromSetlist(setlistId: string, songId: string): void {
+  db.withTransactionSync(() => {
+    db.runSync('DELETE FROM setlist_songs WHERE setlist_id = ? AND song_id = ?', [
+      setlistId,
+      songId,
+    ]);
+    db.runSync(
+      `DELETE FROM songs
+       WHERE id = ?
+       AND NOT EXISTS (
+         SELECT 1 FROM setlist_songs WHERE setlist_songs.song_id = songs.id
+       )`,
+      [songId],
+    );
+  });
+}
+
+export function deleteBreakFromSetlist(setlistId: string, breakId: string): void {
+  db.runSync('DELETE FROM setlist_breaks WHERE setlist_id = ? AND id = ?', [
+    setlistId,
+    breakId,
+  ]);
 }
 
 export function getSongById(songId: string): Song | null {
@@ -236,45 +369,65 @@ export function saveSongForSetlist({
   };
 }
 
-export function reorderSongsForSetlist(setlistId: string, songs: Song[]): void {
+export function reorderItemsForSetlist(setlistId: string, items: SetlistItem[]): void {
   db.withTransactionSync(() => {
-    songs.forEach((song, index) => {
-      db.runSync(
-        'UPDATE setlist_songs SET sort_order = ? WHERE setlist_id = ? AND song_id = ?',
-        [index, setlistId, song.id],
-      );
+    items.forEach((item, index) => {
+      if (item.kind === 'song') {
+        db.runSync(
+          'UPDATE setlist_songs SET sort_order = ? WHERE setlist_id = ? AND song_id = ?',
+          [index, setlistId, item.song.id],
+        );
+      } else {
+        db.runSync(
+          'UPDATE setlist_breaks SET sort_order = ? WHERE setlist_id = ? AND id = ?',
+          [index, setlistId, item.id],
+        );
+      }
     });
   });
 }
 
-export function importSetlists(setlists: SetlistArchive['setlists']): void {
+export function importSetlists(setlists: ImportedSetlist[]): void {
   db.withTransactionSync(() => {
     let nextSetlistOrderIndex = getNextSetlistOrderIndex();
 
     for (const setlist of setlists) {
       const setlistId = makeId();
-      db.runSync('INSERT INTO setlists (id, name, order_index) VALUES (?, ?, ?)', [
-        setlistId,
-        setlist.name.trim(),
-        nextSetlistOrderIndex++,
-      ]);
+      db.runSync(
+        'INSERT INTO setlists (id, name, order_index, location, date, time) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+          setlistId,
+          setlist.name.trim(),
+          nextSetlistOrderIndex++,
+          setlist.location?.trim() || null,
+          setlist.date?.trim() || null,
+          setlist.time?.trim() || null,
+        ],
+      );
 
-      setlist.songs.forEach((song, index) => {
-        const songId = makeId();
-        db.runSync(
-          'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document) VALUES (?, ?, ?, ?, ?)',
-          [
-            songId,
-            song.title.trim() || 'Untitled Song',
-            song.notes_raw_text,
-            song.font_size ?? 18,
-            song.cue_document ? JSON.stringify(song.cue_document) : null,
-          ],
-        );
-        db.runSync(
-          'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
-          [setlistId, songId, index],
-        );
+      setlist.items.forEach((item, index) => {
+        if (item.type === 'song') {
+          const songId = makeId();
+          db.runSync(
+            'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document) VALUES (?, ?, ?, ?, ?)',
+            [
+              songId,
+              item.title.trim() || 'Untitled Song',
+              item.notes_raw_text,
+              item.font_size ?? 18,
+              item.cue_document ? JSON.stringify(item.cue_document) : null,
+            ],
+          );
+          db.runSync(
+            'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+            [setlistId, songId, index],
+          );
+        } else {
+          db.runSync(
+            'INSERT INTO setlist_breaks (id, setlist_id, sort_order, duration_minutes) VALUES (?, ?, ?, ?)',
+            [makeId(), setlistId, index, item.duration_minutes ?? null],
+          );
+        }
       });
     }
   });
@@ -291,8 +444,12 @@ function getNextSetlistOrderIndex(): number {
 
 function getNextSortOrderForSetlist(setlistId: string): number {
   const max = db.getFirstSync(
-    'SELECT MAX(sort_order) as maxOrder FROM setlist_songs WHERE setlist_id = ?',
-    [setlistId],
+    `SELECT MAX(sort_order) as maxOrder FROM (
+       SELECT sort_order FROM setlist_songs WHERE setlist_id = ?
+       UNION ALL
+       SELECT sort_order FROM setlist_breaks WHERE setlist_id = ?
+     )`,
+    [setlistId, setlistId],
   ) as { maxOrder: number | null } | null;
 
   return (max?.maxOrder ?? -1) + 1;
