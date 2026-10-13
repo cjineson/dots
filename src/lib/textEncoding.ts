@@ -53,7 +53,65 @@ function detectUtf16ByteOrder(bytes: Uint8Array): boolean | null {
   return null;
 }
 
+function findBytes(bytes: Uint8Array, value: string): number {
+  const marker = Array.from(value, (character) => character.charCodeAt(0));
+  for (let index = 0; index <= bytes.length - marker.length; index += 1) {
+    if (marker.every((byte, offset) => bytes[index + offset] === byte)) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function extractGigBoxJsonFromBinaryPlist(bytes: Uint8Array): string {
+  const markerIndex = findBytes(bytes, '"format"');
+  if (markerIndex < 0) {
+    throw new Error('This Apple binary property list does not contain a GigBox JSON archive.');
+  }
+
+  let start = markerIndex;
+  while (start >= 0 && bytes[start] !== 0x7b) start -= 1;
+  if (start < 0) {
+    throw new Error('Could not locate the embedded GigBox JSON object in the property list.');
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < bytes.length; index += 1) {
+    const byte = bytes[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (byte === 0x5c) escaped = true;
+      else if (byte === 0x22) inString = false;
+      continue;
+    }
+
+    if (byte === 0x22) inString = true;
+    else if (byte === 0x7b) depth += 1;
+    else if (byte === 0x7d && --depth === 0) {
+      return decodeTextFile(bytes.slice(start, index + 1));
+    }
+  }
+
+  throw new Error('The embedded GigBox JSON object is incomplete.');
+}
+
 export function decodeTextFile(bytes: Uint8Array): string {
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x62 &&
+    bytes[1] === 0x70 &&
+    bytes[2] === 0x6c &&
+    bytes[3] === 0x69 &&
+    bytes[4] === 0x73 &&
+    bytes[5] === 0x74 &&
+    bytes[6] === 0x30 &&
+    bytes[7] === 0x30
+  ) {
+    return extractGigBoxJsonFromBinaryPlist(bytes);
+  }
+
   if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b) {
     throw new Error(
       'This file appears to be a ZIP archive, not a GigBox JSON file. Convert the Notes ZIP to a .gigbox.json file before importing.',

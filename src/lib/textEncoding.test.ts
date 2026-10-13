@@ -30,6 +30,27 @@ test('decodeTextFile decodes UTF-16 in either byte order with and without a BOM'
   assert.equal(decodeTextFile(utf16leWithoutBom), json);
 });
 
+test('decodeTextFile extracts an embedded GigBox archive from a binary plist', () => {
+  const json = '{"format":"gigbox-setlists","version":2,"setlists":[]}';
+  const prefix = new TextEncoder().encode(
+    'bplist00\x00\x01NSKeyedArchiver\x00attributedStringData\x00NS.data\x00',
+  );
+  const suffix = new Uint8Array([0x00, 0x00, 0x08]);
+  const bytes = new Uint8Array(prefix.length + json.length + suffix.length);
+  bytes.set(prefix);
+  bytes.set(new TextEncoder().encode(json), prefix.length);
+  bytes.set(suffix, prefix.length + json.length);
+
+  assert.equal(decodeTextFile(bytes), json);
+});
+
+test('decodeTextFile rejects binary plists without an embedded GigBox archive', () => {
+  assert.throws(
+    () => decodeTextFile(new TextEncoder().encode('bplist00\x00NSKeyedArchiver')),
+    { message: 'This Apple binary property list does not contain a GigBox JSON archive.' },
+  );
+});
+
 test('decodeTextFile diagnoses non-text input and rejects malformed UTF-16', () => {
   assert.throws(
     () => decodeTextFile(new Uint8Array([0xc3, 0x28])),
