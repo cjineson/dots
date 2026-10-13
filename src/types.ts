@@ -8,6 +8,7 @@ export type Song = {
   id: string;
   title: string;
   notes_raw_text: string;
+  font_size?: number;
 };
 
 export type SetlistSong = {
@@ -29,6 +30,7 @@ export type SetlistArchive = {
     songs: Array<{
       title: string;
       notes_raw_text: string;
+      font_size?: number;
     }>;
   }>;
 };

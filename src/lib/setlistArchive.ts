@@ -13,7 +13,11 @@ export function createSetlistArchive(setlists: SetlistWithSongs[]): SetlistArchi
     exportedAt: new Date().toISOString(),
     setlists: setlists.map(({ name, songs }) => ({
       name,
-      songs: songs.map(({ title, notes_raw_text }) => ({ title, notes_raw_text })),
+      songs: songs.map(({ title, notes_raw_text, font_size }) => ({
+        title,
+        notes_raw_text,
+        font_size,
+      })),
     })),
   };
 }
@@ -48,7 +52,9 @@ export function parseSetlistArchive(json: string): ImportedSetlist[] {
       if (
         !isRecord(song) ||
         typeof song.title !== 'string' ||
-        typeof song.notes_raw_text !== 'string'
+        typeof song.notes_raw_text !== 'string' ||
+        (song.font_size !== undefined &&
+          (typeof song.font_size !== 'number' || song.font_size < 10 || song.font_size > 64))
       ) {
         throw new Error(`Song ${songIndex + 1} in "${setlist.name}" is invalid.`);
       }
@@ -56,6 +62,7 @@ export function parseSetlistArchive(json: string): ImportedSetlist[] {
       return {
         title: song.title,
         notes_raw_text: song.notes_raw_text,
+        font_size: song.font_size,
       };
     });
 

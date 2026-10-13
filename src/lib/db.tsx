@@ -16,7 +16,8 @@ export function initializeDatabase(): void {
     CREATE TABLE IF NOT EXISTS songs (
       id TEXT PRIMARY KEY,
       title TEXT,
-      notes_raw_text TEXT
+      notes_raw_text TEXT,
+      font_size INTEGER NOT NULL DEFAULT 18
     );
 
     CREATE TABLE IF NOT EXISTS setlist_songs (
@@ -28,6 +29,11 @@ export function initializeDatabase(): void {
       FOREIGN KEY (song_id) REFERENCES songs(id)
     );
   `);
+
+  const songColumns = db.getAllSync<{ name: string }>('PRAGMA table_info(songs)');
+  if (!songColumns.some((column) => column.name === 'font_size')) {
+    db.execSync('ALTER TABLE songs ADD COLUMN font_size INTEGER NOT NULL DEFAULT 18');
+  }
 }
 
 export function createSetlist(name: string): Setlist {
@@ -136,11 +142,10 @@ export function importSetlists(setlists: SetlistArchive['setlists']): void {
 
       setlist.songs.forEach((song, index) => {
         const songId = makeId();
-        db.runSync('INSERT INTO songs (id, title, notes_raw_text) VALUES (?, ?, ?)', [
-          songId,
-          song.title.trim() || 'Untitled Song',
-          song.notes_raw_text,
-        ]);
+        db.runSync(
+          'INSERT INTO songs (id, title, notes_raw_text, font_size) VALUES (?, ?, ?, ?)',
+          [songId, song.title.trim() || 'Untitled Song', song.notes_raw_text, song.font_size ?? 18],
+        );
         db.runSync(
           'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
           [setlistId, songId, index],
@@ -148,6 +153,10 @@ export function importSetlists(setlists: SetlistArchive['setlists']): void {
       });
     }
   });
+}
+
+export function updateSongFontSize(songId: string, fontSize: number): void {
+  db.runSync('UPDATE songs SET font_size = ? WHERE id = ?', [fontSize, songId]);
 }
 
 function getNextSetlistOrderIndex(): number {
