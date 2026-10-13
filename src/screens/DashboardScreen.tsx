@@ -211,7 +211,7 @@ export default function DashboardScreen({
                 <NestableDraggableFlatList
                   data={setlist.songs}
                   keyExtractor={(song) => song.id}
-                  activationDistance={8}
+                  activationDistance={24}
                   onDragEnd={({ data }) => onReorderSongs(setlist.id, data)}
                   renderItem={({ item: song, drag, isActive }) => (
                     <ScaleDecorator>
