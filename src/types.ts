@@ -9,6 +9,33 @@ export type Song = {
   title: string;
   notes_raw_text: string;
   font_size?: number;
+  cue_document?: string;
+};
+
+export type CueBlockStyle = {
+  font_size?: number;
+  color?: CueTextColor;
+};
+
+export type CueTextColor = '#FFFFFF' | '#FFCC00' | '#4FC3F7' | '#FF8A80';
+
+export type CueTextBlock = CueBlockStyle & {
+  id: string;
+  type: 'text' | 'section';
+  text: string;
+};
+
+export type CueTableBlock = CueBlockStyle & {
+  id: string;
+  type: 'table';
+  rows: string[][];
+};
+
+export type CueBlock = CueTextBlock | CueTableBlock;
+
+export type CueDocument = {
+  version: 1;
+  blocks: CueBlock[];
 };
 
 export type SetlistSong = {
@@ -23,7 +50,7 @@ export type SetlistWithSongs = Setlist & {
 
 export type SetlistArchive = {
   format: 'gigbox-setlists';
-  version: 1;
+  version: 2;
   exportedAt: string;
   setlists: Array<{
     name: string;
@@ -31,6 +58,7 @@ export type SetlistArchive = {
       title: string;
       notes_raw_text: string;
       font_size?: number;
+      cue_document?: CueDocument;
     }>;
   }>;
 };

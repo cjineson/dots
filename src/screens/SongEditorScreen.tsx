@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Button,
   Pressable,
@@ -10,16 +11,28 @@ import {
   View,
 } from 'react-native';
 
+import {
+  createCueDocumentFromText,
+  CUE_COLORS,
+  flattenCueDocument,
+  parseCueDocument,
+  serializeCueDocument,
+} from '../lib/cueDocument';
+import { makeId } from '../lib/uuid';
 import { theme } from '../theme';
-import type { Song } from '../types';
+import type { CueBlock, CueDocument, CueTextColor, Song } from '../types';
 
 type SongEditorScreenProps = {
   setlistId: string;
   initialSong?: Song;
   onCancel: () => void;
-  onSave: (payload: { title: string; notesRawText: string }) => void;
+  onSave: (payload: { title: string; notesRawText: string; cueDocument: string }) => void;
   onPlay: (song: Song) => void;
 };
+
+const MIN_FONT_SIZE = 10;
+const MAX_FONT_SIZE = 64;
+const FONT_SIZE_STEP = 2;
 
 export default function SongEditorScreen({
   setlistId,
@@ -29,15 +42,205 @@ export default function SongEditorScreen({
   onPlay,
 }: SongEditorScreenProps) {
   const [title, setTitle] = useState(initialSong?.title ?? '');
-  const [notes, setNotes] = useState(initialSong?.notes_raw_text ?? '');
+  const [document, setDocument] = useState<CueDocument>(() =>
+    initialSong?.cue_document
+      ? parseCueDocument(initialSong.cue_document)
+      : createCueDocumentFromText(initialSong?.notes_raw_text ?? ''),
+  );
 
   const currentSong = useMemo(
     () => ({
       id: initialSong?.id ?? 'new-song',
       title: title.trim() || 'Untitled Song',
-      notes_raw_text: notes,
+      notes_raw_text: flattenCueDocument(document),
+      cue_document: serializeCueDocument(document),
     }),
-    [notes, title, initialSong],
+    [document, title, initialSong],
+  );
+
+  const updateBlock = (blockId: string, update: (block: CueBlock) => CueBlock) => {
+    setDocument((current) => ({
+      ...current,
+      blocks: current.blocks.map((block) => (block.id === blockId ? update(block) : block)),
+    }));
+  };
+
+  const addTextBlock = (type: 'text' | 'section') => {
+    setDocument((current) => ({
+      ...current,
+      blocks: [...current.blocks, { id: makeId(), type, text: '' }],
+    }));
+  };
+
+  const addTable = () => {
+    setDocument((current) => ({
+      ...current,
+      blocks: [...current.blocks, { id: makeId(), type: 'table', rows: [['', ''], ['', '']] }],
+    }));
+  };
+
+  const updateFontSize = (block: CueBlock, delta: number) => {
+    const fontSize = Math.max(
+      MIN_FONT_SIZE,
+      Math.min(MAX_FONT_SIZE, (block.font_size ?? theme.typography.box_text_size) + delta),
+    );
+    updateBlock(block.id, (current) => ({ ...current, font_size: fontSize }));
+  };
+
+  const updateColor = (block: CueBlock, color: CueTextColor) => {
+    updateBlock(block.id, (current) => ({ ...current, color }));
+  };
+
+  const renderStyleControls = (block: CueBlock) => (
+    <View style={styles.styleControls}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Decrease block text size"
+        onPress={() => updateFontSize(block, -FONT_SIZE_STEP)}
+        style={styles.styleButton}
+      >
+        <MaterialCommunityIcons name="format-font-size-decrease" size={20} color={theme.colors.text_primary} />
+      </Pressable>
+      <Text style={styles.fontSizeValue}>{block.font_size ?? theme.typography.box_text_size}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Increase block text size"
+        onPress={() => updateFontSize(block, FONT_SIZE_STEP)}
+        style={styles.styleButton}
+      >
+        <MaterialCommunityIcons name="format-font-size-increase" size={20} color={theme.colors.text_primary} />
+      </Pressable>
+      <View style={styles.colorOptions}>
+        {CUE_COLORS.map((color) => (
+          <Pressable
+            key={color}
+            accessibilityRole="button"
+            accessibilityLabel={`Set block color ${color}`}
+            onPress={() => updateColor(block, color)}
+            style={[
+              styles.colorSwatch,
+              { backgroundColor: color },
+              (block.color ?? '#FFFFFF') === color && styles.selectedColorSwatch,
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+
+  const updateTableCell = (block: CueBlock, rowIndex: number, columnIndex: number, value: string) => {
+    if (block.type !== 'table') return;
+    updateBlock(block.id, (current) =>
+      current.type === 'table'
+        ? {
+            ...current,
+            rows: current.rows.map((row, currentRowIndex) =>
+              currentRowIndex === rowIndex
+                ? row.map((cell, currentColumnIndex) =>
+                    currentColumnIndex === columnIndex ? value : cell,
+                  )
+                : row,
+            ),
+          }
+        : current,
+    );
+  };
+
+  const renderBlock = (block: CueBlock, index: number) => (
+    <View key={block.id} style={styles.blockCard}>
+      <View style={styles.blockHeader}>
+        <Text style={styles.blockType}>
+          {block.type === 'section' ? 'SECTION' : block.type === 'table' ? 'TABLE' : 'CUE'}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${block.type} block ${index + 1}`}
+          onPress={() =>
+            setDocument((current) => ({
+              ...current,
+              blocks: current.blocks.filter((item) => item.id !== block.id),
+            }))
+          }
+          style={styles.removeButton}
+        >
+          <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.colors.text_secondary} />
+        </Pressable>
+      </View>
+
+      {block.type === 'table' ? (
+        <View style={styles.table}>
+          {block.rows.map((row, rowIndex) => (
+            <View key={`${block.id}-row-${rowIndex}`} style={styles.tableRow}>
+              {row.map((cell, columnIndex) => (
+                <TextInput
+                  key={`${block.id}-cell-${rowIndex}-${columnIndex}`}
+                  value={cell}
+                  onChangeText={(value) => updateTableCell(block, rowIndex, columnIndex, value)}
+                  placeholder={rowIndex === 0 ? `Column ${columnIndex + 1}` : 'Cue'}
+                  placeholderTextColor={theme.colors.text_secondary}
+                  style={[
+                    styles.tableCell,
+                    {
+                      color: block.color ?? theme.colors.text_primary,
+                      fontSize: block.font_size ?? theme.typography.box_text_size,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add table row"
+            onPress={() =>
+              updateBlock(block.id, (current) =>
+                current.type === 'table'
+                  ? { ...current, rows: [...current.rows, current.rows[0].map(() => '')] }
+                  : current,
+              )
+            }
+            style={styles.addRowButton}
+          >
+            <Text style={styles.addRowText}>+ Row</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add table column"
+            onPress={() =>
+              updateBlock(block.id, (current) =>
+                current.type === 'table'
+                  ? { ...current, rows: current.rows.map((row) => [...row, '']) }
+                  : current,
+              )
+            }
+            style={styles.addRowButton}
+          >
+            <Text style={styles.addRowText}>+ Column</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <TextInput
+          value={block.text}
+          onChangeText={(text) =>
+            updateBlock(block.id, (current) =>
+              current.type === 'text' || current.type === 'section' ? { ...current, text } : current,
+            )
+          }
+          placeholder={block.type === 'section' ? 'Section title (e.g. Chords)' : 'Type cue text'}
+          placeholderTextColor={theme.colors.text_secondary}
+          multiline={block.type === 'text'}
+          textAlignVertical="top"
+          style={[
+            styles.input,
+            block.type === 'text' && styles.textArea,
+            block.type === 'section' && styles.sectionInput,
+            { color: block.color ?? theme.colors.text_primary },
+          ]}
+        />
+      )}
+
+      {renderStyleControls(block)}
+    </View>
   );
 
   return (
@@ -46,7 +249,7 @@ export default function SongEditorScreen({
         <Text style={styles.subtle}>Setlist ID: {setlistId}</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>Title</Text>
         <TextInput
           value={title}
@@ -56,31 +259,38 @@ export default function SongEditorScreen({
           style={styles.input}
         />
 
-        <Text style={styles.label}>Notes / Cues</Text>
-        <TextInput
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Type cue lines, one per line"
-          placeholderTextColor={theme.colors.text_secondary}
-          multiline
-          textAlignVertical="top"
-          style={[styles.input, styles.textArea]}
-        />
+        <View style={styles.cueHeading}>
+          <Text style={styles.label}>Cue layout</Text>
+          <Text style={styles.helperText}>Add sections, cue text, or a table.</Text>
+        </View>
+
+        {document.blocks.map(renderBlock)}
+
+        <View style={styles.addBlockActions}>
+          <Pressable onPress={() => addTextBlock('section')} style={styles.addBlockButton}>
+            <Text style={styles.addBlockText}>+ Section</Text>
+          </Pressable>
+          <Pressable onPress={() => addTextBlock('text')} style={styles.addBlockButton}>
+            <Text style={styles.addBlockText}>+ Cue</Text>
+          </Pressable>
+          <Pressable onPress={addTable} style={styles.addBlockButton}>
+            <Text style={styles.addBlockText}>+ Table</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.actions}>
           <Button title="Cancel" onPress={onCancel} color={theme.colors.text_secondary} />
           <Button
             title="Save"
-            onPress={() => {
-              onSave({ title, notesRawText: notes });
-            }}
+            onPress={() => onSave({
+              title,
+              notesRawText: currentSong.notes_raw_text,
+              cueDocument: currentSong.cue_document,
+            })}
           />
         </View>
 
-        <Pressable
-          style={styles.playButton}
-          onPress={() => onPlay(currentSong)}
-        >
+        <Pressable style={styles.playButton} onPress={() => onPlay(currentSong)}>
           <Text style={styles.playButtonText}>Launch performance view</Text>
         </Pressable>
       </ScrollView>
@@ -96,7 +306,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   header: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   subtle: {
     color: theme.colors.text_secondary,
@@ -111,6 +321,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
+  cueHeading: {
+    marginTop: 4,
+  },
+  helperText: {
+    color: theme.colors.text_secondary,
+    marginBottom: 10,
+  },
   input: {
     backgroundColor: theme.colors.surface_card,
     color: theme.colors.text_primary,
@@ -119,11 +336,114 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    marginBottom: 18,
+    marginBottom: 12,
     minHeight: 48,
   },
   textArea: {
-    minHeight: 220,
+    minHeight: 90,
+  },
+  sectionInput: {
+    fontWeight: '700',
+  },
+  blockCard: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+  },
+  blockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  blockType: {
+    color: theme.colors.text_secondary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  removeButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  styleControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 40,
+  },
+  styleButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fontSizeValue: {
+    color: theme.colors.text_secondary,
+    minWidth: 20,
+    textAlign: 'center',
+  },
+  colorOptions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginLeft: 10,
+  },
+  colorSwatch: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+  },
+  selectedColorSwatch: {
+    borderWidth: 3,
+    borderColor: theme.colors.text_primary,
+  },
+  table: {
+    marginBottom: 8,
+  },
+  tableRow: {
+    flexDirection: 'row',
+  },
+  tableCell: {
+    flex: 1,
+    minHeight: 44,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    color: theme.colors.text_primary,
+    backgroundColor: theme.colors.surface_card,
+  },
+  addRowButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 6,
+  },
+  addRowText: {
+    color: theme.colors.accent_highlight,
+    fontWeight: '600',
+  },
+  addBlockActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginVertical: 8,
+  },
+  addBlockButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+  },
+  addBlockText: {
+    color: theme.colors.text_primary,
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',

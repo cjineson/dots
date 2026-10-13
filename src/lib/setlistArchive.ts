@@ -1,4 +1,5 @@
-import type { SetlistArchive, SetlistWithSongs } from '../types';
+import type { CueDocument, SetlistArchive, SetlistWithSongs } from '../types';
+import { parseCueDocument, validateCueDocument } from './cueDocument';
 
 type ImportedSetlist = SetlistArchive['setlists'][number];
 
@@ -9,14 +10,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function createSetlistArchive(setlists: SetlistWithSongs[]): SetlistArchive {
   return {
     format: 'gigbox-setlists',
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     setlists: setlists.map(({ name, songs }) => ({
       name,
-      songs: songs.map(({ title, notes_raw_text, font_size }) => ({
+      songs: songs.map(({ title, notes_raw_text, font_size, cue_document }) => ({
         title,
         notes_raw_text,
         font_size,
+        ...(cue_document ? { cue_document: parseCueDocument(cue_document) } : {}),
       })),
     })),
   };
@@ -31,7 +33,11 @@ export function parseSetlistArchive(json: string): ImportedSetlist[] {
     throw new Error('The selected file is not valid JSON.');
   }
 
-  if (!isRecord(value) || value.format !== 'gigbox-setlists' || value.version !== 1) {
+  if (
+    !isRecord(value) ||
+    value.format !== 'gigbox-setlists' ||
+    (value.version !== 1 && value.version !== 2)
+  ) {
     throw new Error('This file is not a supported GigBox setlist export.');
   }
 
@@ -59,10 +65,21 @@ export function parseSetlistArchive(json: string): ImportedSetlist[] {
         throw new Error(`Song ${songIndex + 1} in "${setlist.name}" is invalid.`);
       }
 
+      let cueDocument: CueDocument | undefined;
+      if (song.cue_document !== undefined) {
+        try {
+          cueDocument = validateCueDocument(song.cue_document);
+        } catch (error) {
+          const detail = error instanceof Error ? ` ${error.message}` : '';
+          throw new Error(`Song ${songIndex + 1} in "${setlist.name}" has invalid cue formatting.${detail}`);
+        }
+      }
+
       return {
         title: song.title,
         notes_raw_text: song.notes_raw_text,
         font_size: song.font_size,
+        ...(cueDocument ? { cue_document: cueDocument } : {}),
       };
     });
 

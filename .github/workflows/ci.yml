@@ -1,17 +1,16 @@
-name: Validate Expo SDK upgrade (deps-only)
+name: CI
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
-  push:
-    branches:
-      - upgrade/expo-sdk-57-deps-only
-      - fix/expo-sdk-57-typecheck
   workflow_dispatch:
 
 jobs:
-  validate:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

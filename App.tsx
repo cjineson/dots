@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, StyleSheet } from 'react-native';
+import { ActivityIndicator, Alert, SafeAreaView, StyleSheet } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -49,7 +49,11 @@ export default function App() {
   const handleSaveSong = (
     setlistId: string,
     existingSong: Song | undefined,
-    { title, notesRawText }: { title: string; notesRawText: string },
+    {
+      title,
+      notesRawText,
+      cueDocument,
+    }: { title: string; notesRawText: string; cueDocument: string },
     onSaved: () => void,
   ) => {
     saveSongForSetlist({
@@ -57,6 +61,7 @@ export default function App() {
       songId: existingSong?.id,
       title,
       notes_raw_text: notesRawText,
+      cue_document: cueDocument,
     });
 
     refreshSetlists();
@@ -153,10 +158,9 @@ export default function App() {
             {({ navigation }) => (
               <DashboardScreen
                 setlists={setlists}
-                onCreateSetlist={(name) => {
-                  const createdSetlist = createSetlist(name);
+                onCreateSetlist={() => {
+                  createSetlist('New Setlist');
                   refreshSetlists();
-                  navigation.navigate('Editor', { setlistId: createdSetlist.id });
                 }}
                 onOpenSongForEdit={(setlistId, song) =>
                   navigation.navigate('Editor', { setlistId, song })
@@ -186,11 +190,15 @@ export default function App() {
                   )
                 }
                 onPlay={(song) => {
-                  const setlistSongs = setlists.find(
+                  const storedSongs = setlists.find(
                     (setlist) => setlist.id === route.params.setlistId,
                   )?.songs;
-                  const songs = setlistSongs?.some((setlistSong) => setlistSong.id === song.id)
-                    ? setlistSongs
+                  const storedSongIndex = storedSongs?.findIndex(
+                    (storedSong) => storedSong.id === song.id,
+                  );
+                  const songs =
+                    storedSongs && storedSongIndex !== undefined && storedSongIndex >= 0
+                    ? storedSongs.map((storedSong) => (storedSong.id === song.id ? song : storedSong))
                     : [song];
                   const index = songs.findIndex((setlistSong) => setlistSong.id === song.id);
                   navigation.navigate('Performance', { songs, index });
@@ -200,30 +208,16 @@ export default function App() {
           </Stack.Screen>
           <Stack.Screen
             name="Performance"
-            options={({ navigation, route }) => ({
-              title: route.params.songs[route.params.index]?.title ?? 'Performance',
+            options={{
+              headerShown: false,
               gestureEnabled: false,
-              headerLeft: () => (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Go to Dashboard"
-                  onPress={() => navigation.popToTop()}
-                  hitSlop={8}
-                >
-                  <Image
-                    source={require('./assets/branding/gigbox-logo.png')}
-                    style={styles.headerLogo}
-                    resizeMode="contain"
-                    accessibilityLabel="GigBox"
-                  />
-                </Pressable>
-              ),
-            })}
+            }}
           >
             {({ navigation, route }) => (
               <LivePerformanceScreen
                 songs={route.params.songs}
                 index={route.params.index}
+                onGoToDashboard={() => navigation.popToTop()}
                 onIndexChange={(index) => navigation.setParams({ index })}
                 onFontSizeChange={handleSongFontSizeChange}
               />
@@ -244,9 +238,5 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  headerLogo: {
-    width: 76,
-    height: 26,
   },
 });

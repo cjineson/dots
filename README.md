@@ -7,14 +7,14 @@ Local-first dark-mode live setlist app for musicians.
 - expo-sqlite for local storage
 
 ## Features
-- Dashboard with setlist list and add-setlist flow, plus bottom-bar JSON import/export
-- Song editor with title + multiline note input
+- Dashboard with setlist list and quick setlist creation, plus bottom-bar JSON import/export
+- Song editor with title, cue sections, styled cue blocks, and editable tables
 - Live performance view with one cue box per song, preserving cue line breaks
 - Swipe left/right in performance mode to move through songs in the current setlist
 - Dark theme tokens matching the stage-ready spec
 - Reorder songs in a setlist by dragging the handle beside a song
 - Long cue lines automatically scale down to fit the performance boxes
-- Adjust performance text size per song from the performance bottom bar; preferences are saved locally and included in JSON archives
+- Adjust performance text size per song from the performance top bar; preferences are saved locally and included in JSON archives
 - Export the library to a shareable JSON file and import JSON exports as additional setlists
 
 ## Getting started
@@ -39,7 +39,7 @@ The app uses SQLite locally on device with these tables:
 - songs
 - setlist_songs
 
-Song cue text is stored as entered, including line breaks, and displayed together in one performance box.
+New songs store a versioned cue document for sections, per-block text size/color, and tables. Older plain-text cues remain readable and are preserved as a single cue block; exports use archive version 2 and the importer continues to accept version 1.
 
 ## Future phases
 - Local P2P sync pathing

@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
-  Button,
   Image,
   Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import {
@@ -21,7 +19,7 @@ import type { SetlistWithSongs, Song } from '../types';
 
 type DashboardScreenProps = {
   setlists: SetlistWithSongs[];
-  onCreateSetlist: (name: string) => void;
+  onCreateSetlist: () => void;
   onOpenSongForEdit: (setlistId: string, song?: Song) => void;
   onOpenPerformance: (songs: Song[], index: number) => void;
   onOpenNewSong: (setlistId: string) => void;
@@ -40,8 +38,6 @@ export default function DashboardScreen({
   onExportLibrary,
   onImportLibrary,
 }: DashboardScreenProps) {
-  const [draftName, setDraftName] = useState('');
-
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
@@ -51,23 +47,14 @@ export default function DashboardScreen({
           resizeMode="contain"
           accessibilityLabel="GigBox"
         />
-        <Text style={styles.subtitle}>Your entire setlist, just the cues you need.</Text>
-      </View>
-
-      <View style={styles.createRow}>
-        <TextInput
-          value={draftName}
-          onChangeText={setDraftName}
-          placeholder="New setlist name"
-          placeholderTextColor={theme.colors.text_secondary}
-          style={styles.input}
-        />
-        <Button title="Add" onPress={() => {
-          if (draftName.trim()) {
-            onCreateSetlist(draftName);
-            setDraftName('');
-          }
-        }} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Create setlist"
+          onPress={onCreateSetlist}
+          style={styles.addSongButton}
+        >
+          <Text style={styles.addSongText}>+ Setlist</Text>
+        </Pressable>
       </View>
 
       <NestableScrollContainer style={styles.scroll} contentContainerStyle={styles.list}>
@@ -132,11 +119,7 @@ export default function DashboardScreen({
           style={styles.bottomBarButton}
           onPress={onExportLibrary}
         >
-          <MaterialCommunityIcons
-            name="file-export"
-            size={24}
-            color={theme.colors.text_primary}
-          />
+          <MaterialCommunityIcons name="database-export" size={28} color="#4FC3F7" />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -144,11 +127,7 @@ export default function DashboardScreen({
           style={styles.bottomBarButton}
           onPress={onImportLibrary}
         >
-          <MaterialCommunityIcons
-            name="file-import"
-            size={24}
-            color={theme.colors.text_primary}
-          />
+          <MaterialCommunityIcons name="database-import" size={28} color="#FFB74D" />
         </Pressable>
       </View>
     </SafeAreaView>
@@ -163,35 +142,14 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 14,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border_contrast,
   },
   logo: {
     width: 112,
     height: 32,
-  },
-  subtitle: {
-    color: theme.colors.text_secondary,
-    fontSize: 14,
-    marginTop: 4,
-  },
-  createRow: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  input: {
-    flex: 1,
-    minHeight: 48,
-    backgroundColor: theme.colors.surface_card,
-    color: theme.colors.text_primary,
-    borderWidth: 1,
-    borderColor: theme.colors.border_contrast,
-    borderRadius: 12,
-    paddingHorizontal: 12,
   },
   list: {
     paddingBottom: 24,
@@ -202,21 +160,17 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     minHeight: 64,
     marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border_contrast,
+    gap: 12,
   },
   bottomBarButton: {
     width: 56,
     height: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border_contrast,
-    borderRadius: 10,
   },
   card: {
     backgroundColor: theme.colors.surface,
