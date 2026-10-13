@@ -4,15 +4,18 @@
     "slug": "gigbox",
     "owner": "chrisineson",
     "version": "1.0.0",
-    "sdkVersion": "51.0.0",
-    "runtimeVersion": { "policy": "sdkVersion" },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "platforms": ["ios", "android"],
-    "assetBundlePatterns": ["**/*"],
-    "splash": {
-      "backgroundColor": "#000000"
-    },
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cjineson.gigbox"
