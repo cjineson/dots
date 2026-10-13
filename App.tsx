@@ -18,6 +18,7 @@ import {
   initializeDatabase,
   reorderSongsForSetlist,
   saveSongForSetlist,
+  updateSongFontSize,
 } from './src/lib/db';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
 import { theme } from './src/theme';
@@ -64,6 +65,11 @@ export default function App() {
 
   const handleReorderSongs = (setlistId: string, songs: Song[]) => {
     reorderSongsForSetlist(setlistId, songs);
+    refreshSetlists();
+  };
+
+  const handleSongFontSizeChange = (songId: string, fontSize: number) => {
+    updateSongFontSize(songId, fontSize);
     refreshSetlists();
   };
 
@@ -185,7 +191,12 @@ export default function App() {
             name="Performance"
             options={({ route }) => ({ title: route.params.song.title })}
           >
-            {({ route }) => <LivePerformanceScreen song={route.params.song} />}
+            {({ route }) => (
+              <LivePerformanceScreen
+                song={route.params.song}
+                onFontSizeChange={handleSongFontSizeChange}
+              />
+            )}
           </Stack.Screen>
         </Stack.Navigator>
       </NavigationContainer>

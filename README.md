@@ -9,10 +9,11 @@ Local-first dark-mode live setlist app for musicians.
 ## Features
 - Dashboard with setlist list and add-setlist flow
 - Song editor with title + multiline note input
-- Live performance view that turns each note line into a tap-to-activate box
+- Live performance view with one tap-to-activate box per song, preserving cue line breaks
 - Dark theme tokens matching the stage-ready spec
 - Reorder songs in a setlist by dragging the handle beside a song
 - Long cue lines automatically scale down to fit the performance boxes
+- Adjust performance text size per song; the preference is saved locally and included in JSON archives
 - Export the library to a shareable JSON file and import JSON exports as additional setlists
 
 ## Getting started
@@ -29,7 +30,7 @@ The app uses SQLite locally on device with these tables:
 - songs
 - setlist_songs
 
-Notes are parsed on render by splitting on newline characters and filtering empty lines.
+Song cue text is stored as entered, including line breaks, and displayed together in one performance box.
 
 ## Future phases
 - Local P2P sync pathing
