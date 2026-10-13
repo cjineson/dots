@@ -8,7 +8,9 @@ Local-first dark-mode live setlist app for musicians.
 
 ## Features
 - Dashboard with setlist list and quick setlist creation, plus bottom-bar JSON import/export
+- Rename and delete setlists, and browse a complete setlist in a vertically scrolling Flow view
 - Song editor with title, cue sections, styled cue blocks, and editable tables
+- Rendered cue preview while editing
 - Live performance view with one cue box per song, preserving cue line breaks
 - Swipe left/right in performance mode to move through songs in the current setlist
 - Dark theme tokens matching the stage-ready spec
@@ -32,6 +34,16 @@ Run the unit tests with:
 ```sh
 npm test
 ```
+
+## Importing Apple Notes setlists
+
+Convert a Markdown file or Apple Notes Markdown export into a GigBox JSON archive:
+
+```sh
+npm run convert:notes -- path/to/setlists.md
+```
+
+The converter also accepts the ZIP-packaged Markdown export from Apple Notes (including files whose extension does not match their ZIP contents). It writes a `.gigbox.json` file beside the input; pass a second path to choose a different output filename. Import the resulting JSON in GigBox using the import button. Setlists are recognized from bold standalone names or Markdown headings, and Markdown tables are converted into song titles with separate key/capo, chord, and lyric/cue blocks. ZIP input requires the system `unzip` command.
 
 ## Database behavior
 The app uses SQLite locally on device with these tables:

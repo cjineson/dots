@@ -1,11 +1,14 @@
 import React from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
+  Alert,
   Image,
+  Modal,
   Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import {
@@ -20,6 +23,9 @@ import type { SetlistWithSongs, Song } from '../types';
 type DashboardScreenProps = {
   setlists: SetlistWithSongs[];
   onCreateSetlist: () => void;
+  onRenameSetlist: (setlistId: string, name: string) => void;
+  onDeleteSetlist: (setlistId: string) => void;
+  onOpenFlow: (setlist: SetlistWithSongs) => void;
   onOpenSongForEdit: (setlistId: string, song?: Song) => void;
   onOpenPerformance: (songs: Song[], index: number) => void;
   onOpenNewSong: (setlistId: string) => void;
@@ -31,6 +37,9 @@ type DashboardScreenProps = {
 export default function DashboardScreen({
   setlists,
   onCreateSetlist,
+  onRenameSetlist,
+  onDeleteSetlist,
+  onOpenFlow,
   onOpenSongForEdit,
   onOpenPerformance,
   onOpenNewSong,
@@ -38,6 +47,53 @@ export default function DashboardScreen({
   onExportLibrary,
   onImportLibrary,
 }: DashboardScreenProps) {
+  const [editingSetlist, setEditingSetlist] = React.useState<SetlistWithSongs | null>(null);
+  const [setlistName, setSetlistName] = React.useState('');
+
+  const openRenameSetlist = (setlist: SetlistWithSongs) => {
+    setEditingSetlist(setlist);
+    setSetlistName(setlist.name);
+  };
+
+  const saveSetlistName = () => {
+    if (!editingSetlist || !setlistName.trim()) {
+      return;
+    }
+    try {
+      onRenameSetlist(editingSetlist.id, setlistName);
+      setEditingSetlist(null);
+    } catch (error) {
+      Alert.alert(
+        'Rename failed',
+        error instanceof Error ? error.message : 'An unexpected error occurred.',
+      );
+    }
+  };
+
+  const confirmDeleteSetlist = (setlist: SetlistWithSongs) => {
+    Alert.alert(
+      'Delete setlist?',
+      `Delete "${setlist.name}" and its songs? Songs used in other setlists will be kept.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            try {
+              onDeleteSetlist(setlist.id);
+            } catch (error) {
+              Alert.alert(
+                'Delete failed',
+                error instanceof Error ? error.message : 'An unexpected error occurred.',
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
@@ -51,9 +107,9 @@ export default function DashboardScreen({
           accessibilityRole="button"
           accessibilityLabel="Create setlist"
           onPress={onCreateSetlist}
-          style={styles.addSongButton}
+          style={styles.iconButton}
         >
-          <Text style={styles.addSongText}>+ Setlist</Text>
+          <MaterialCommunityIcons name="plus-circle" size={30} color="#4FC3F7" />
         </Pressable>
       </View>
 
@@ -64,10 +120,45 @@ export default function DashboardScreen({
           setlists.map((setlist) => (
             <View key={setlist.id} style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.setlistName}>{setlist.name}</Text>
-                <Pressable style={styles.addSongButton} onPress={() => onOpenNewSong(setlist.id)}>
-                  <Text style={styles.addSongText}>+ Song</Text>
-                </Pressable>
+                <Text numberOfLines={1} style={styles.setlistName}>{setlist.name}</Text>
+                <View style={styles.setlistActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${setlist.name} flow view`}
+                    disabled={setlist.songs.length === 0}
+                    onPress={() => onOpenFlow(setlist)}
+                    style={[
+                      styles.iconButton,
+                      setlist.songs.length === 0 && styles.disabledIconButton,
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="playlist-play" size={27} color="#4FC3F7" />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Rename ${setlist.name}`}
+                    onPress={() => openRenameSetlist(setlist)}
+                    style={styles.iconButton}
+                  >
+                    <MaterialCommunityIcons name="pencil" size={23} color="#FFB74D" />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${setlist.name}`}
+                    onPress={() => confirmDeleteSetlist(setlist)}
+                    style={styles.iconButton}
+                  >
+                    <MaterialCommunityIcons name="minus-circle" size={27} color="#FF8A80" />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Add song to ${setlist.name}`}
+                    onPress={() => onOpenNewSong(setlist.id)}
+                    style={styles.iconButton}
+                  >
+                    <MaterialCommunityIcons name="plus-circle" size={27} color="#4FC3F7" />
+                  </Pressable>
+                </View>
               </View>
 
               {setlist.songs.length === 0 ? (
@@ -130,6 +221,41 @@ export default function DashboardScreen({
           <MaterialCommunityIcons name="database-import" size={28} color="#FFB74D" />
         </Pressable>
       </View>
+
+      <Modal
+        visible={editingSetlist !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditingSetlist(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.renameDialog}>
+            <Text style={styles.dialogTitle}>Rename setlist</Text>
+            <TextInput
+              autoFocus
+              value={setlistName}
+              onChangeText={setSetlistName}
+              onSubmitEditing={saveSetlistName}
+              returnKeyType="done"
+              selectTextOnFocus
+              style={styles.renameInput}
+              accessibilityLabel="Setlist name"
+            />
+            <View style={styles.dialogActions}>
+              <Pressable onPress={() => setEditingSetlist(null)} style={styles.dialogButton}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={saveSetlistName}
+                disabled={!setlistName.trim()}
+                style={[styles.dialogButton, !setlistName.trim() && styles.disabledAction]}
+              >
+                <Text style={styles.saveText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -181,24 +307,77 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
     marginBottom: 10,
   },
   setlistName: {
+    flex: 1,
     color: theme.colors.text_primary,
     fontSize: 20,
     fontWeight: theme.typography.font_weight_bold,
   },
-  addSongButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: theme.colors.accent_highlight,
+  iconButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  addSongText: {
-    color: theme.colors.background,
+  disabledIconButton: {
+    opacity: 0.4,
+  },
+  setlistActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: '#000000AA',
+  },
+  renameDialog: {
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+  },
+  dialogTitle: {
+    color: theme.colors.text_primary,
+    fontSize: 18,
     fontWeight: theme.typography.font_weight_bold,
+    marginBottom: 14,
+  },
+  renameInput: {
+    color: theme.colors.text_primary,
+    backgroundColor: theme.colors.surface_card,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  dialogActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 16,
+  },
+  dialogButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  cancelText: {
+    color: theme.colors.text_secondary,
+  },
+  saveText: {
+    color: '#4FC3F7',
+    fontWeight: theme.typography.font_weight_bold,
+  },
+  disabledAction: {
+    opacity: 0.4,
   },
   emptyState: {
     color: theme.colors.text_secondary,

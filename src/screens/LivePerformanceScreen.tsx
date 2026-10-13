@@ -43,6 +43,9 @@ export default function LivePerformanceScreen({
   const [fontSizeBySong, setFontSizeBySong] = useState<Record<string, number>>({});
   const fontSize =
     fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size;
+  const hasManualFontSize =
+    fontSizeBySong[song.id] !== undefined ||
+    song.font_size !== undefined && song.font_size !== theme.typography.box_text_size;
   const availableWidth = Math.max(0, boxSize.width - theme.layout.box_padding * 2);
   const availableHeight = Math.max(0, boxSize.height - theme.layout.box_padding * 2);
   const songFontScale = fontSize / (song.font_size ?? theme.typography.box_text_size);
@@ -75,7 +78,12 @@ export default function LivePerformanceScreen({
 
   let lowScale = 0;
   let highScale = 1;
-  if (availableWidth > 0 && availableHeight > 0 && !fitsAtScale(1)) {
+  if (
+    !hasManualFontSize &&
+    availableWidth > 0 &&
+    availableHeight > 0 &&
+    !fitsAtScale(1)
+  ) {
     for (let iteration = 0; iteration < 8; iteration += 1) {
       const middleScale = (lowScale + highScale) / 2;
       if (fitsAtScale(middleScale)) {
