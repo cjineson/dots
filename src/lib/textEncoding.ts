@@ -54,6 +54,12 @@ function detectUtf16ByteOrder(bytes: Uint8Array): boolean | null {
 }
 
 export function decodeTextFile(bytes: Uint8Array): string {
+  if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b) {
+    throw new Error(
+      'This file appears to be a ZIP archive, not a GigBox JSON file. Convert the Notes ZIP to a .gigbox.json file before importing.',
+    );
+  }
+
   if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
     return decodeUtf16(bytes, true, 2);
   }
@@ -74,6 +80,11 @@ export function decodeTextFile(bytes: Uint8Array): string {
   try {
     return decodeURIComponent(encoded).replace(/^\uFEFF/, '');
   } catch {
-    throw new Error('The selected file is not valid UTF-8 or UTF-16 text.');
+    const prefix = Array.from(bytes.slice(0, 16), (byte) =>
+      byte.toString(16).padStart(2, '0'),
+    ).join(' ');
+    throw new Error(
+      `The selected file is not valid UTF-8 or UTF-16 text. First bytes (hex): ${prefix || '(empty file)'}`,
+    );
   }
 }

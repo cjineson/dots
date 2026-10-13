@@ -30,10 +30,20 @@ test('decodeTextFile decodes UTF-16 in either byte order with and without a BOM'
   assert.equal(decodeTextFile(utf16leWithoutBom), json);
 });
 
-test('decodeTextFile rejects invalid UTF-8 and malformed UTF-16', () => {
+test('decodeTextFile diagnoses non-text input and rejects malformed UTF-16', () => {
   assert.throws(
     () => decodeTextFile(new Uint8Array([0xc3, 0x28])),
-    { message: 'The selected file is not valid UTF-8 or UTF-16 text.' },
+    {
+      message:
+        'The selected file is not valid UTF-8 or UTF-16 text. First bytes (hex): c3 28',
+    },
+  );
+  assert.throws(
+    () => decodeTextFile(new Uint8Array([0x50, 0x4b, 0x03, 0x04])),
+    {
+      message:
+        'This file appears to be a ZIP archive, not a GigBox JSON file. Convert the Notes ZIP to a .gigbox.json file before importing.',
+    },
   );
   assert.throws(() => decodeTextFile(new Uint8Array([0xff, 0xfe, 0x7b])));
   assert.throws(() => decodeTextFile(new Uint8Array([0xff, 0xfe, 0x00, 0xd8])));
