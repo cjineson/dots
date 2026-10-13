@@ -39,8 +39,10 @@ type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const MINIMUM_SPLASH_DURATION_MS = 2000;
+const MINIMUM_SPLASH_DURATION_MS = 5000;
 const appStartedAt = Date.now();
+
+SplashScreen.setOptions({ duration: 200, fade: true });
 
 void SplashScreen.preventAutoHideAsync().catch((error: unknown) => {
   console.error('Failed to keep the splash screen visible during startup.', error);
