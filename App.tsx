@@ -5,8 +5,9 @@ import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native'
 import DashboardScreen from './src/screens/DashboardScreen';
 import LivePerformanceScreen from './src/screens/LivePerformanceScreen';
 import SongEditorScreen from './src/screens/SongEditorScreen';
-import { initializeDatabase, getSetlistsWithSongs, saveSongForSetlist, createSetlist, type SetlistWithSongs, type Song } from './src/lib/db';
+import { createSetlist, getSetlistsWithSongs, initializeDatabase, saveSongForSetlist } from './src/lib/db';
 import { theme } from './src/theme';
+import type { SetlistWithSongs, Song } from './src/types';
 
 type Screen = 'dashboard' | 'editor' | 'performance';
 
