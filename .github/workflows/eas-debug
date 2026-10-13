@@ -1,0 +1,41 @@
+name: EAS Export Debug
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug-export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Show files and env
+        run: |
+          echo "Node $(node -v) npm $(npm -v)"
+          echo "Listing project files:"
+          ls -la
+          echo "app.json:"
+          cat app.json || true
+          echo "eas.json:"
+          cat eas.json || true
+
+      - name: Run expo export (debug)
+        run: |
+          npm install -g expo-cli
+          # run export exactly the same way EAS does and print full output
+          npx expo export --output-dir dist --source-maps --dump-assetmap --platform ios --platform android || {
+            echo "=== EXPORT FAILED - listing dist and node_modules ==="
+            ls -la dist || true
+            ls -la node_modules || true
+            exit 1
+          }
