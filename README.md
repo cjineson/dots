@@ -38,13 +38,15 @@ npm test
 
 ## Importing Apple Notes setlists
 
-Convert a Markdown file or Apple Notes Markdown export into a GigBox JSON archive:
+Convert a Markdown file or Apple Notes Markdown export into a GigBox JSON archive. On a Mac, use the standalone Python script so you do not need to install the app's npm dependencies:
 
 ```sh
-npm run convert:notes -- path/to/setlists.md
+python3 scripts/convert-notes.py "/path/to/Apple Notes Export.zip"
 ```
 
-The converter also accepts the ZIP-packaged Markdown export from Apple Notes (including files whose extension does not match their ZIP contents). It writes a `.gigbox.json` file beside the input; pass a second path to choose a different output filename. Import the resulting JSON in GigBox using the import button. Setlists are recognized from bold standalone names or Markdown headings, and Markdown tables are converted into song titles with separate key/capo, chord, and lyric/cue blocks. ZIP input requires the system `unzip` command.
+The Python converter uses only the Python standard library: it accepts both ZIP exports and plain Markdown, even when the filename suffix does not match the file contents. No `npm install`, extra Python packages, or external `unzip` command is needed. It writes a `.gigbox.json` file beside the input; pass a second path to choose a different output filename. Import the resulting JSON in GigBox using the dashboard's import button. Setlists are recognized from bold standalone names or Markdown headings, and Markdown tables are converted into song titles with separate key/capo, chord, and lyric/cue blocks.
+
+If you have the GigBox repository and its npm dependencies installed, the equivalent command is `npm run convert:notes -- path/to/export.zip [output.json]`.
 
 ## Database behavior
 The app uses SQLite locally on device with these tables:
