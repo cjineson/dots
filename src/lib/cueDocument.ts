@@ -2,6 +2,59 @@ import type { CueBlock, CueBlockStyle, CueDocument, CueTextColor } from '../type
 
 export const CUE_COLORS: CueTextColor[] = ['#FFFFFF', '#FFCC00', '#4FC3F7', '#FF8A80'];
 
+const GENERATED_SECTION_LABELS = new Set([
+  'additional notes',
+  'chords',
+  'key / capo',
+  'lyrics / cues',
+]);
+
+export function getVisibleCueBlocks(document: CueDocument): CueBlock[] {
+  const visibleBlocks: CueBlock[] = [];
+  let generatedColumns: string[] = [];
+  let generatedColumnId: string | undefined;
+
+  const flushGeneratedColumns = () => {
+    if (generatedColumns.length > 1 && generatedColumnId) {
+      visibleBlocks.push({
+        id: `performance-columns-${generatedColumnId}`,
+        type: 'table',
+        rows: [generatedColumns],
+      });
+    } else if (generatedColumns.length === 1) {
+      visibleBlocks.push({ id: `performance-value-${generatedColumnId}`, type: 'text', text: generatedColumns[0] });
+    }
+    generatedColumns = [];
+    generatedColumnId = undefined;
+  };
+
+  for (let index = 0; index < document.blocks.length; index += 1) {
+    const block = document.blocks[index];
+    const nextBlock = document.blocks[index + 1];
+    if (
+      block.type === 'section' &&
+      GENERATED_SECTION_LABELS.has(block.text.trim().toLowerCase()) &&
+      nextBlock?.type === 'text'
+    ) {
+      generatedColumnId ??= block.id;
+      generatedColumns.push(nextBlock.text);
+      index += 1;
+      continue;
+    }
+
+    flushGeneratedColumns();
+    if (
+      block.type !== 'section' ||
+      !GENERATED_SECTION_LABELS.has(block.text.trim().toLowerCase())
+    ) {
+      visibleBlocks.push(block);
+    }
+  }
+
+  flushGeneratedColumns();
+  return visibleBlocks;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

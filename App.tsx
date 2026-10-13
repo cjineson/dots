@@ -1,7 +1,18 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, SafeAreaView, StyleSheet, Text } from 'react-native';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
+import { File } from 'expo-file-system';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -26,6 +37,7 @@ import {
   updateSongFontSize,
 } from './src/lib/db';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
+import { decodeTextFile } from './src/lib/textEncoding';
 import { theme } from './src/theme';
 import type { Song, SetlistWithSongs } from './src/types';
 
@@ -43,6 +55,7 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const refreshSetlists = () => {
     setSetlists(getSetlistsWithSongs());
@@ -155,15 +168,28 @@ export default function App() {
         return;
       }
 
-      const json = await FileSystem.readAsStringAsync(result.assets[0].uri);
+      const json = decodeTextFile(await new File(result.assets[0].uri).bytes());
       const importedSetlists = parseSetlistArchive(json);
       importSetlists(importedSetlists);
       refreshSetlists();
       Alert.alert('Import complete', `Added ${importedSetlists.length} setlist(s).`);
     } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const handleCopyImportError = async () => {
+    if (!importError) {
+      return;
+    }
+
+    try {
+      await Clipboard.setStringAsync(importError);
+      Alert.alert('Copied', 'The import error has been copied to the clipboard.');
+    } catch (error) {
       Alert.alert(
-        'Import failed',
-        error instanceof Error ? error.message : 'An unexpected error occurred.',
+        'Copy failed',
+        error instanceof Error ? error.message : 'Could not copy the import error.',
       );
     }
   };
@@ -303,6 +329,42 @@ export default function App() {
           </Stack.Screen>
         </Stack.Navigator>
       </NavigationContainer>
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setImportError(null)}
+        transparent
+        visible={importError !== null}
+      >
+        <View style={styles.errorModalOverlay}>
+          <View style={styles.errorModal}>
+            <Text style={styles.errorModalTitle}>Import failed</Text>
+            <Text style={styles.errorModalHint}>
+              Copy this message and send it with the JSON file details.
+            </Text>
+            <ScrollView style={styles.errorModalMessageContainer}>
+              <Text selectable style={styles.errorModalMessage}>
+                {importError}
+              </Text>
+            </ScrollView>
+            <View style={styles.errorModalActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setImportError(null)}
+                style={styles.errorModalCloseButton}
+              >
+                <Text style={styles.errorModalCloseText}>Close</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void handleCopyImportError()}
+                style={styles.errorModalCopyButton}
+              >
+                <Text style={styles.errorModalCopyText}>Copy error</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </GestureHandlerRootView>
   );
 }
@@ -342,6 +404,69 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: theme.colors.accent_highlight,
+    fontWeight: theme.typography.font_weight_bold,
+  },
+  errorModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+  },
+  errorModal: {
+    maxHeight: '80%',
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 20,
+  },
+  errorModalTitle: {
+    color: theme.colors.text_primary,
+    fontSize: 20,
+    fontWeight: theme.typography.font_weight_bold,
+    marginBottom: 8,
+  },
+  errorModalHint: {
+    color: theme.colors.text_secondary,
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  errorModalMessageContainer: {
+    flexShrink: 1,
+    backgroundColor: theme.colors.background,
+    borderRadius: 8,
+    marginBottom: 16,
+    padding: 12,
+  },
+  errorModalMessage: {
+    color: theme.colors.text_primary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  errorModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  errorModalCloseButton: {
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  errorModalCloseText: {
+    color: theme.colors.text_primary,
+    fontWeight: theme.typography.font_weight_bold,
+  },
+  errorModalCopyButton: {
+    backgroundColor: theme.colors.accent_highlight,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  errorModalCopyText: {
+    color: theme.colors.background,
     fontWeight: theme.typography.font_weight_bold,
   },
 });

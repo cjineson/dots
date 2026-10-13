@@ -10,7 +10,11 @@ import {
   View,
 } from 'react-native';
 
-import { createCueDocumentFromText, parseCueDocument } from '../lib/cueDocument';
+import {
+  createCueDocumentFromText,
+  getVisibleCueBlocks,
+  parseCueDocument,
+} from '../lib/cueDocument';
 import { theme } from '../theme';
 import type { CueBlock, Song } from '../types';
 
@@ -151,6 +155,7 @@ export default function FlowScreen({
           const cueDocument = song.cue_document
             ? parseCueDocument(song.cue_document)
             : createCueDocumentFromText(song.notes_raw_text);
+          const cueBlocks = getVisibleCueBlocks(cueDocument);
           const songZoom = songFontSize(song) /
             theme.typography.box_text_size;
           return (
@@ -159,7 +164,7 @@ export default function FlowScreen({
                 {songIndex + 1}. {song.title}
               </Text>
               <View style={styles.cueContent}>
-                {cueDocument.blocks.map((block) =>
+                {cueBlocks.map((block) =>
                   renderBlock({
                     ...block,
                     font_size:

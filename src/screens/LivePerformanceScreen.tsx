@@ -13,7 +13,11 @@ import {
 } from 'react-native';
 
 import { theme } from '../theme';
-import { createCueDocumentFromText, parseCueDocument } from '../lib/cueDocument';
+import {
+  createCueDocumentFromText,
+  getVisibleCueBlocks,
+  parseCueDocument,
+} from '../lib/cueDocument';
 import type { CueBlock, Song } from '../types';
 
 type LivePerformanceScreenProps = {
@@ -39,6 +43,7 @@ export default function LivePerformanceScreen({
   const cueDocument = song.cue_document
     ? parseCueDocument(song.cue_document)
     : createCueDocumentFromText(song.notes_raw_text);
+  const cueBlocks = getVisibleCueBlocks(cueDocument);
   const [boxSize, setBoxSize] = useState({ width: 0, height: 0 });
   const [fontSizeBySong, setFontSizeBySong] = useState<Record<string, number>>({});
   const fontSize =
@@ -54,7 +59,7 @@ export default function LivePerformanceScreen({
     (block.font_size ?? theme.typography.box_text_size) * songFontScale;
 
   const fitsAtScale = (scale: number) => {
-    const contentHeight = cueDocument.blocks.reduce((total, block) => {
+    const contentHeight = cueBlocks.reduce((total, block) => {
       const size = baseSizeForBlock(block) * scale;
       if (block.type === 'table') {
         const columnWidth = availableWidth / block.rows[0].length;
@@ -179,7 +184,7 @@ export default function LivePerformanceScreen({
       <View style={styles.boxGestureArea} {...swipeResponder.panHandlers}>
         <View onLayout={handleBoxLayout} style={[styles.box, { backgroundColor: theme.colors.surface_card }]}>
           <ScrollView contentContainerStyle={styles.cueBlocks}>
-            {cueDocument.blocks.map((block) => {
+            {cueBlocks.map((block) => {
               const blockFontSize = Math.max(MIN_FONT_SIZE, baseSizeForBlock(block) * lowScale);
               const color = block.color ?? theme.colors.text_primary;
 
