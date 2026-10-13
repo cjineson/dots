@@ -4,6 +4,8 @@
     "slug": "gigbox",
     "owner": "chrisineson",
     "version": "1.0.0",
+    "sdkVersion": "51.0.0",
+    "runtimeVersion": { "policy": "sdkVersion" },
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "platforms": ["ios", "android"],
