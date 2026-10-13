@@ -17,7 +17,8 @@ export function initializeDatabase(): void {
       id TEXT PRIMARY KEY,
       title TEXT,
       notes_raw_text TEXT,
-      font_size INTEGER NOT NULL DEFAULT 18
+      font_size INTEGER NOT NULL DEFAULT 18,
+      cue_document TEXT
     );
 
     CREATE TABLE IF NOT EXISTS setlist_songs (
@@ -33,6 +34,9 @@ export function initializeDatabase(): void {
   const songColumns = db.getAllSync<{ name: string }>('PRAGMA table_info(songs)');
   if (!songColumns.some((column) => column.name === 'font_size')) {
     db.execSync('ALTER TABLE songs ADD COLUMN font_size INTEGER NOT NULL DEFAULT 18');
+  }
+  if (!songColumns.some((column) => column.name === 'cue_document')) {
+    db.execSync('ALTER TABLE songs ADD COLUMN cue_document TEXT');
   }
 }
 
@@ -80,11 +84,13 @@ export function saveSongForSetlist({
   songId,
   title,
   notes_raw_text,
+  cue_document,
 }: {
   setlistId: string;
   songId?: string;
   title: string;
   notes_raw_text: string;
+  cue_document: string;
 }): Song {
   const id = songId ?? makeId();
   const cleanedTitle = title.trim() || 'Untitled Song';
@@ -92,16 +98,18 @@ export function saveSongForSetlist({
   const existing = getSongById(id);
 
   if (existing) {
-    db.runSync('UPDATE songs SET title = ?, notes_raw_text = ? WHERE id = ?', [
+    db.runSync('UPDATE songs SET title = ?, notes_raw_text = ?, cue_document = ? WHERE id = ?', [
       cleanedTitle,
       notes_raw_text,
+      cue_document,
       id,
     ]);
   } else {
-    db.runSync('INSERT INTO songs (id, title, notes_raw_text) VALUES (?, ?, ?)', [
+    db.runSync('INSERT INTO songs (id, title, notes_raw_text, cue_document) VALUES (?, ?, ?, ?)', [
       id,
       cleanedTitle,
       notes_raw_text,
+      cue_document,
     ]);
   }
 
@@ -114,6 +122,7 @@ export function saveSongForSetlist({
     id,
     title: cleanedTitle,
     notes_raw_text,
+    cue_document,
   };
 }
 
@@ -143,8 +152,14 @@ export function importSetlists(setlists: SetlistArchive['setlists']): void {
       setlist.songs.forEach((song, index) => {
         const songId = makeId();
         db.runSync(
-          'INSERT INTO songs (id, title, notes_raw_text, font_size) VALUES (?, ?, ?, ?)',
-          [songId, song.title.trim() || 'Untitled Song', song.notes_raw_text, song.font_size ?? 18],
+          'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document) VALUES (?, ?, ?, ?, ?)',
+          [
+            songId,
+            song.title.trim() || 'Untitled Song',
+            song.notes_raw_text,
+            song.font_size ?? 18,
+            song.cue_document ? JSON.stringify(song.cue_document) : null,
+          ],
         );
         db.runSync(
           'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',

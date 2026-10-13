@@ -1,4 +1,4 @@
-name: EAS Update (publish)
+name: Deploy
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     branches: [ main ]
 
 jobs:
-  eas-update:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -48,7 +48,7 @@ jobs:
           echo "app.json expo block:"
           node -e "try{console.log(require('./app.json').expo)}catch(e){console.log('no app.json or parse error')}" || true
 
-      - name: EAS Update (create OTA update)
+      - name: Publish OTA update
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           CI: '1'

@@ -15,6 +15,13 @@ const setlists: SetlistWithSongs[] = [
         title: 'First Song',
         notes_raw_text: 'Verse\nChorus',
         font_size: 24,
+        cue_document: JSON.stringify({
+          version: 1,
+          blocks: [
+            { id: 'section', type: 'section', text: 'Chords', color: '#FFCC00' },
+            { id: 'table', type: 'table', rows: [['Verse', 'Chorus'], ['C', 'G']] },
+          ],
+        }),
       },
       {
         id: 'song-2',
@@ -25,24 +32,35 @@ const setlists: SetlistWithSongs[] = [
   },
 ];
 
-test('createSetlistArchive writes the supported format and song data', () => {
+test('createSetlistArchive writes the current format and cue document', () => {
   const archive = createSetlistArchive(setlists);
 
   assert.equal(archive.format, 'gigbox-setlists');
-  assert.equal(archive.version, 1);
+  assert.equal(archive.version, 2);
   assert.ok(Number.isFinite(Date.parse(archive.exportedAt)));
   assert.deepEqual(archive.setlists, [
     {
       name: 'Friday Night',
       songs: [
-        { title: 'First Song', notes_raw_text: 'Verse\nChorus', font_size: 24 },
+        {
+          title: 'First Song',
+          notes_raw_text: 'Verse\nChorus',
+          font_size: 24,
+          cue_document: {
+            version: 1,
+            blocks: [
+              { id: 'section', type: 'section', text: 'Chords', color: '#FFCC00' },
+              { id: 'table', type: 'table', rows: [['Verse', 'Chorus'], ['C', 'G']] },
+            ],
+          },
+        },
         { title: 'Second Song', notes_raw_text: 'Intro', font_size: undefined },
       ],
     },
   ]);
 });
 
-test('parseSetlistArchive reads current archives and preserves cue text and font sizes', () => {
+test('parseSetlistArchive reads current archives and preserves formatted cue blocks', () => {
   const archive = createSetlistArchive(setlists);
   const parsed = parseSetlistArchive(JSON.stringify(archive));
 
@@ -50,14 +68,25 @@ test('parseSetlistArchive reads current archives and preserves cue text and font
     {
       name: 'Friday Night',
       songs: [
-        { title: 'First Song', notes_raw_text: 'Verse\nChorus', font_size: 24 },
+        {
+          title: 'First Song',
+          notes_raw_text: 'Verse\nChorus',
+          font_size: 24,
+          cue_document: {
+            version: 1,
+            blocks: [
+              { id: 'section', type: 'section', text: 'Chords', color: '#FFCC00' },
+              { id: 'table', type: 'table', rows: [['Verse', 'Chorus'], ['C', 'G']] },
+            ],
+          },
+        },
         { title: 'Second Song', notes_raw_text: 'Intro', font_size: undefined },
       ],
     },
   ]);
 });
 
-test('parseSetlistArchive accepts older songs without font sizes', () => {
+test('parseSetlistArchive accepts version 1 archives without cue documents', () => {
   const archive = JSON.stringify({
     format: 'gigbox-setlists',
     version: 1,
@@ -82,12 +111,36 @@ test('parseSetlistArchive rejects invalid JSON', () => {
 test('parseSetlistArchive rejects unsupported formats and versions', () => {
   for (const archive of [
     JSON.stringify({ format: 'other', version: 1, setlists: [] }),
-    JSON.stringify({ format: 'gigbox-setlists', version: 2, setlists: [] }),
+    JSON.stringify({ format: 'gigbox-setlists', version: 3, setlists: [] }),
   ]) {
     assert.throws(() => parseSetlistArchive(archive), {
       message: 'This file is not a supported GigBox setlist export.',
     });
   }
+});
+
+test('parseSetlistArchive rejects invalid cue document structures', () => {
+  const archive = JSON.stringify({
+    format: 'gigbox-setlists',
+    version: 2,
+    setlists: [
+      {
+        name: 'Set',
+        songs: [
+          {
+            title: 'Song',
+            notes_raw_text: 'Cue',
+            cue_document: { version: 1, blocks: [{ id: 'table', type: 'table', rows: [['only one cell']] }] },
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.throws(() => parseSetlistArchive(archive), {
+    message:
+      'Song 1 in "Set" has invalid cue formatting. Table in cue block 1 must contain at least two text cells per row.',
+  });
 });
 
 test('parseSetlistArchive rejects missing or empty setlist collections', () => {
