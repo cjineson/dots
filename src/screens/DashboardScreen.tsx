@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Button,
+  Image,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -21,7 +22,7 @@ type DashboardScreenProps = {
   setlists: SetlistWithSongs[];
   onCreateSetlist: (name: string) => void;
   onOpenSongForEdit: (setlistId: string, song?: Song) => void;
-  onOpenPerformance: (song: Song) => void;
+  onOpenPerformance: (songs: Song[], index: number) => void;
   onOpenNewSong: (setlistId: string) => void;
   onReorderSongs: (setlistId: string, songs: Song[]) => void;
   onExportLibrary: () => void;
@@ -43,7 +44,12 @@ export default function DashboardScreen({
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
-        <Text style={styles.title}>GigBox</Text>
+        <Image
+          source={require('../../assets/branding/gigbox-logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+          accessibilityLabel="GigBox"
+        />
         <Text style={styles.subtitle}>Your entire setlist, just the cues you need.</Text>
         <View style={styles.libraryActions}>
           <Pressable style={styles.libraryAction} onPress={onExportLibrary}>
@@ -109,7 +115,10 @@ export default function DashboardScreen({
                           <Pressable style={styles.actionButton} onPress={() => onOpenSongForEdit(setlist.id, song)}>
                             <Text style={styles.actionText}>Edit</Text>
                           </Pressable>
-                          <Pressable style={styles.primaryActionButton} onPress={() => onOpenPerformance(song)}>
+                          <Pressable
+                            style={styles.primaryActionButton}
+                            onPress={() => onOpenPerformance(setlist.songs, setlist.songs.findIndex((item) => item.id === song.id))}
+                          >
                             <Text style={styles.primaryActionText}>Play</Text>
                           </Pressable>
                         </View>
@@ -136,10 +145,9 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 14,
   },
-  title: {
-    color: theme.colors.text_primary,
-    fontSize: theme.typography.headline_size,
-    fontWeight: theme.typography.font_weight_bold,
+  logo: {
+    width: 112,
+    height: 32,
   },
   subtitle: {
     color: theme.colors.text_secondary,

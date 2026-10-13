@@ -9,7 +9,8 @@ Local-first dark-mode live setlist app for musicians.
 ## Features
 - Dashboard with setlist list and add-setlist flow
 - Song editor with title + multiline note input
-- Live performance view with one tap-to-activate box per song, preserving cue line breaks
+- Live performance view with one cue box per song, preserving cue line breaks
+- Swipe left/right in performance mode to move through songs in the current setlist
 - Dark theme tokens matching the stage-ready spec
 - Reorder songs in a setlist by dragging the handle beside a song
 - Long cue lines automatically scale down to fit the performance boxes

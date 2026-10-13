@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   LayoutChangeEvent,
+  PanResponder,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -12,7 +13,9 @@ import { theme } from '../theme';
 import type { Song } from '../types';
 
 type LivePerformanceScreenProps = {
-  song: Song;
+  songs: Song[];
+  index: number;
+  onIndexChange: (index: number) => void;
   onFontSizeChange: (songId: string, fontSize: number) => void;
 };
 
@@ -21,12 +24,16 @@ const MAX_FONT_SIZE = 64;
 const FONT_SIZE_STEP = 2;
 
 export default function LivePerformanceScreen({
-  song,
+  songs,
+  index,
+  onIndexChange,
   onFontSizeChange,
 }: LivePerformanceScreenProps) {
-  const [isActive, setIsActive] = useState(false);
+  const song = songs[index];
   const [boxSize, setBoxSize] = useState({ width: 0, height: 0 });
-  const [fontSize, setFontSize] = useState(song.font_size ?? theme.typography.box_text_size);
+  const [fontSizeBySong, setFontSizeBySong] = useState<Record<string, number>>({});
+  const fontSize =
+    fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size;
   const lines = song.notes_raw_text.split(/\r?\n/);
   const availableWidth = Math.max(0, boxSize.width - theme.layout.box_padding * 2);
   const availableHeight = Math.max(0, boxSize.height - theme.layout.box_padding * 2);
@@ -57,6 +64,22 @@ export default function LivePerformanceScreen({
   }
   const displayedFontSize = Math.max(MIN_FONT_SIZE, fontSize * lowScale);
 
+  const swipeResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          Math.abs(gesture.dx) > 24 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
+        onPanResponderRelease: (_, gesture) => {
+          if (gesture.dx <= -60 && index < songs.length - 1) {
+            onIndexChange(index + 1);
+          } else if (gesture.dx >= 60 && index > 0) {
+            onIndexChange(index - 1);
+          }
+        },
+      }),
+    [index, onIndexChange, songs.length],
+  );
+
   const handleBoxLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
     setBoxSize((current) =>
@@ -68,7 +91,7 @@ export default function LivePerformanceScreen({
 
   const changeFontSize = (delta: number) => {
     const nextFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, fontSize + delta));
-    setFontSize(nextFontSize);
+    setFontSizeBySong((current) => ({ ...current, [song.id]: nextFontSize }));
     onFontSizeChange(song.id, nextFontSize);
   };
 
@@ -97,17 +120,14 @@ export default function LivePerformanceScreen({
         </Pressable>
       </View>
 
-      <Pressable
-        onLayout={handleBoxLayout}
-        style={[
-          styles.box,
-          { backgroundColor: isActive ? theme.colors.box_active_state : theme.colors.surface_card },
-          isActive && styles.boxActive,
-        ]}
-        onPress={() => setIsActive((current) => !current)}
-      >
-        <Text style={[styles.boxText, { fontSize: displayedFontSize }]}>{song.notes_raw_text}</Text>
-      </Pressable>
+      <View style={styles.boxGestureArea} {...swipeResponder.panHandlers}>
+        <View
+          onLayout={handleBoxLayout}
+          style={[styles.box, { backgroundColor: theme.colors.surface_card }]}
+        >
+          <Text style={[styles.boxText, { fontSize: displayedFontSize }]}>{song.notes_raw_text}</Text>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -126,6 +146,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 12,
     marginBottom: 12,
+  },
+  boxGestureArea: {
+    flex: 1,
   },
   controlLabel: {
     color: theme.colors.text_secondary,
@@ -162,9 +185,6 @@ const styles = StyleSheet.create({
     padding: theme.layout.box_padding,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  boxActive: {
-    borderColor: theme.colors.accent_highlight,
   },
   boxText: {
     color: theme.colors.text_primary,

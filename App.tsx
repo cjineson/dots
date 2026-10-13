@@ -27,7 +27,7 @@ import type { Song, SetlistWithSongs } from './src/types';
 type RootStackParamList = {
   Dashboard: undefined;
   Editor: { setlistId: string; song?: Song };
-  Performance: { song: Song };
+  Performance: { songs: Song[]; index: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -161,7 +161,9 @@ export default function App() {
                 onOpenSongForEdit={(setlistId, song) =>
                   navigation.navigate('Editor', { setlistId, song })
                 }
-                onOpenPerformance={(song) => navigation.navigate('Performance', { song })}
+                onOpenPerformance={(songs, index) =>
+                  navigation.navigate('Performance', { songs, index })
+                }
                 onOpenNewSong={(setlistId) => navigation.navigate('Editor', { setlistId })}
                 onReorderSongs={handleReorderSongs}
                 onExportLibrary={handleExportLibrary}
@@ -183,17 +185,30 @@ export default function App() {
                     navigation.popToTop(),
                   )
                 }
-                onPlay={(song) => navigation.navigate('Performance', { song })}
+                onPlay={(song) => {
+                  const setlistSongs = setlists.find(
+                    (setlist) => setlist.id === route.params.setlistId,
+                  )?.songs;
+                  const songs = setlistSongs?.some((setlistSong) => setlistSong.id === song.id)
+                    ? setlistSongs
+                    : [song];
+                  const index = songs.findIndex((setlistSong) => setlistSong.id === song.id);
+                  navigation.navigate('Performance', { songs, index });
+                }}
               />
             )}
           </Stack.Screen>
           <Stack.Screen
             name="Performance"
-            options={({ route }) => ({ title: route.params.song.title })}
+            options={({ route }) => ({
+              title: route.params.songs[route.params.index]?.title ?? 'Performance',
+            })}
           >
-            {({ route }) => (
+            {({ navigation, route }) => (
               <LivePerformanceScreen
-                song={route.params.song}
+                songs={route.params.songs}
+                index={route.params.index}
+                onIndexChange={(index) => navigation.setParams({ index })}
                 onFontSizeChange={handleSongFontSizeChange}
               />
             )}
