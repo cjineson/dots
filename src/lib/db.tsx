@@ -76,6 +76,94 @@ export function deleteSetlist(setlistId: string): void {
   });
 }
 
+export function copySetlist(setlistId: string): Setlist {
+  const source = db.getFirstSync('SELECT * FROM setlists WHERE id = ?', [setlistId]) as Setlist | null;
+  if (!source) {
+    throw new Error('The setlist to copy could not be found.');
+  }
+
+  const copy: Setlist = {
+    id: makeId(),
+    name: `Copy of ${source.name}`,
+    order_index: getNextSetlistOrderIndex(),
+  };
+
+  db.withTransactionSync(() => {
+    db.runSync('INSERT INTO setlists (id, name, order_index) VALUES (?, ?, ?)', [
+      copy.id,
+      copy.name,
+      copy.order_index,
+    ]);
+
+    const songs = db.getAllSync(
+      `SELECT s.*
+       FROM songs s
+       INNER JOIN setlist_songs ss ON ss.song_id = s.id
+       WHERE ss.setlist_id = ?
+       ORDER BY ss.sort_order ASC, s.title ASC`,
+      [setlistId],
+    ) as Song[];
+
+    songs.forEach((song, index) => {
+      const songId = makeId();
+      db.runSync(
+        'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document) VALUES (?, ?, ?, ?, ?)',
+        [
+          songId,
+          song.title,
+          song.notes_raw_text,
+          song.font_size ?? 18,
+          song.cue_document ?? null,
+        ],
+      );
+      db.runSync(
+        'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+        [copy.id, songId, index],
+      );
+    });
+  });
+
+  return copy;
+}
+
+export function copySongToSetlist(songId: string, targetSetlistId: string): Song {
+  const source = getSongById(songId);
+  if (!source) {
+    throw new Error('The song to copy could not be found.');
+  }
+
+  const target = db.getFirstSync('SELECT id FROM setlists WHERE id = ?', [
+    targetSetlistId,
+  ]) as { id: string } | null;
+  if (!target) {
+    throw new Error('The destination setlist could not be found.');
+  }
+
+  const copy: Song = {
+    ...source,
+    id: makeId(),
+  };
+
+  db.withTransactionSync(() => {
+    db.runSync(
+      'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document) VALUES (?, ?, ?, ?, ?)',
+      [
+        copy.id,
+        copy.title,
+        copy.notes_raw_text,
+        copy.font_size ?? 18,
+        copy.cue_document ?? null,
+      ],
+    );
+    db.runSync(
+      'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+      [targetSetlistId, copy.id, getNextSortOrderForSetlist(targetSetlistId)],
+    );
+  });
+
+  return copy;
+}
+
 export function getSetlistsWithSongs(): SetlistWithSongs[] {
   const setlists = db.getAllSync('SELECT * FROM setlists ORDER BY order_index ASC, name ASC') as Setlist[];
 
