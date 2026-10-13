@@ -1,124 +1,128 @@
-import React, { useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import * as SQLite from 'expo-sqlite';
 
-import { parseBoxes } from '../lib/parser';
-import { theme } from '../theme';
-import type { Song } from '../types';
+import { makeId } from './uuid';
+import type { Setlist, SetlistWithSongs, Song } from '../types';
 
-type LivePerformanceScreenProps = {
-  song: Song;
-  onBack: () => void;
-};
+const db = SQLite.openDatabaseSync('gigbox.db');
 
-export default function LivePerformanceScreen({ song, onBack }: LivePerformanceScreenProps) {
-  const [activeIndexes, setActiveIndexes] = useState<number[]>([]);
-  const boxes = parseBoxes(song.notes_raw_text);
-
-  const toggleBox = (index: number) => {
-    setActiveIndexes((current) =>
-      current.includes(index)
-        ? current.filter((value) => value !== index)
-        : [...current, index],
+export function initializeDatabase(): void {
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS setlists (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      order_index INTEGER
     );
-  };
 
-  return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{song.title}</Text>
-        <Pressable onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
-      </View>
+    CREATE TABLE IF NOT EXISTS songs (
+      id TEXT PRIMARY KEY,
+      title TEXT,
+      notes_raw_text TEXT
+    );
 
-      <FlatList
-        data={boxes}
-        numColumns={2}
-        keyExtractor={(item, index) => `${item}-${index}`}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.list}
-        renderItem={({ item, index }) => {
-          const isActive = activeIndexes.includes(index);
-
-          return (
-            <Pressable
-              style={[
-                styles.box,
-                { backgroundColor: isActive ? theme.colors.box_active_state : theme.colors.surface_card },
-                isActive && styles.boxActive,
-              ]}
-              onPress={() => toggleBox(index)}
-            >
-              <Text style={styles.boxText}>{item}</Text>
-            </Pressable>
-          );
-        }}
-      />
-    </SafeAreaView>
-  );
+    CREATE TABLE IF NOT EXISTS setlist_songs (
+      setlist_id TEXT,
+      song_id TEXT,
+      sort_order INTEGER,
+      PRIMARY KEY (setlist_id, song_id),
+      FOREIGN KEY (setlist_id) REFERENCES setlists(id),
+      FOREIGN KEY (song_id) REFERENCES songs(id)
+    );
+  `);
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    paddingHorizontal: 12,
-    paddingTop: 18,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  title: {
-    color: theme.colors.text_primary,
-    fontSize: theme.typography.headline_size,
-    fontWeight: theme.typography.font_weight_bold,
-    flex: 1,
-  },
-  backButton: {
-    borderWidth: 1,
-    borderColor: theme.colors.border_contrast,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  backText: {
-    color: theme.colors.text_primary,
-  },
-  list: {
-    paddingBottom: 24,
-  },
-  row: {
-    justifyContent: 'space-between',
-    marginBottom: theme.layout.grid_gap,
-  },
-  box: {
-    flex: 1,
-    minHeight: 104,
-    maxWidth: '48%',
-    borderWidth: 2,
-    borderColor: theme.colors.border_contrast,
-    borderRadius: 16,
-    padding: theme.layout.box_padding,
-    justifyContent: 'center',
-    marginHorizontal: 4,
-  },
-  boxActive: {
-    borderColor: theme.colors.accent_highlight,
-  },
-  boxText: {
-    color: theme.colors.text_primary,
-    fontSize: theme.typography.box_text_size,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-});
+export function createSetlist(name: string): Setlist {
+  const cleanedName = name.trim() || 'New Setlist';
+  const id = makeId();
+  const orderIndex = getNextSetlistOrderIndex();
+
+  db.runSync('INSERT INTO setlists (id, name, order_index) VALUES (?, ?, ?)', [id, cleanedName, orderIndex]);
+
+  return {
+    id,
+    name: cleanedName,
+    order_index: orderIndex,
+  };
+}
+
+export function getSetlistsWithSongs(): SetlistWithSongs[] {
+  const setlists = db.getAllSync('SELECT * FROM setlists ORDER BY order_index ASC, name ASC') as Setlist[];
+
+  return setlists.map((setlist) => {
+    const songs = db.getAllSync(
+      `SELECT s.*
+       FROM songs s
+       INNER JOIN setlist_songs ss ON ss.song_id = s.id
+       WHERE ss.setlist_id = ?
+       ORDER BY ss.sort_order ASC, s.title ASC`,
+      [setlist.id],
+    ) as Song[];
+
+    return {
+      ...setlist,
+      songs,
+    };
+  });
+}
+
+export function getSongById(songId: string): Song | null {
+  const row = db.getFirstSync('SELECT * FROM songs WHERE id = ?', [songId]) as Song | null;
+  return row;
+}
+
+export function saveSongForSetlist({
+  setlistId,
+  songId,
+  title,
+  notes_raw_text,
+}: {
+  setlistId: string;
+  songId?: string;
+  title: string;
+  notes_raw_text: string;
+}): Song {
+  const id = songId ?? makeId();
+  const cleanedTitle = title.trim() || 'Untitled Song';
+
+  const existing = getSongById(id);
+
+  if (existing) {
+    db.runSync('UPDATE songs SET title = ?, notes_raw_text = ? WHERE id = ?', [
+      cleanedTitle,
+      notes_raw_text,
+      id,
+    ]);
+  } else {
+    db.runSync('INSERT INTO songs (id, title, notes_raw_text) VALUES (?, ?, ?)', [
+      id,
+      cleanedTitle,
+      notes_raw_text,
+    ]);
+  }
+
+  db.runSync(
+    'INSERT OR IGNORE INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+    [setlistId, id, getNextSortOrderForSetlist(setlistId)],
+  );
+
+  return {
+    id,
+    title: cleanedTitle,
+    notes_raw_text,
+  };
+}
+
+function getNextSetlistOrderIndex(): number {
+  const max = db.getFirstSync('SELECT MAX(order_index) as maxIndex FROM setlists') as { maxIndex: number | null } | null;
+  return (max?.maxIndex ?? -1) + 1;
+}
+
+function getNextSortOrderForSetlist(setlistId: string): number {
+  const max = db.getFirstSync(
+    'SELECT MAX(sort_order) as maxOrder FROM setlist_songs WHERE setlist_id = ?',
+    [setlistId],
+  ) as { maxOrder: number | null } | null;
+
+  return (max?.maxOrder ?? -1) + 1;
+}
+
+export { db };

@@ -1,0 +1,99 @@
+name: Validate Expo SDK upgrade (deps-only)
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - upgrade/expo-sdk-57-deps-only
+      - fix/expo-sdk-57-typecheck
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Run expo doctor (capture logs)
+        id: doctor
+        continue-on-error: true
+        run: |
+          mkdir -p validation-logs
+          set +e
+          npx expo-doctor > validation-logs/doctor.log 2>&1
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Run TypeScript typecheck (capture logs)
+        id: typecheck
+        continue-on-error: true
+        run: |
+          mkdir -p validation-logs
+          set +e
+          npm run typecheck > validation-logs/typecheck.log 2>&1
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Run expo export (bundle validation; capture logs)
+        id: export
+        continue-on-error: true
+        run: |
+          mkdir -p validation-logs
+          set +e
+          npx expo export --output-dir dist --platform ios --platform android > validation-logs/export.log 2>&1
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: expo-upgrade-validation-logs
+          path: validation-logs/*
+
+      - name: Upload dist (if created)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: ignore
+
+      - name: Fail if validation checks failed
+        if: always()
+        env:
+          DOCTOR_EXIT_CODE: ${{ steps.doctor.outputs.exit_code }}
+          TYPECHECK_EXIT_CODE: ${{ steps.typecheck.outputs.exit_code }}
+          EXPORT_EXIT_CODE: ${{ steps.export.outputs.exit_code }}
+        run: |
+          failed=0
+          if [ "$DOCTOR_EXIT_CODE" != "0" ]; then
+            echo "Expo Doctor failed (exit code: ${DOCTOR_EXIT_CODE:-not run})"
+            failed=1
+          fi
+          if [ "$TYPECHECK_EXIT_CODE" != "0" ]; then
+            echo "Typecheck failed (exit code: ${TYPECHECK_EXIT_CODE:-not run})"
+            failed=1
+          fi
+          if [ "$EXPORT_EXIT_CODE" != "0" ]; then
+            echo "Expo export failed (exit code: ${EXPORT_EXIT_CODE:-not run})"
+            failed=1
+          fi
+          exit "$failed"
