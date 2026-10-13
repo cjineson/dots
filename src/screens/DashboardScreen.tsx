@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Button,
+  Image,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -21,7 +23,7 @@ type DashboardScreenProps = {
   setlists: SetlistWithSongs[];
   onCreateSetlist: (name: string) => void;
   onOpenSongForEdit: (setlistId: string, song?: Song) => void;
-  onOpenPerformance: (song: Song) => void;
+  onOpenPerformance: (songs: Song[], index: number) => void;
   onOpenNewSong: (setlistId: string) => void;
   onReorderSongs: (setlistId: string, songs: Song[]) => void;
   onExportLibrary: () => void;
@@ -43,16 +45,13 @@ export default function DashboardScreen({
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
-        <Text style={styles.title}>GigBox</Text>
+        <Image
+          source={require('../../assets/branding/gigbox-logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+          accessibilityLabel="GigBox"
+        />
         <Text style={styles.subtitle}>Your entire setlist, just the cues you need.</Text>
-        <View style={styles.libraryActions}>
-          <Pressable style={styles.libraryAction} onPress={onExportLibrary}>
-            <Text style={styles.actionText}>Export JSON</Text>
-          </Pressable>
-          <Pressable style={styles.libraryAction} onPress={onImportLibrary}>
-            <Text style={styles.actionText}>Import JSON</Text>
-          </Pressable>
-        </View>
       </View>
 
       <View style={styles.createRow}>
@@ -71,7 +70,7 @@ export default function DashboardScreen({
         }} />
       </View>
 
-      <NestableScrollContainer contentContainerStyle={styles.list}>
+      <NestableScrollContainer style={styles.scroll} contentContainerStyle={styles.list}>
         {setlists.length === 0 ? (
           <Text style={styles.emptyState}>No setlists yet. Create one to begin.</Text>
         ) : (
@@ -109,7 +108,10 @@ export default function DashboardScreen({
                           <Pressable style={styles.actionButton} onPress={() => onOpenSongForEdit(setlist.id, song)}>
                             <Text style={styles.actionText}>Edit</Text>
                           </Pressable>
-                          <Pressable style={styles.primaryActionButton} onPress={() => onOpenPerformance(song)}>
+                          <Pressable
+                            style={styles.primaryActionButton}
+                            onPress={() => onOpenPerformance(setlist.songs, setlist.songs.findIndex((item) => item.id === song.id))}
+                          >
                             <Text style={styles.primaryActionText}>Play</Text>
                           </Pressable>
                         </View>
@@ -122,6 +124,33 @@ export default function DashboardScreen({
           ))
         )}
       </NestableScrollContainer>
+
+      <View style={styles.bottomBar}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Export setlists as JSON"
+          style={styles.bottomBarButton}
+          onPress={onExportLibrary}
+        >
+          <MaterialCommunityIcons
+            name="file-export"
+            size={24}
+            color={theme.colors.text_primary}
+          />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Import setlists from JSON"
+          style={styles.bottomBarButton}
+          onPress={onImportLibrary}
+        >
+          <MaterialCommunityIcons
+            name="file-import"
+            size={24}
+            color={theme.colors.text_primary}
+          />
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
@@ -135,28 +164,18 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 14,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border_contrast,
   },
-  title: {
-    color: theme.colors.text_primary,
-    fontSize: theme.typography.headline_size,
-    fontWeight: theme.typography.font_weight_bold,
+  logo: {
+    width: 112,
+    height: 32,
   },
   subtitle: {
     color: theme.colors.text_secondary,
     fontSize: 14,
     marginTop: 4,
-  },
-  libraryActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  libraryAction: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border_contrast,
   },
   createRow: {
     flexDirection: 'row',
@@ -177,6 +196,27 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: 24,
     gap: 14,
+  },
+  scroll: {
+    flex: 1,
+  },
+  bottomBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    minHeight: 64,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border_contrast,
+  },
+  bottomBarButton: {
+    width: 56,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 10,
   },
   card: {
     backgroundColor: theme.colors.surface,

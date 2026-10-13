@@ -50,6 +50,17 @@ jobs:
           echo "exit_code=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Run unit tests (capture logs)
+        id: tests
+        continue-on-error: true
+        run: |
+          mkdir -p validation-logs
+          set +e
+          npm test > validation-logs/tests.log 2>&1
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
       - name: Run expo export (bundle validation; capture logs)
         id: export
         continue-on-error: true
@@ -81,6 +92,7 @@ jobs:
         env:
           DOCTOR_EXIT_CODE: ${{ steps.doctor.outputs.exit_code }}
           TYPECHECK_EXIT_CODE: ${{ steps.typecheck.outputs.exit_code }}
+          TESTS_EXIT_CODE: ${{ steps.tests.outputs.exit_code }}
           EXPORT_EXIT_CODE: ${{ steps.export.outputs.exit_code }}
         run: |
           failed=0
@@ -90,6 +102,10 @@ jobs:
           fi
           if [ "$TYPECHECK_EXIT_CODE" != "0" ]; then
             echo "Typecheck failed (exit code: ${TYPECHECK_EXIT_CODE:-not run})"
+            failed=1
+          fi
+          if [ "$TESTS_EXIT_CODE" != "0" ]; then
+            echo "Unit tests failed (exit code: ${TESTS_EXIT_CODE:-not run})"
             failed=1
           fi
           if [ "$EXPORT_EXIT_CODE" != "0" ]; then

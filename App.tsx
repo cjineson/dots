@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, SafeAreaView, StyleSheet } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, StyleSheet } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -27,7 +27,7 @@ import type { Song, SetlistWithSongs } from './src/types';
 type RootStackParamList = {
   Dashboard: undefined;
   Editor: { setlistId: string; song?: Song };
-  Performance: { song: Song };
+  Performance: { songs: Song[]; index: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -161,7 +161,9 @@ export default function App() {
                 onOpenSongForEdit={(setlistId, song) =>
                   navigation.navigate('Editor', { setlistId, song })
                 }
-                onOpenPerformance={(song) => navigation.navigate('Performance', { song })}
+                onOpenPerformance={(songs, index) =>
+                  navigation.navigate('Performance', { songs, index })
+                }
                 onOpenNewSong={(setlistId) => navigation.navigate('Editor', { setlistId })}
                 onReorderSongs={handleReorderSongs}
                 onExportLibrary={handleExportLibrary}
@@ -183,17 +185,46 @@ export default function App() {
                     navigation.popToTop(),
                   )
                 }
-                onPlay={(song) => navigation.navigate('Performance', { song })}
+                onPlay={(song) => {
+                  const setlistSongs = setlists.find(
+                    (setlist) => setlist.id === route.params.setlistId,
+                  )?.songs;
+                  const songs = setlistSongs?.some((setlistSong) => setlistSong.id === song.id)
+                    ? setlistSongs
+                    : [song];
+                  const index = songs.findIndex((setlistSong) => setlistSong.id === song.id);
+                  navigation.navigate('Performance', { songs, index });
+                }}
               />
             )}
           </Stack.Screen>
           <Stack.Screen
             name="Performance"
-            options={({ route }) => ({ title: route.params.song.title })}
+            options={({ navigation, route }) => ({
+              title: route.params.songs[route.params.index]?.title ?? 'Performance',
+              gestureEnabled: false,
+              headerLeft: () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Go to Dashboard"
+                  onPress={() => navigation.popToTop()}
+                  hitSlop={8}
+                >
+                  <Image
+                    source={require('./assets/branding/gigbox-logo.png')}
+                    style={styles.headerLogo}
+                    resizeMode="contain"
+                    accessibilityLabel="GigBox"
+                  />
+                </Pressable>
+              ),
+            })}
           >
-            {({ route }) => (
+            {({ navigation, route }) => (
               <LivePerformanceScreen
-                song={route.params.song}
+                songs={route.params.songs}
+                index={route.params.index}
+                onIndexChange={(index) => navigation.setParams({ index })}
                 onFontSizeChange={handleSongFontSizeChange}
               />
             )}
@@ -213,5 +244,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerLogo: {
+    width: 76,
+    height: 26,
   },
 });
