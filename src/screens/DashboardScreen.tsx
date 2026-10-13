@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import {
   Button,
-  FlatList,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import {
+  NestableDraggableFlatList,
+  NestableScrollContainer,
+  ScaleDecorator,
+} from 'react-native-draggable-flatlist';
 
 import { theme } from '../theme';
 import type { SetlistWithSongs, Song } from '../types';
@@ -20,6 +23,9 @@ type DashboardScreenProps = {
   onOpenSongForEdit: (setlistId: string, song?: Song) => void;
   onOpenPerformance: (song: Song) => void;
   onOpenNewSong: (setlistId: string) => void;
+  onReorderSongs: (setlistId: string, songs: Song[]) => void;
+  onExportLibrary: () => void;
+  onImportLibrary: () => void;
 };
 
 export default function DashboardScreen({
@@ -28,6 +34,9 @@ export default function DashboardScreen({
   onOpenSongForEdit,
   onOpenPerformance,
   onOpenNewSong,
+  onReorderSongs,
+  onExportLibrary,
+  onImportLibrary,
 }: DashboardScreenProps) {
   const [draftName, setDraftName] = useState('');
 
@@ -36,6 +45,14 @@ export default function DashboardScreen({
       <View style={styles.header}>
         <Text style={styles.title}>GigBox</Text>
         <Text style={styles.subtitle}>Your entire setlist, just the cues you need.</Text>
+        <View style={styles.libraryActions}>
+          <Pressable style={styles.libraryAction} onPress={onExportLibrary}>
+            <Text style={styles.actionText}>Export JSON</Text>
+          </Pressable>
+          <Pressable style={styles.libraryAction} onPress={onImportLibrary}>
+            <Text style={styles.actionText}>Import JSON</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.createRow}>
@@ -54,7 +71,7 @@ export default function DashboardScreen({
         }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.list}>
+      <NestableScrollContainer contentContainerStyle={styles.list}>
         {setlists.length === 0 ? (
           <Text style={styles.emptyState}>No setlists yet. Create one to begin.</Text>
         ) : (
@@ -70,24 +87,41 @@ export default function DashboardScreen({
               {setlist.songs.length === 0 ? (
                 <Text style={styles.songHint}>No songs in this setlist yet.</Text>
               ) : (
-                setlist.songs.map((song) => (
-                  <View key={song.id} style={styles.songRow}>
-                    <Text style={styles.songTitle}>{song.title}</Text>
-                    <View style={styles.songActions}>
-                      <Pressable style={styles.actionButton} onPress={() => onOpenSongForEdit(setlist.id, song)}>
-                        <Text style={styles.actionText}>Edit</Text>
-                      </Pressable>
-                      <Pressable style={styles.primaryActionButton} onPress={() => onOpenPerformance(song)}>
-                        <Text style={styles.primaryActionText}>Play</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                ))
+                <NestableDraggableFlatList
+                  data={setlist.songs}
+                  keyExtractor={(song) => song.id}
+                  activationDistance={8}
+                  onDragEnd={({ data }) => onReorderSongs(setlist.id, data)}
+                  renderItem={({ item: song, drag, isActive }) => (
+                    <ScaleDecorator>
+                      <View style={[styles.songRow, isActive && styles.songRowDragging]}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Reorder ${song.title}`}
+                          onLongPress={drag}
+                          delayLongPress={180}
+                          style={styles.dragHandle}
+                        >
+                          <Text style={styles.dragHandleText}>☰</Text>
+                        </Pressable>
+                        <Text style={styles.songTitle}>{song.title}</Text>
+                        <View style={styles.songActions}>
+                          <Pressable style={styles.actionButton} onPress={() => onOpenSongForEdit(setlist.id, song)}>
+                            <Text style={styles.actionText}>Edit</Text>
+                          </Pressable>
+                          <Pressable style={styles.primaryActionButton} onPress={() => onOpenPerformance(song)}>
+                            <Text style={styles.primaryActionText}>Play</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    </ScaleDecorator>
+                  )}
+                />
               )}
             </View>
           ))
         )}
-      </ScrollView>
+      </NestableScrollContainer>
     </SafeAreaView>
   );
 }
@@ -111,6 +145,18 @@ const styles = StyleSheet.create({
     color: theme.colors.text_secondary,
     fontSize: 14,
     marginTop: 4,
+  },
+  libraryActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  libraryAction: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
   },
   createRow: {
     flexDirection: 'row',
@@ -178,6 +224,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border_contrast,
+  },
+  songRowDragging: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 8,
+  },
+  dragHandle: {
+    minWidth: 36,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  dragHandleText: {
+    color: theme.colors.text_secondary,
+    fontSize: 18,
   },
   songTitle: {
     color: theme.colors.text_primary,

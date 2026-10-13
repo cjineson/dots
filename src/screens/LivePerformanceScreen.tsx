@@ -5,6 +5,7 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
+  LayoutChangeEvent,
 } from 'react-native';
 
 import { parseBoxes } from '../lib/parser';
@@ -17,7 +18,13 @@ type LivePerformanceScreenProps = {
 
 export default function LivePerformanceScreen({ song }: LivePerformanceScreenProps) {
   const [activeIndexes, setActiveIndexes] = useState<number[]>([]);
+  const [boxWidth, setBoxWidth] = useState(0);
   const boxes = parseBoxes(song.notes_raw_text);
+  const baseFontSize = theme.typography.box_text_size;
+  const charsPerLine = Math.max(
+    1,
+    (boxWidth - theme.layout.box_padding * 2) / (baseFontSize * 0.55),
+  );
 
   const toggleBox = (index: number) => {
     setActiveIndexes((current) =>
@@ -25,6 +32,11 @@ export default function LivePerformanceScreen({ song }: LivePerformanceScreenPro
         ? current.filter((value) => value !== index)
         : [...current, index],
     );
+  };
+
+  const handleBoxLayout = (event: LayoutChangeEvent) => {
+    const width = event.nativeEvent.layout.width;
+    setBoxWidth((current) => (Math.abs(current - width) > 1 ? width : current));
   };
 
   return (
@@ -40,6 +52,7 @@ export default function LivePerformanceScreen({ song }: LivePerformanceScreenPro
 
           return (
             <Pressable
+              onLayout={handleBoxLayout}
               style={[
                 styles.box,
                 { backgroundColor: isActive ? theme.colors.box_active_state : theme.colors.surface_card },
@@ -47,7 +60,20 @@ export default function LivePerformanceScreen({ song }: LivePerformanceScreenPro
               ]}
               onPress={() => toggleBox(index)}
             >
-              <Text style={styles.boxText}>{item}</Text>
+              <Text
+                style={[
+                  styles.boxText,
+                  {
+                    fontSize: Math.max(
+                      12,
+                      baseFontSize *
+                        Math.min(1, Math.sqrt((charsPerLine * 4) / Math.max(1, item.length))),
+                    ),
+                  },
+                ]}
+              >
+                {item}
+              </Text>
             </Pressable>
           );
         }}
