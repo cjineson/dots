@@ -25,6 +25,14 @@ Local-first dark-mode live setlist app for musicians.
    npx expo start
 3. In the Expo UI, select a simulator or run on a device.
 
+## Testing
+
+Run the unit tests with:
+
+```sh
+npm test
+```
+
 ## Database behavior
 The app uses SQLite locally on device with these tables:
 - setlists
