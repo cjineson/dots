@@ -6,11 +6,14 @@ Local-first dark-mode live setlist app for musicians.
 - React Native + Expo + TypeScript
 - expo-sqlite for local storage
 
-## Features in this Phase 1 scaffold
+## Features
 - Dashboard with setlist list and add-setlist flow
 - Song editor with title + multiline note input
 - Live performance view that turns each note line into a tap-to-activate box
 - Dark theme tokens matching the stage-ready spec
+- Reorder songs in a setlist by dragging the handle beside a song
+- Long cue lines automatically scale down to fit the performance boxes
+- Export the library to a shareable JSON file and import JSON exports as additional setlists
 
 ## Getting started
 
@@ -29,7 +32,4 @@ The app uses SQLite locally on device with these tables:
 Notes are parsed on render by splitting on newline characters and filtering empty lines.
 
 ## Future phases
-- Reordering songs with drag-and-drop
-- Responsive text scaling for long cue lines
-- JSON export/import for file sharing
 - Local P2P sync pathing

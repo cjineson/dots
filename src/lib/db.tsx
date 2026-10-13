@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 import { makeId } from './uuid';
-import type { Setlist, SetlistWithSongs, Song } from '../types';
+import type { Setlist, SetlistArchive, SetlistWithSongs, Song } from '../types';
 
 const db = SQLite.openDatabaseSync('gigbox.db');
 
@@ -109,6 +109,45 @@ export function saveSongForSetlist({
     title: cleanedTitle,
     notes_raw_text,
   };
+}
+
+export function reorderSongsForSetlist(setlistId: string, songs: Song[]): void {
+  db.withTransactionSync(() => {
+    songs.forEach((song, index) => {
+      db.runSync(
+        'UPDATE setlist_songs SET sort_order = ? WHERE setlist_id = ? AND song_id = ?',
+        [index, setlistId, song.id],
+      );
+    });
+  });
+}
+
+export function importSetlists(setlists: SetlistArchive['setlists']): void {
+  db.withTransactionSync(() => {
+    let nextSetlistOrderIndex = getNextSetlistOrderIndex();
+
+    for (const setlist of setlists) {
+      const setlistId = makeId();
+      db.runSync('INSERT INTO setlists (id, name, order_index) VALUES (?, ?, ?)', [
+        setlistId,
+        setlist.name.trim(),
+        nextSetlistOrderIndex++,
+      ]);
+
+      setlist.songs.forEach((song, index) => {
+        const songId = makeId();
+        db.runSync('INSERT INTO songs (id, title, notes_raw_text) VALUES (?, ?, ?)', [
+          songId,
+          song.title.trim() || 'Untitled Song',
+          song.notes_raw_text,
+        ]);
+        db.runSync(
+          'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+          [setlistId, songId, index],
+        );
+      });
+    }
+  });
 }
 
 function getNextSetlistOrderIndex(): number {

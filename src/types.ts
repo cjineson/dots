@@ -19,3 +19,16 @@ export type SetlistSong = {
 export type SetlistWithSongs = Setlist & {
   songs: Song[];
 };
+
+export type SetlistArchive = {
+  format: 'gigbox-setlists';
+  version: 1;
+  exportedAt: string;
+  setlists: Array<{
+    name: string;
+    songs: Array<{
+      title: string;
+      notes_raw_text: string;
+    }>;
+  }>;
+};
