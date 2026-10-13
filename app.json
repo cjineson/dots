@@ -2,6 +2,7 @@
   "expo": {
     "name": "GigBox",
     "slug": "gigbox",
+    "owner": "chrisineson",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
