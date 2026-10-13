@@ -43,7 +43,6 @@ export default function SongEditorScreen({
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
-        <Text style={styles.title}>{initialSong ? 'Edit Song' : 'New Song'}</Text>
         <Text style={styles.subtle}>Setlist ID: {setlistId}</Text>
       </View>
 
@@ -98,11 +97,6 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 16,
-  },
-  title: {
-    color: theme.colors.text_primary,
-    fontSize: theme.typography.headline_size,
-    fontWeight: theme.typography.font_weight_bold,
   },
   subtle: {
     color: theme.colors.text_secondary,

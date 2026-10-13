@@ -7,7 +7,7 @@
     "runtimeVersion": {
       "policy": "sdkVersion"
     },
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "dark",
     "platforms": [
       "ios",
