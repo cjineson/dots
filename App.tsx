@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
+import { File } from 'expo-file-system';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -166,7 +167,7 @@ export default function App() {
         return;
       }
 
-      const json = await FileSystem.readAsStringAsync(result.assets[0].uri);
+      const json = await new File(result.assets[0].uri).text();
       const importedSetlists = parseSetlistArchive(json);
       importSetlists(importedSetlists);
       refreshSetlists();
