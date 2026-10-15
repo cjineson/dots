@@ -6,6 +6,7 @@ import type {
   SetlistWithSongs,
 } from '../types';
 import { parseCueDocument, validateCueDocument } from './cueDocument';
+import { validateSongTags } from './songTags';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -20,6 +21,7 @@ function exportSong(song: SetlistItem & { kind: 'song' }) {
     ...(song.song.cue_document
       ? { cue_document: parseCueDocument(song.song.cue_document) }
       : {}),
+    ...(song.song.tags?.length ? { tags: song.song.tags } : {}),
   };
 }
 
@@ -70,12 +72,23 @@ function parseSong(song: unknown, setlistName: string, songIndex: number) {
     }
   }
 
+  let tags: ReturnType<typeof validateSongTags> | undefined;
+  if (song.tags !== undefined) {
+    try {
+      tags = validateSongTags(song.tags);
+    } catch (error) {
+      const detail = error instanceof Error ? ` ${error.message}` : '';
+      throw new Error(`Song ${songIndex + 1} in "${setlistName}" has invalid tags.${detail}`);
+    }
+  }
+
   return {
     type: 'song' as const,
     title: song.title,
     notes_raw_text: song.notes_raw_text,
     font_size: song.font_size,
     ...(cueDocument ? { cue_document: cueDocument } : {}),
+    ...(tags?.length ? { tags } : {}),
   };
 }
 

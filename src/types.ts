@@ -15,6 +15,12 @@ export type Song = {
   notes_raw_text: string;
   font_size?: number;
   cue_document?: string;
+  tags?: SongTag[];
+};
+
+export type SongTag = {
+  label: string;
+  color: CueTextColor;
 };
 
 export type SetlistItem =
@@ -74,6 +80,7 @@ export type SetlistArchive = {
           notes_raw_text: string;
           font_size?: number;
           cue_document?: CueDocument;
+          tags?: SongTag[];
         }
       | { type: 'break'; duration_minutes?: number }
     >;
@@ -92,6 +99,7 @@ export type ImportedSetlist = {
         notes_raw_text: string;
         font_size?: number;
         cue_document?: CueDocument;
+        tags?: SongTag[];
       }
     | { type: 'break'; duration_minutes?: number }
   >;

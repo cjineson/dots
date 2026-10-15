@@ -15,6 +15,7 @@ import {
   getVisibleCueBlocks,
   parseCueDocument,
 } from '../lib/cueDocument';
+import SongTags from '../components/SongTags';
 import { theme } from '../theme';
 import type { CueBlock, SetlistItem, Song } from '../types';
 
@@ -186,9 +187,12 @@ export default function FlowScreen({
             theme.typography.box_text_size;
           return (
             <View key={song.id} style={styles.song}>
-              <Text style={styles.songTitle}>
-                {songNumber}. {song.title}
-              </Text>
+              <View style={styles.songTitle}>
+                <Text style={styles.songTitleText}>
+                  {songNumber}. {song.title}
+                </Text>
+                <SongTags tags={song.tags} />
+              </View>
               <View style={styles.cueContent}>
                 {cueBlocks.map((block) =>
                   renderBlock({
@@ -294,13 +298,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   songTitle: {
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border_contrast,
+    gap: 8,
+    paddingBottom: 12,
+    marginBottom: 6,
+  },
+  songTitleText: {
     color: theme.colors.accent_highlight,
     fontSize: 20,
     fontWeight: theme.typography.font_weight_bold,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border_contrast,
-    paddingBottom: 10,
-    marginBottom: 12,
   },
   cueContent: {
     gap: 6,

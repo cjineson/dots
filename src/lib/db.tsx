@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 
+import { parseStoredSongTags } from './songTags';
 import { makeId } from './uuid';
 import type {
   ImportedSetlist,
@@ -24,7 +25,8 @@ export function initializeDatabase(): void {
       title TEXT,
       notes_raw_text TEXT,
       font_size INTEGER NOT NULL DEFAULT 18,
-      cue_document TEXT
+      cue_document TEXT,
+      tags TEXT
     );
 
     CREATE TABLE IF NOT EXISTS setlist_songs (
@@ -51,6 +53,9 @@ export function initializeDatabase(): void {
   }
   if (!songColumns.some((column) => column.name === 'cue_document')) {
     db.execSync('ALTER TABLE songs ADD COLUMN cue_document TEXT');
+  }
+  if (!songColumns.some((column) => column.name === 'tags')) {
+    db.execSync('ALTER TABLE songs ADD COLUMN tags TEXT');
   }
   const setlistColumns = db.getAllSync<{ name: string }>('PRAGMA table_info(setlists)');
   for (const column of ['location', 'date', 'time']) {
@@ -141,20 +146,9 @@ export function copySetlist(setlistId: string): Setlist {
 
     sourceSetlist.items.forEach((item, index) => {
       if (item.kind === 'song') {
-        const songId = makeId();
-        db.runSync(
-          'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document) VALUES (?, ?, ?, ?, ?)',
-          [
-            songId,
-            item.song.title,
-            item.song.notes_raw_text,
-            item.song.font_size ?? 18,
-            item.song.cue_document ?? null,
-          ],
-        );
         db.runSync(
           'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
-          [copy.id, songId, index],
+          [copy.id, item.song.id, index],
         );
       } else {
         db.runSync(
@@ -181,29 +175,11 @@ export function copySongToSetlist(songId: string, targetSetlistId: string): Song
     throw new Error('The destination setlist could not be found.');
   }
 
-  const copy: Song = {
-    ...source,
-    id: makeId(),
-  };
-
-  db.withTransactionSync(() => {
-    db.runSync(
-      'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document) VALUES (?, ?, ?, ?, ?)',
-      [
-        copy.id,
-        copy.title,
-        copy.notes_raw_text,
-        copy.font_size ?? 18,
-        copy.cue_document ?? null,
-      ],
-    );
-    db.runSync(
-      'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
-      [targetSetlistId, copy.id, getNextSortOrderForSetlist(targetSetlistId)],
-    );
-  });
-
-  return copy;
+  db.runSync(
+    'INSERT OR IGNORE INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+    [targetSetlistId, source.id, getNextSortOrderForSetlist(targetSetlistId)],
+  );
+  return source;
 }
 
 export function getSetlistsWithSongs(): SetlistWithSongs[] {
@@ -218,15 +194,16 @@ export function getSetlistsWithSongs(): SetlistWithSongs[] {
       notes_raw_text: string | null;
       font_size: number | null;
       cue_document: string | null;
+      tags: string | null;
       duration_minutes: number | null;
     }>(
       `SELECT 'song' AS kind, s.id, ss.sort_order, s.title, s.notes_raw_text,
-              s.font_size, s.cue_document, NULL AS duration_minutes
+              s.font_size, s.cue_document, s.tags, NULL AS duration_minutes
        FROM songs s
        INNER JOIN setlist_songs ss ON ss.song_id = s.id
        WHERE ss.setlist_id = ?
        UNION ALL
-       SELECT 'break' AS kind, id, sort_order, NULL, NULL, NULL, NULL, duration_minutes
+       SELECT 'break' AS kind, id, sort_order, NULL, NULL, NULL, NULL, NULL, duration_minutes
        FROM setlist_breaks
        WHERE setlist_id = ?
        ORDER BY sort_order ASC`,
@@ -253,6 +230,7 @@ export function getSetlistsWithSongs(): SetlistWithSongs[] {
           notes_raw_text: row.notes_raw_text,
           font_size: row.font_size ?? undefined,
           cue_document: row.cue_document ?? undefined,
+          tags: parseStoredSongTags(row.tags),
         },
       };
     });
@@ -318,8 +296,24 @@ export function deleteBreakFromSetlist(setlistId: string, breakId: string): void
 }
 
 export function getSongById(songId: string): Song | null {
-  const row = db.getFirstSync('SELECT * FROM songs WHERE id = ?', [songId]) as Song | null;
-  return row;
+  const row = db.getFirstSync<{
+    id: string;
+    title: string;
+    notes_raw_text: string;
+    font_size: number | null;
+    cue_document: string | null;
+    tags: string | null;
+  }>('SELECT * FROM songs WHERE id = ?', [songId]);
+  return row
+    ? {
+        id: row.id,
+        title: row.title,
+        notes_raw_text: row.notes_raw_text,
+        font_size: row.font_size ?? undefined,
+        cue_document: row.cue_document ?? undefined,
+        tags: parseStoredSongTags(row.tags),
+      }
+    : null;
 }
 
 export function saveSongForSetlist({
@@ -328,12 +322,14 @@ export function saveSongForSetlist({
   title,
   notes_raw_text,
   cue_document,
+  tags,
 }: {
   setlistId: string;
   songId?: string;
   title: string;
   notes_raw_text: string;
   cue_document: string;
+  tags: Song['tags'];
 }): Song {
   const id = songId ?? makeId();
   const cleanedTitle = title.trim() || 'Untitled Song';
@@ -341,18 +337,20 @@ export function saveSongForSetlist({
   const existing = getSongById(id);
 
   if (existing) {
-    db.runSync('UPDATE songs SET title = ?, notes_raw_text = ?, cue_document = ? WHERE id = ?', [
+    db.runSync('UPDATE songs SET title = ?, notes_raw_text = ?, cue_document = ?, tags = ? WHERE id = ?', [
       cleanedTitle,
       notes_raw_text,
       cue_document,
+      JSON.stringify(tags ?? []),
       id,
     ]);
   } else {
-    db.runSync('INSERT INTO songs (id, title, notes_raw_text, cue_document) VALUES (?, ?, ?, ?)', [
+    db.runSync('INSERT INTO songs (id, title, notes_raw_text, cue_document, tags) VALUES (?, ?, ?, ?, ?)', [
       id,
       cleanedTitle,
       notes_raw_text,
       cue_document,
+      JSON.stringify(tags ?? []),
     ]);
   }
 
@@ -366,6 +364,7 @@ export function saveSongForSetlist({
     title: cleanedTitle,
     notes_raw_text,
     cue_document,
+    tags: tags ?? [],
   };
 }
 
@@ -409,13 +408,14 @@ export function importSetlists(setlists: ImportedSetlist[]): void {
         if (item.type === 'song') {
           const songId = makeId();
           db.runSync(
-            'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document) VALUES (?, ?, ?, ?, ?)',
+            'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags) VALUES (?, ?, ?, ?, ?, ?)',
             [
               songId,
               item.title.trim() || 'Untitled Song',
               item.notes_raw_text,
               item.font_size ?? 18,
               item.cue_document ? JSON.stringify(item.cue_document) : null,
+              JSON.stringify(item.tags ?? []),
             ],
           );
           db.runSync(

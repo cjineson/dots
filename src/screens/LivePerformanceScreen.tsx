@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 
 import { theme } from '../theme';
+import SongTags from '../components/SongTags';
+import PerformanceCueContent from '../components/PerformanceCueContent';
 import {
   createCueDocumentFromText,
   getVisibleCueBlocks,
@@ -25,7 +27,9 @@ type LivePerformanceScreenProps = {
   index: number;
   setlistName?: string;
   setlistDetails?: string;
+  isEditorPreview?: boolean;
   onGoToDashboard: () => void;
+  onExitEditorPreview: () => void;
   onIndexChange: (index: number) => void;
   onFontSizeChange: (songId: string, fontSize: number) => void;
 };
@@ -39,7 +43,9 @@ export default function LivePerformanceScreen({
   index,
   setlistName,
   setlistDetails,
+  isEditorPreview = false,
   onGoToDashboard,
+  onExitEditorPreview,
   onIndexChange,
   onFontSizeChange,
 }: LivePerformanceScreenProps) {
@@ -145,24 +151,37 @@ export default function LivePerformanceScreen({
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go to Dashboard"
-          onPress={onGoToDashboard}
-          hitSlop={8}
-          style={styles.dashboardButton}
-        >
-          <Image
-            source={require('../../assets/branding/gigbox-logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityLabel="GigBox"
-          />
-        </Pressable>
+        {isEditorPreview ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back to song editor"
+            onPress={onExitEditorPreview}
+            style={styles.backToEditButton}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={20} color={theme.colors.accent_highlight} />
+            <Text style={styles.backToEditText}>Back to edit</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go to Dashboard"
+            onPress={onGoToDashboard}
+            hitSlop={8}
+            style={styles.dashboardButton}
+          >
+            <Image
+              source={require('../../assets/branding/gigbox-logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityLabel="GigBox"
+            />
+          </Pressable>
+        )}
         <View style={styles.performanceHeading}>
           <Text numberOfLines={1} style={styles.songTitle}>
             {song?.title ?? 'Break'}
           </Text>
+          <SongTags tags={song?.tags} />
           {setlistName && (
             <Text numberOfLines={1} style={styles.setlistName}>
               {setlistName}
@@ -174,7 +193,7 @@ export default function LivePerformanceScreen({
             </Text>
           )}
         </View>
-        {song && (
+        {song && !isEditorPreview && (
           <View style={styles.zoomControls}>
             <Pressable
               accessibilityRole="button"
@@ -222,49 +241,10 @@ export default function LivePerformanceScreen({
             </View>
           ) : (
           <ScrollView contentContainerStyle={styles.cueBlocks}>
-            {cueBlocks.map((block) => {
-              const blockFontSize = Math.max(MIN_FONT_SIZE, baseSizeForBlock(block) * lowScale);
-              const color = block.color ?? theme.colors.text_primary;
-
-              if (block.type === 'table') {
-                return (
-                  <View key={block.id} style={styles.performanceTable}>
-                    {block.rows.map((row, rowIndex) => (
-                      <View key={`${block.id}-row-${rowIndex}`} style={styles.performanceTableRow}>
-                        {row.map((cell, columnIndex) => (
-                          <Text
-                            key={`${block.id}-cell-${rowIndex}-${columnIndex}`}
-                            style={[
-                              styles.performanceTableCell,
-                              { color, fontSize: blockFontSize },
-                            ]}
-                          >
-                            {cell}
-                          </Text>
-                        ))}
-                      </View>
-                    ))}
-                  </View>
-                );
-              }
-
-              return (
-                <Text
-                  key={block.id}
-                  style={[
-                    styles.cueText,
-                    block.type === 'section' && styles.sectionText,
-                    {
-                      color,
-                      fontSize: blockFontSize,
-                      marginBottom: block.type === 'section' ? 12 : 4,
-                    },
-                  ]}
-                >
-                  {block.text}
-                </Text>
-              );
-            })}
+            <PerformanceCueContent
+              blocks={cueBlocks}
+              fontScale={songFontScale * lowScale}
+            />
           </ScrollView>
           )}
         </View>
@@ -291,6 +271,17 @@ const styles = StyleSheet.create({
     width: 74,
     minHeight: 48,
     justifyContent: 'center',
+  },
+  backToEditButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 48,
+    gap: 6,
+  },
+  backToEditText: {
+    color: theme.colors.accent_highlight,
+    fontSize: 15,
+    fontWeight: '700',
   },
   logo: {
     width: 72,
@@ -357,31 +348,5 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     width: '100%',
-  },
-  cueText: {
-    color: theme.colors.text_primary,
-    fontWeight: '600',
-    textAlign: 'center',
-    width: '100%',
-  },
-  sectionText: {
-    fontWeight: '700',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border_contrast,
-    paddingBottom: 4,
-  },
-  performanceTable: {
-    width: '100%',
-    marginVertical: 6,
-  },
-  performanceTableRow: {
-    flexDirection: 'row',
-  },
-  performanceTableCell: {
-    flex: 1,
-    textAlign: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border_contrast,
-    padding: 6,
   },
 });
