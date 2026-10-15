@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
-  Button,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -15,18 +14,26 @@ import {
   createCueDocumentFromText,
   CUE_COLORS,
   flattenCueDocument,
+  getVisibleCueBlocks,
   parseCueDocument,
   serializeCueDocument,
 } from '../lib/cueDocument';
+import PerformanceCueContent from '../components/PerformanceCueContent';
+import SongTagsView from '../components/SongTags';
 import { makeId } from '../lib/uuid';
 import { theme } from '../theme';
-import type { CueBlock, CueDocument, CueTextColor, Song } from '../types';
+import type { CueBlock, CueDocument, CueTextColor, Song, SongTag } from '../types';
 
 type SongEditorScreenProps = {
   setlistId: string;
   initialSong?: Song;
   onCancel: () => void;
-  onSave: (payload: { title: string; notesRawText: string; cueDocument: string }) => void;
+  onSave: (payload: {
+    title: string;
+    notesRawText: string;
+    cueDocument: string;
+    tags: SongTag[];
+  }) => void;
   onPlay: (song: Song) => void;
 };
 
@@ -47,6 +54,9 @@ export default function SongEditorScreen({
       ? parseCueDocument(initialSong.cue_document)
       : createCueDocumentFromText(initialSong?.notes_raw_text ?? ''),
   );
+  const [tags, setTags] = useState<SongTag[]>(() => initialSong?.tags ?? []);
+  const [tagName, setTagName] = useState('');
+  const [tagColor, setTagColor] = useState<CueTextColor>(CUE_COLORS[1]);
 
   const currentSong = useMemo(
     () => ({
@@ -55,9 +65,30 @@ export default function SongEditorScreen({
       notes_raw_text: flattenCueDocument(document),
       cue_document: serializeCueDocument(document),
       font_size: initialSong?.font_size ?? theme.typography.box_text_size,
+      tags,
     }),
-    [document, title, initialSong],
+    [document, tags, title, initialSong],
   );
+  const previewCueBlocks = useMemo(() => getVisibleCueBlocks(document), [document]);
+
+  const addTag = () => {
+    const label = tagName.trim();
+    if (!label) {
+      return;
+    }
+    setTags((current) => {
+      const existingIndex = current.findIndex(
+        (tag) => tag.label.toLocaleLowerCase() === label.toLocaleLowerCase(),
+      );
+      if (existingIndex < 0) {
+        return [...current, { label, color: tagColor }];
+      }
+      return current.map((tag, index) =>
+        index === existingIndex ? { ...tag, color: tagColor } : tag,
+      );
+    });
+    setTagName('');
+  };
 
   const updateBlock = (blockId: string, update: (block: CueBlock) => CueBlock) => {
     setDocument((current) => ({
@@ -147,42 +178,6 @@ export default function SongEditorScreen({
     );
   };
 
-  const renderPreviewBlock = (block: CueBlock) => {
-    const textColor = block.color ?? theme.colors.text_primary;
-    const fontSize = block.font_size ?? theme.typography.box_text_size;
-    if (block.type === 'table') {
-      return (
-        <View key={block.id} style={styles.previewTable}>
-          {block.rows.map((row, rowIndex) => (
-            <View key={`${block.id}-preview-row-${rowIndex}`} style={styles.previewTableRow}>
-              {row.map((cell, columnIndex) => (
-                <Text
-                  key={`${block.id}-preview-cell-${rowIndex}-${columnIndex}`}
-                  style={[styles.previewTableCell, { color: textColor, fontSize }]}
-                >
-                  {cell}
-                </Text>
-              ))}
-            </View>
-          ))}
-        </View>
-      );
-    }
-
-    return (
-      <Text
-        key={block.id}
-        style={[
-          styles.previewText,
-          block.type === 'section' && styles.previewSection,
-          { color: textColor, fontSize },
-        ]}
-      >
-        {block.text || (block.type === 'section' ? 'Section title' : 'Cue text')}
-      </Text>
-    );
-  };
-
   const renderBlock = (block: CueBlock, index: number) => (
     <View key={block.id} style={styles.blockCard}>
       <View style={styles.blockHeader}>
@@ -215,6 +210,8 @@ export default function SongEditorScreen({
                   onChangeText={(value) => updateTableCell(block, rowIndex, columnIndex, value)}
                   placeholder={rowIndex === 0 ? `Column ${columnIndex + 1}` : 'Cue'}
                   placeholderTextColor={theme.colors.text_secondary}
+                  multiline
+                  textAlignVertical="top"
                   style={[
                     styles.tableCell,
                     {
@@ -296,6 +293,60 @@ export default function SongEditorScreen({
           style={styles.input}
         />
 
+        <Text style={styles.label}>Tags</Text>
+        <View style={styles.tagEditor}>
+          <View style={styles.tagInputRow}>
+            <TextInput
+              value={tagName}
+              onChangeText={setTagName}
+              onSubmitEditing={addTag}
+              returnKeyType="done"
+              placeholder="Tag name (e.g. acoustic)"
+              placeholderTextColor={theme.colors.text_secondary}
+              style={[styles.input, styles.tagInput]}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add song tag"
+              disabled={!tagName.trim()}
+              onPress={addTag}
+              style={[styles.addTagButton, !tagName.trim() && styles.disabledTagButton]}
+            >
+              <MaterialCommunityIcons name="plus" size={22} color={theme.colors.accent_highlight} />
+            </Pressable>
+          </View>
+          <View style={styles.tagColorOptions}>
+            {CUE_COLORS.map((color) => (
+              <Pressable
+                key={color}
+                accessibilityRole="button"
+                accessibilityLabel={`Choose tag color ${color}`}
+                accessibilityState={{ selected: tagColor === color }}
+                onPress={() => setTagColor(color)}
+                style={[
+                  styles.colorSwatch,
+                  { backgroundColor: color },
+                  tagColor === color && styles.selectedColorSwatch,
+                ]}
+              />
+            ))}
+          </View>
+          <View style={styles.editableTags}>
+            {tags.map((tag, index) => (
+              <Pressable
+                key={`${tag.label}-${index}`}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${tag.label} tag`}
+                onPress={() => setTags((current) => current.filter((_, i) => i !== index))}
+                style={[styles.editableTag, { borderColor: tag.color }]}
+              >
+                <Text style={[styles.editableTagText, { color: tag.color }]}>{tag.label}</Text>
+                <MaterialCommunityIcons name="close" size={15} color={tag.color} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
         <View style={styles.cueHeading}>
           <Text style={styles.label}>Cue layout</Text>
           <Text style={styles.helperText}>Add sections, cue text, or a table.</Text>
@@ -315,31 +366,54 @@ export default function SongEditorScreen({
           </Pressable>
         </View>
 
-        <Text style={styles.label}>Cue preview</Text>
-        <View style={styles.cuePreview}>
-          {document.blocks.length > 0 ? (
-            document.blocks.map(renderPreviewBlock)
+        <Text style={styles.label}>Performance preview</Text>
+        <View style={styles.previewHeading}>
+          <Text numberOfLines={2} style={styles.previewSongTitle}>{currentSong.title}</Text>
+          <SongTagsView tags={tags} />
+        </View>
+        <View style={styles.previewCueBox}>
+          {previewCueBlocks.length > 0 ? (
+            <ScrollView
+              nestedScrollEnabled
+              contentContainerStyle={styles.previewCueContent}
+            >
+              <PerformanceCueContent blocks={previewCueBlocks} />
+            </ScrollView>
           ) : (
-            <Text style={styles.helperText}>Add a section, cue, or table to preview it.</Text>
+            <Text style={styles.previewEmpty}>Add a section, cue, or table to preview it.</Text>
           )}
         </View>
-
-        <View style={styles.actions}>
-          <Button title="Cancel" onPress={onCancel} color={theme.colors.text_secondary} />
-          <Button
-            title="Save"
-            onPress={() => onSave({
-              title,
-              notesRawText: currentSong.notes_raw_text,
-              cueDocument: currentSong.cue_document,
-            })}
-          />
-        </View>
-
-        <Pressable style={styles.playButton} onPress={() => onPlay(currentSong)}>
-          <Text style={styles.playButtonText}>Launch performance view</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Preview performance view"
+          onPress={() => onPlay(currentSong)}
+          style={styles.previewButton}
+        >
+          <MaterialCommunityIcons name="eye-outline" size={20} color={theme.colors.text_primary} />
+          <Text style={styles.previewButtonText}>Preview performance view</Text>
         </Pressable>
       </ScrollView>
+      <View style={styles.actions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onCancel}
+          style={styles.cancelButton}
+        >
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onSave({
+            title,
+            notesRawText: currentSong.notes_raw_text,
+            cueDocument: currentSong.cue_document,
+            tags: currentSong.tags ?? [],
+          })}
+          style={styles.saveButton}
+        >
+          <Text style={styles.saveButtonText}>Save</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
@@ -359,7 +433,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   content: {
-    paddingBottom: 30,
+    paddingBottom: 12,
   },
   label: {
     color: theme.colors.text_primary,
@@ -369,6 +443,55 @@ const styles = StyleSheet.create({
   },
   cueHeading: {
     marginTop: 4,
+  },
+  tagEditor: {
+    marginTop: -4,
+    marginBottom: 12,
+  },
+  tagInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  tagInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  addTagButton: {
+    height: 48,
+    width: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surface_card,
+  },
+  disabledTagButton: {
+    opacity: 0.4,
+  },
+  tagColorOptions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginVertical: 8,
+  },
+  editableTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  editableTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  editableTagText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   helperText: {
     color: theme.colors.text_secondary,
@@ -491,52 +614,84 @@ const styles = StyleSheet.create({
     color: theme.colors.text_primary,
     fontWeight: '600',
   },
-  cuePreview: {
-    backgroundColor: theme.colors.surface_card,
-    borderWidth: 1,
-    borderColor: theme.colors.border_contrast,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
+  previewHeading: {
     gap: 8,
+    marginBottom: 8,
   },
-  previewText: {
-    fontWeight: '600',
-    textAlign: 'center',
+  previewSongTitle: {
+    color: theme.colors.text_primary,
+    fontSize: 18,
+    fontWeight: theme.typography.font_weight_bold,
   },
-  previewSection: {
-    fontWeight: '700',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border_contrast,
-    paddingBottom: 4,
+  previewCueBox: {
+    minHeight: 240,
+    backgroundColor: theme.colors.surface_card,
+    borderWidth: 2,
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 16,
+    padding: theme.layout.box_padding,
   },
-  previewTable: {
+  previewCueContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     width: '100%',
-    marginVertical: 4,
   },
-  previewTableRow: {
-    flexDirection: 'row',
-  },
-  previewTableCell: {
-    flex: 1,
+  previewEmpty: {
+    color: theme.colors.text_secondary,
     textAlign: 'center',
+    marginVertical: 72,
+  },
+  previewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
     borderWidth: 1,
     borderColor: theme.colors.border_contrast,
-    padding: 6,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  previewButtonText: {
+    color: theme.colors.text_primary,
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
+    gap: 10,
+    paddingTop: 10,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border_contrast,
+    backgroundColor: theme.colors.background,
   },
-  playButton: {
-    marginTop: 20,
-    backgroundColor: theme.colors.accent_highlight,
-    borderRadius: 12,
-    paddingVertical: 14,
+  cancelButton: {
+    flex: 1,
+    minHeight: 50,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    backgroundColor: theme.colors.surface,
   },
-  playButtonText: {
+  cancelButtonText: {
+    color: theme.colors.text_primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveButton: {
+    flex: 1,
+    minHeight: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: theme.colors.accent_highlight,
+  },
+  saveButtonText: {
     color: theme.colors.background,
     fontSize: 16,
     fontWeight: theme.typography.font_weight_bold,

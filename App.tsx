@@ -52,6 +52,7 @@ type RootStackParamList = {
     index: number;
     setlistName?: string;
     setlistDetails?: string;
+    isEditorPreview?: boolean;
   };
   Flow: { setlistName: string; setlistDetails?: string; items: SetlistItem[] };
 };
@@ -101,7 +102,8 @@ export default function App() {
       title,
       notesRawText,
       cueDocument,
-    }: { title: string; notesRawText: string; cueDocument: string },
+      tags,
+    }: { title: string; notesRawText: string; cueDocument: string; tags: Song['tags'] },
     onSaved: () => void,
   ) => {
     saveSongForSetlist({
@@ -110,6 +112,7 @@ export default function App() {
       title,
       notes_raw_text: notesRawText,
       cue_document: cueDocument,
+      tags,
     });
 
     refreshSetlists();
@@ -338,26 +341,12 @@ export default function App() {
                   const storedSetlist = setlists.find(
                     (setlist) => setlist.id === route.params.setlistId,
                   );
-                  const storedItems = storedSetlist?.items;
-                  const storedSongIndex = storedItems?.findIndex(
-                    (item) => item.kind === 'song' && item.song.id === song.id,
-                  );
-                  const items =
-                    storedItems && storedSongIndex !== undefined && storedSongIndex >= 0
-                      ? storedItems.map((item) =>
-                          item.kind === 'song' && item.song.id === song.id
-                            ? { kind: 'song' as const, song }
-                            : item,
-                        )
-                      : [{ kind: 'song' as const, song }];
-                  const index = items.findIndex(
-                    (item) => item.kind === 'song' && item.song.id === song.id,
-                  );
                   navigation.navigate('Performance', {
-                    items,
-                    index,
+                    items: [{ kind: 'song', song }],
+                    index: 0,
                     setlistName: storedSetlist?.name,
                     setlistDetails: formatSetlistDetails(storedSetlist),
+                    isEditorPreview: true,
                   });
                 }}
               />
@@ -376,7 +365,9 @@ export default function App() {
                 index={route.params.index}
                 setlistName={route.params.setlistName}
                 setlistDetails={route.params.setlistDetails}
+                isEditorPreview={route.params.isEditorPreview}
                 onGoToDashboard={() => navigation.popToTop()}
+                onExitEditorPreview={() => navigation.goBack()}
                 onIndexChange={(index) => navigation.setParams({ index })}
                 onFontSizeChange={handleSongFontSizeChange}
               />

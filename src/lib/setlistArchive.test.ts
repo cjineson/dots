@@ -18,6 +18,10 @@ const setlists: SetlistWithSongs[] = [
         title: 'First Song',
         notes_raw_text: 'Verse\nChorus',
         font_size: 24,
+        tags: [
+          { label: 'electric', color: '#FFCC00' },
+          { label: 'loud', color: '#FF8A80' },
+        ],
         cue_document: JSON.stringify({
           version: 1,
           blocks: [
@@ -40,6 +44,10 @@ const setlists: SetlistWithSongs[] = [
           title: 'First Song',
           notes_raw_text: 'Verse\nChorus',
           font_size: 24,
+          tags: [
+            { label: 'electric', color: '#FFCC00' },
+            { label: 'loud', color: '#FF8A80' },
+          ],
           cue_document: JSON.stringify({
             version: 1,
             blocks: [
@@ -88,6 +96,10 @@ test('createSetlistArchive writes the current format and cue document', () => {
               { id: 'table', type: 'table', rows: [['Verse', 'Chorus'], ['C', 'G']] },
             ],
           },
+          tags: [
+            { label: 'electric', color: '#FFCC00' },
+            { label: 'loud', color: '#FF8A80' },
+          ],
         },
         { type: 'break', duration_minutes: 15 },
         { type: 'song', title: 'Second Song', notes_raw_text: 'Intro', font_size: undefined },
@@ -120,6 +132,10 @@ test('parseSetlistArchive reads current archives and preserves formatted cue blo
               { id: 'table', type: 'table', rows: [['Verse', 'Chorus'], ['C', 'G']] },
             ],
           },
+          tags: [
+            { label: 'electric', color: '#FFCC00' },
+            { label: 'loud', color: '#FF8A80' },
+          ],
         },
         { type: 'break', duration_minutes: 15 },
         { type: 'song', title: 'Second Song', notes_raw_text: 'Intro', font_size: undefined },
@@ -277,4 +293,25 @@ test('parseSetlistArchive rejects malformed setlists and songs', () => {
       ),
     );
   }
+});
+
+test('parseSetlistArchive rejects unsupported song tag colors', () => {
+  assert.throws(
+    () =>
+      parseSetlistArchive(JSON.stringify({
+        format: 'gigbox-setlists',
+        version: 4,
+        exportedAt: '2026-01-01T00:00:00.000Z',
+        setlists: [{
+          name: 'Tagged Set',
+          items: [{
+            type: 'song',
+            title: 'Song',
+            notes_raw_text: '',
+            tags: [{ label: 'electric', color: '#000000' }],
+          }],
+        }],
+      })),
+    /has invalid tags/,
+  );
 });
