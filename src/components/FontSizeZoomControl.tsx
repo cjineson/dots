@@ -14,11 +14,13 @@ import { FONT_SIZE_STEP, MAX_FONT_SIZE, MIN_FONT_SIZE } from '../lib/fontSize';
 const SLIDER_HORIZONTAL_INSET = 10;
 
 type FontSizeZoomControlProps = {
+  label: string;
   value: number;
   onValueChange: (value: number, persist: boolean) => void;
 };
 
 export default function FontSizeZoomControl({
+  label,
   value,
   onValueChange,
 }: FontSizeZoomControlProps) {
@@ -43,86 +45,97 @@ export default function FontSizeZoomControl({
   };
 
   return (
-    <View style={styles.controlRow}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Zoom out"
-        disabled={value <= MIN_FONT_SIZE}
-        onPress={() => onValueChange(Math.max(MIN_FONT_SIZE, value - FONT_SIZE_STEP), true)}
-        style={[styles.stepButton, value <= MIN_FONT_SIZE && styles.disabledButton]}
-      >
-        <MaterialCommunityIcons
-          name="magnify-minus-outline"
-          size={34}
-          color={theme.colors.accent_highlight}
-        />
-      </Pressable>
-      <View
-        accessible
-        accessibilityRole="adjustable"
-        accessibilityLabel="Song text size"
-        accessibilityValue={{ min: MIN_FONT_SIZE, max: MAX_FONT_SIZE, now: value }}
-        accessibilityActions={[
-          { name: 'increment', label: 'Increase text size' },
-          { name: 'decrement', label: 'Decrease text size' },
-        ]}
-        onAccessibilityAction={(event) =>
-          onValueChange(
-            Math.max(
-              MIN_FONT_SIZE,
-              Math.min(
-                MAX_FONT_SIZE,
-                value + (event.nativeEvent.actionName === 'increment'
-                  ? FONT_SIZE_STEP
-                  : -FONT_SIZE_STEP),
+    <View style={styles.controlGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.controlRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Zoom out"
+          disabled={value <= MIN_FONT_SIZE}
+          onPress={() => onValueChange(Math.max(MIN_FONT_SIZE, value - FONT_SIZE_STEP), true)}
+          style={[styles.stepButton, value <= MIN_FONT_SIZE && styles.disabledButton]}
+        >
+          <MaterialCommunityIcons
+            name="magnify-minus-outline"
+            size={34}
+            color={theme.colors.accent_highlight}
+          />
+        </Pressable>
+        <View
+          accessible
+          accessibilityRole="adjustable"
+          accessibilityLabel={label}
+          accessibilityValue={{ min: MIN_FONT_SIZE, max: MAX_FONT_SIZE, now: value }}
+          accessibilityActions={[
+            { name: 'increment', label: 'Increase text size' },
+            { name: 'decrement', label: 'Decrease text size' },
+          ]}
+          onAccessibilityAction={(event) =>
+            onValueChange(
+              Math.max(
+                MIN_FONT_SIZE,
+                Math.min(
+                  MAX_FONT_SIZE,
+                  value + (event.nativeEvent.actionName === 'increment'
+                    ? FONT_SIZE_STEP
+                    : -FONT_SIZE_STEP),
+                ),
               ),
-            ),
-            true,
-          )
-        }
-        onLayout={(event) =>
-          setTrackWidth(
-            Math.max(1, event.nativeEvent.layout.width - SLIDER_HORIZONTAL_INSET * 2),
-          )
-        }
-        onStartShouldSetResponder={() => true}
-        onMoveShouldSetResponder={() => true}
-        onResponderGrant={(event) => setValueFromEvent(event, false)}
-        onResponderMove={(event) => setValueFromEvent(event, false)}
-        onResponderRelease={(event) => setValueFromEvent(event, true)}
-        onResponderTerminate={(event) => setValueFromEvent(event, true)}
-        style={styles.sliderHitArea}
-      >
-        <View pointerEvents="none" style={styles.track}>
-          <View style={[styles.trackFill, { width: `${progress * 100}%` }]} />
-          <View style={[styles.thumb, { left: `${progress * 100}%` }]} />
+              true,
+            )
+          }
+          onLayout={(event) =>
+            setTrackWidth(
+              Math.max(1, event.nativeEvent.layout.width - SLIDER_HORIZONTAL_INSET * 2),
+            )
+          }
+          onStartShouldSetResponder={() => true}
+          onMoveShouldSetResponder={() => true}
+          onResponderGrant={(event) => setValueFromEvent(event, false)}
+          onResponderMove={(event) => setValueFromEvent(event, false)}
+          onResponderRelease={(event) => setValueFromEvent(event, true)}
+          onResponderTerminate={(event) => setValueFromEvent(event, true)}
+          style={styles.sliderHitArea}
+        >
+          <View pointerEvents="none" style={styles.track}>
+            <View style={[styles.trackFill, { width: `${progress * 100}%` }]} />
+            <View style={[styles.thumb, { left: `${progress * 100}%` }]} />
+          </View>
         </View>
+        <Text style={styles.value}>{value}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Zoom in"
+          disabled={value >= MAX_FONT_SIZE}
+          onPress={() => onValueChange(Math.min(MAX_FONT_SIZE, value + FONT_SIZE_STEP), true)}
+          style={[styles.stepButton, value >= MAX_FONT_SIZE && styles.disabledButton]}
+        >
+          <MaterialCommunityIcons
+            name="magnify-plus-outline"
+            size={34}
+            color={theme.colors.accent_highlight}
+          />
+        </Pressable>
       </View>
-      <Text style={styles.value}>{value}</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Zoom in"
-        disabled={value >= MAX_FONT_SIZE}
-        onPress={() => onValueChange(Math.min(MAX_FONT_SIZE, value + FONT_SIZE_STEP), true)}
-        style={[styles.stepButton, value >= MAX_FONT_SIZE && styles.disabledButton]}
-      >
-        <MaterialCommunityIcons
-          name="magnify-plus-outline"
-          size={34}
-          color={theme.colors.accent_highlight}
-        />
-      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  controlGroup: {
+    marginBottom: 8,
+  },
+  label: {
+    marginBottom: 4,
+    color: theme.colors.text_secondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   controlRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     minHeight: 68,
-    marginBottom: 8,
     paddingHorizontal: 8,
     borderWidth: 1,
     borderColor: theme.colors.border_contrast,

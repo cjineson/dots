@@ -58,12 +58,9 @@ export default function FlowScreen({
 
   const setFlowFontSizeAndPersist = (nextFontSize: number, persist: boolean) => {
     const boundedFontSize = clampFontSize(nextFontSize);
-    const delta = boundedFontSize - initialFlowFontSize;
     const updates = songs.map((song) => ({
       songId: song.id,
-      fontSize: clampFontSize(
-        (initialFontSizeBySong[song.id] ?? theme.typography.box_text_size) + delta,
-      ),
+      fontSize: boundedFontSize,
     }));
     setFontSizeBySong((current) => ({
       ...current,
@@ -72,6 +69,18 @@ export default function FlowScreen({
     setFlowFontSize(boundedFontSize);
     if (persist) {
       updates.forEach(({ songId, fontSize }) => onFontSizeChange(songId, fontSize));
+    }
+  };
+
+  const setSongFontSizeAndPersist = (
+    songId: string,
+    nextFontSize: number,
+    persist: boolean,
+  ) => {
+    const boundedFontSize = clampFontSize(nextFontSize);
+    setFontSizeBySong((current) => ({ ...current, [songId]: boundedFontSize }));
+    if (persist) {
+      onFontSizeChange(songId, boundedFontSize);
     }
   };
 
@@ -142,6 +151,7 @@ export default function FlowScreen({
 
       {songs.length > 0 && (
         <FontSizeZoomControl
+          label="Set entire setlist"
           value={flowFontSize}
           onValueChange={setFlowFontSizeAndPersist}
         />
@@ -177,6 +187,13 @@ export default function FlowScreen({
                 </Text>
                 <SongTags tags={song.tags} compact />
               </View>
+              <FontSizeZoomControl
+                label={`${song.title} text size`}
+                value={songFontSize(song)}
+                onValueChange={(nextFontSize, persist) =>
+                  setSongFontSizeAndPersist(song.id, nextFontSize, persist)
+                }
+              />
               <View style={styles.cueContent}>
                 {cueBlocks.map((block) =>
                   renderBlock({

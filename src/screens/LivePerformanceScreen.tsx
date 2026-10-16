@@ -174,6 +174,7 @@ export default function LivePerformanceScreen({
 
       {song && !isEditorPreview && (
         <FontSizeZoomControl
+          label="Song text size"
           value={fontSize}
           onValueChange={(nextFontSize, persist) => {
             const updatedFontSize = clampFontSize(nextFontSize);
