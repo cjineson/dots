@@ -3,8 +3,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
+  Platform,
   ScrollView,
   SafeAreaView,
   StyleSheet,
@@ -18,6 +20,7 @@ import {
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
 
+import SongTags from '../components/SongTags';
 import { theme } from '../theme';
 import type {
   DashboardExpansionState,
@@ -33,19 +36,9 @@ type DashboardScreenProps = {
   expansionState: DashboardExpansionState;
   onExpansionStateChange: (state: DashboardExpansionState) => void;
   onCreateSetlist: (groupId?: string | null) => void;
-  onCreateGroup: (name: string) => void;
-  onRenameGroup: (groupId: string, name: string) => void;
+  onOpenGroupEditor: (group?: SetlistGroup) => void;
   onDeleteGroup: (groupId: string) => void;
-  onRenameSetlist: (
-    setlistId: string,
-    name: string,
-    details: {
-      location?: string;
-      date?: string;
-      time?: string;
-      groupId?: string | null;
-    },
-  ) => void;
+  onOpenSetlistEditor: (setlist: SetlistWithSongs) => void;
   onDeleteSetlist: (setlistId: string) => void;
   onCopySetlist: (setlistId: string) => void;
   onCopySong: (songId: string, targetSetlistId: string) => void;
@@ -71,10 +64,9 @@ export default function DashboardScreen({
   expansionState,
   onExpansionStateChange,
   onCreateSetlist,
-  onCreateGroup,
-  onRenameGroup,
+  onOpenGroupEditor,
   onDeleteGroup,
-  onRenameSetlist,
+  onOpenSetlistEditor,
   onDeleteSetlist,
   onCopySetlist,
   onCopySong,
@@ -89,71 +81,12 @@ export default function DashboardScreen({
   onExportLibrary,
   onImportLibrary,
 }: DashboardScreenProps) {
-  const [editingSetlist, setEditingSetlist] = React.useState<SetlistWithSongs | null>(null);
-  const [setlistName, setSetlistName] = React.useState('');
-  const [setlistLocation, setSetlistLocation] = React.useState('');
-  const [setlistDate, setSetlistDate] = React.useState('');
-  const [setlistTime, setSetlistTime] = React.useState('');
-  const [setlistGroupId, setSetlistGroupId] = React.useState<string | null>(null);
-  const [groupDialog, setGroupDialog] = React.useState<'create' | 'rename' | null>(null);
-  const [editingGroupId, setEditingGroupId] = React.useState<string | null>(null);
-  const [groupName, setGroupName] = React.useState('');
   const [addingBreakTo, setAddingBreakTo] = React.useState<string | null>(null);
   const [breakDuration, setBreakDuration] = React.useState('');
   const [copyingSong, setCopyingSong] = React.useState<{
     song: Song;
     sourceSetlistId: string;
   } | null>(null);
-
-  const openRenameSetlist = (setlist: SetlistWithSongs) => {
-    setEditingSetlist(setlist);
-    setSetlistName(setlist.name);
-    setSetlistLocation(setlist.location ?? '');
-    setSetlistDate(setlist.date ?? '');
-    setSetlistTime(setlist.time ?? '');
-    setSetlistGroupId(setlist.group_id ?? null);
-  };
-
-  const saveSetlistName = () => {
-    if (!editingSetlist || !setlistName.trim()) {
-      return;
-    }
-    try {
-      onRenameSetlist(editingSetlist.id, setlistName, {
-        location: setlistLocation,
-        date: setlistDate,
-        time: setlistTime,
-        groupId: setlistGroupId,
-      });
-      setEditingSetlist(null);
-    } catch (error) {
-      Alert.alert(
-        'Rename failed',
-        error instanceof Error ? error.message : 'An unexpected error occurred.',
-      );
-    }
-  };
-
-  const saveGroup = () => {
-    if (!groupName.trim()) {
-      return;
-    }
-    try {
-      if (groupDialog === 'create') {
-        onCreateGroup(groupName);
-      } else if (groupDialog === 'rename' && editingGroupId) {
-        onRenameGroup(editingGroupId, groupName);
-      }
-      setGroupDialog(null);
-      setEditingGroupId(null);
-      setGroupName('');
-    } catch (error) {
-      Alert.alert(
-        groupDialog === 'create' ? 'Could not create group' : 'Could not rename group',
-        error instanceof Error ? error.message : 'An unexpected error occurred.',
-      );
-    }
-  };
 
   const confirmDeleteGroup = (group: SetlistGroup) => {
     Alert.alert(
@@ -348,11 +281,7 @@ export default function DashboardScreen({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Create group"
-            onPress={() => {
-              setGroupName('');
-              setEditingGroupId(null);
-              setGroupDialog('create');
-            }}
+            onPress={() => onOpenGroupEditor()}
             style={styles.headerActionButton}
           >
             <MaterialCommunityIcons name="folder-plus" size={22} color="#FFB74D" />
@@ -414,11 +343,7 @@ export default function DashboardScreen({
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`Rename ${group.name} group`}
-                      onPress={() => {
-                        setGroupName(group.name);
-                        setEditingGroupId(group.id);
-                        setGroupDialog('rename');
-                      }}
+                      onPress={() => onOpenGroupEditor(group)}
                       style={styles.groupAction}
                     >
                       <MaterialCommunityIcons name="pencil" size={19} color="#FFB74D" />
@@ -486,7 +411,7 @@ export default function DashboardScreen({
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Rename ${setlist.name}`}
-                    onPress={() => openRenameSetlist(setlist)}
+                    onPress={() => onOpenSetlistEditor(setlist)}
                     style={styles.iconButton}
                   >
                     <MaterialCommunityIcons name="pencil" size={23} color="#FFB74D" />
@@ -552,7 +477,10 @@ export default function DashboardScreen({
                           >
                             <Text style={styles.dragHandleText}>☰</Text>
                           </Pressable>
-                          <Text style={styles.songTitle}>{item.song.title}</Text>
+                          <View style={styles.songHeading}>
+                            <Text style={styles.songTitle}>{item.song.title}</Text>
+                            <SongTags tags={item.song.tags} compact />
+                          </View>
                           <View style={styles.songActions}>
                             <Pressable
                               accessibilityRole="button"
@@ -667,183 +595,47 @@ export default function DashboardScreen({
       </View>
 
       <Modal
-        visible={editingSetlist !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditingSetlist(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.renameDialog}>
-            <Text style={styles.dialogTitle}>Setlist details</Text>
-            <TextInput
-              autoFocus
-              value={setlistName}
-              onChangeText={setSetlistName}
-              onSubmitEditing={saveSetlistName}
-              returnKeyType="done"
-              selectTextOnFocus
-              style={styles.renameInput}
-              accessibilityLabel="Setlist name"
-            />
-            <TextInput
-              value={setlistLocation}
-              onChangeText={setSetlistLocation}
-              placeholder="Location (optional)"
-              placeholderTextColor={theme.colors.text_secondary}
-              style={[styles.renameInput, styles.metadataInput]}
-              accessibilityLabel="Setlist location"
-            />
-            <TextInput
-              value={setlistDate}
-              onChangeText={setSetlistDate}
-              placeholder="Date (optional)"
-              placeholderTextColor={theme.colors.text_secondary}
-              style={[styles.renameInput, styles.metadataInput]}
-              accessibilityLabel="Setlist date"
-            />
-            <TextInput
-              value={setlistTime}
-              onChangeText={setSetlistTime}
-              placeholder="Time (optional)"
-              placeholderTextColor={theme.colors.text_secondary}
-              style={[styles.renameInput, styles.metadataInput]}
-              accessibilityLabel="Setlist time"
-            />
-            <Text style={styles.groupPickerLabel}>Group</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.groupPicker}
-            >
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: setlistGroupId === null }}
-                onPress={() => setSetlistGroupId(null)}
-                style={[
-                  styles.groupChoice,
-                  setlistGroupId === null && styles.groupChoiceSelected,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.groupChoiceText,
-                    setlistGroupId === null && styles.groupChoiceTextSelected,
-                  ]}
-                >
-                  No group
-                </Text>
-              </Pressable>
-              {groups.map((group) => (
-                <Pressable
-                  key={group.id}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: setlistGroupId === group.id }}
-                  onPress={() => setSetlistGroupId(group.id)}
-                  style={[
-                    styles.groupChoice,
-                    setlistGroupId === group.id && styles.groupChoiceSelected,
-                  ]}
-                >
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.groupChoiceText,
-                      setlistGroupId === group.id && styles.groupChoiceTextSelected,
-                    ]}
-                  >
-                    {group.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <View style={styles.dialogActions}>
-              <Pressable onPress={() => setEditingSetlist(null)} style={styles.dialogButton}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={saveSetlistName}
-                disabled={!setlistName.trim()}
-                style={[styles.dialogButton, !setlistName.trim() && styles.disabledAction]}
-              >
-                <Text style={styles.saveText}>Save</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={groupDialog !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setGroupDialog(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.renameDialog}>
-            <Text style={styles.dialogTitle}>
-              {groupDialog === 'create' ? 'Create group' : 'Rename group'}
-            </Text>
-            <TextInput
-              autoFocus
-              value={groupName}
-              onChangeText={setGroupName}
-              onSubmitEditing={saveGroup}
-              returnKeyType="done"
-              selectTextOnFocus
-              placeholder="Group name"
-              placeholderTextColor={theme.colors.text_secondary}
-              style={styles.renameInput}
-              accessibilityLabel="Group name"
-            />
-            <View style={styles.dialogActions}>
-              <Pressable onPress={() => setGroupDialog(null)} style={styles.dialogButton}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={saveGroup}
-                disabled={!groupName.trim()}
-                style={[styles.dialogButton, !groupName.trim() && styles.disabledAction]}
-              >
-                <Text style={styles.saveText}>Save</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
         visible={addingBreakTo !== null}
         transparent
         animationType="fade"
         onRequestClose={() => setAddingBreakTo(null)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.renameDialog}>
-            <Text style={styles.dialogTitle}>Add a break</Text>
-            <Text style={styles.copyHint}>Duration in minutes (optional; display only).</Text>
-            <TextInput
-              value={breakDuration}
-              onChangeText={setBreakDuration}
-              keyboardType="number-pad"
-              placeholder="e.g. 15"
-              placeholderTextColor={theme.colors.text_secondary}
-              style={styles.renameInput}
-              accessibilityLabel="Break duration in minutes"
-            />
-            <View style={styles.dialogActions}>
-              <Pressable onPress={() => setAddingBreakTo(null)} style={styles.dialogButton}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={saveBreak}
-                disabled={!durationIsValid}
-                style={[styles.dialogButton, !durationIsValid && styles.disabledAction]}
-              >
-                <Text style={styles.saveText}>Add break</Text>
-              </Pressable>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalBackdrop}
+        >
+          <ScrollView
+            contentContainerStyle={styles.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <View style={styles.renameDialog}>
+              <Text style={styles.dialogTitle}>Add a break</Text>
+              <Text style={styles.copyHint}>Duration in minutes (optional; display only).</Text>
+              <TextInput
+                value={breakDuration}
+                onChangeText={setBreakDuration}
+                keyboardType="number-pad"
+                placeholder="e.g. 15"
+                placeholderTextColor={theme.colors.text_secondary}
+                style={styles.renameInput}
+                accessibilityLabel="Break duration in minutes"
+              />
+              <View style={styles.dialogActions}>
+                <Pressable onPress={() => setAddingBreakTo(null)} style={styles.dialogButton}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={saveBreak}
+                  disabled={!durationIsValid}
+                  style={[styles.dialogButton, !durationIsValid && styles.disabledAction]}
+                >
+                  <Text style={styles.saveText}>Add break</Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal
@@ -852,40 +644,49 @@ export default function DashboardScreen({
         animationType="fade"
         onRequestClose={() => setCopyingSong(null)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.renameDialog}>
-            <Text style={styles.dialogTitle}>Copy song to setlist</Text>
-            <Text style={styles.copyHint}>
-              Choose a destination for “{copyingSong?.song.title}”.
-            </Text>
-            <ScrollView style={styles.destinationList}>
-              {setlists.map((setlist) => (
-                <Pressable
-                  key={setlist.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Copy song to ${setlist.name}`}
-                  onPress={() => copySongTo(setlist.id)}
-                  style={styles.destinationButton}
-                >
-                  <MaterialCommunityIcons
-                    name="playlist-plus"
-                    size={22}
-                    color="#4FC3F7"
-                  />
-                  <Text numberOfLines={1} style={styles.destinationText}>
-                    {setlist.name}
-                    {setlist.id === copyingSong?.sourceSetlistId ? ' (current)' : ''}
-                  </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalBackdrop}
+        >
+          <ScrollView
+            contentContainerStyle={styles.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <View style={styles.renameDialog}>
+              <Text style={styles.dialogTitle}>Copy song to setlist</Text>
+              <Text style={styles.copyHint}>
+                Choose a destination for “{copyingSong?.song.title}”.
+              </Text>
+              <ScrollView style={styles.destinationList}>
+                {setlists.map((setlist) => (
+                  <Pressable
+                    key={setlist.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Copy song to ${setlist.name}`}
+                    onPress={() => copySongTo(setlist.id)}
+                    style={styles.destinationButton}
+                  >
+                    <MaterialCommunityIcons
+                      name="playlist-plus"
+                      size={22}
+                      color="#4FC3F7"
+                    />
+                    <Text numberOfLines={1} style={styles.destinationText}>
+                      {setlist.name}
+                      {setlist.id === copyingSong?.sourceSetlistId ? ' (current)' : ''}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <View style={styles.dialogActions}>
+                <Pressable onPress={() => setCopyingSong(null)} style={styles.dialogButton}>
+                  <Text style={styles.cancelText}>Cancel</Text>
                 </Pressable>
-              ))}
-            </ScrollView>
-            <View style={styles.dialogActions}>
-              <Pressable onPress={() => setCopyingSong(null)} style={styles.dialogButton}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </Pressable>
+              </View>
             </View>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -1079,9 +880,12 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
+    backgroundColor: '#000000AA',
+  },
+  modalScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#000000AA',
   },
   renameDialog: {
     padding: 20,
@@ -1104,37 +908,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-  },
-  metadataInput: {
-    marginTop: 10,
-  },
-  groupPickerLabel: {
-    color: theme.colors.text_secondary,
-    fontSize: 13,
-    marginTop: 14,
-    marginBottom: 8,
-  },
-  groupPicker: {
-    gap: 8,
-  },
-  groupChoice: {
-    borderWidth: 1,
-    borderColor: theme.colors.border_contrast,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    maxWidth: 150,
-  },
-  groupChoiceSelected: {
-    borderColor: theme.colors.accent_highlight,
-    backgroundColor: theme.colors.surface_card,
-  },
-  groupChoiceText: {
-    color: theme.colors.text_secondary,
-    fontSize: 13,
-  },
-  groupChoiceTextSelected: {
-    color: theme.colors.accent_highlight,
   },
   dialogActions: {
     flexDirection: 'row',
@@ -1215,6 +988,13 @@ const styles = StyleSheet.create({
     color: theme.colors.text_primary,
     fontSize: 16,
     flex: 1,
+  },
+  songHeading: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+    gap: 6,
   },
   songActions: {
     flexDirection: 'row',

@@ -21,7 +21,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import DashboardScreen from './src/screens/DashboardScreen';
 import FlowScreen from './src/screens/FlowScreen';
+import GroupEditorScreen from './src/screens/GroupEditorScreen';
 import LivePerformanceScreen from './src/screens/LivePerformanceScreen';
+import SetlistDetailsScreen from './src/screens/SetlistDetailsScreen';
 import SongEditorScreen from './src/screens/SongEditorScreen';
 import {
   copySetlist,
@@ -61,6 +63,8 @@ import type {
 type RootStackParamList = {
   Dashboard: undefined;
   Editor: { setlistId: string; song?: Song };
+  SetlistDetails: { setlistId: string };
+  GroupEditor: { groupId?: string };
   Performance: {
     items: SetlistItem[];
     index: number;
@@ -315,10 +319,13 @@ export default function App() {
                   createSetlist('New Setlist', groupId);
                   refreshSetlists();
                 }}
-                onCreateGroup={handleCreateSetlistGroup}
-                onRenameGroup={handleRenameSetlistGroup}
+                onOpenGroupEditor={(group) =>
+                  navigation.navigate('GroupEditor', { groupId: group?.id })
+                }
                 onDeleteGroup={handleDeleteSetlistGroup}
-                onRenameSetlist={handleRenameSetlist}
+                onOpenSetlistEditor={(setlist) =>
+                  navigation.navigate('SetlistDetails', { setlistId: setlist.id })
+                }
                 onDeleteSetlist={handleDeleteSetlist}
                 onCopySetlist={handleCopySetlist}
                 onCopySong={handleCopySong}
@@ -358,6 +365,71 @@ export default function App() {
                 onImportLibrary={handleImportLibrary}
               />
             )}
+          </Stack.Screen>
+          <Stack.Screen
+            name="SetlistDetails"
+            options={{ title: 'Edit Setlist' }}
+          >
+            {({ navigation, route }) => {
+              const setlist = setlists.find((item) => item.id === route.params.setlistId);
+              if (!setlist) {
+                return (
+                  <SafeAreaView style={styles.startupErrorContainer}>
+                    <Text style={styles.startupErrorMessage}>This setlist could not be found.</Text>
+                    <Pressable onPress={() => navigation.goBack()} style={styles.retryButton}>
+                      <Text style={styles.retryButtonText}>Back</Text>
+                    </Pressable>
+                  </SafeAreaView>
+                );
+              }
+              return (
+                <SetlistDetailsScreen
+                  setlist={setlist}
+                  groups={groups}
+                  onCancel={() => navigation.goBack()}
+                  onSave={(name, details) => {
+                    handleRenameSetlist(setlist.id, name, details);
+                    navigation.goBack();
+                  }}
+                />
+              );
+            }}
+          </Stack.Screen>
+          <Stack.Screen
+            name="GroupEditor"
+            options={({ route }) => ({
+              title: route.params.groupId ? 'Edit Group' : 'New Group',
+            })}
+          >
+            {({ navigation, route }) => {
+              const group = route.params.groupId
+                ? groups.find((item) => item.id === route.params.groupId)
+                : undefined;
+              if (route.params.groupId && !group) {
+                return (
+                  <SafeAreaView style={styles.startupErrorContainer}>
+                    <Text style={styles.startupErrorMessage}>This group could not be found.</Text>
+                    <Pressable onPress={() => navigation.goBack()} style={styles.retryButton}>
+                      <Text style={styles.retryButtonText}>Back</Text>
+                    </Pressable>
+                  </SafeAreaView>
+                );
+              }
+              return (
+                <GroupEditorScreen
+                  group={group}
+                  onCancel={() => navigation.goBack()}
+                  onSave={(name) => {
+                    if (group) {
+                      handleRenameSetlistGroup(group.id, name);
+                    } else {
+                      handleCreateSetlistGroup(name);
+                    }
+                    navigation.goBack();
+                  }}
+                />
+              );
+            }}
           </Stack.Screen>
           <Stack.Screen
             name="Flow"

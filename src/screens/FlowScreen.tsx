@@ -191,7 +191,7 @@ export default function FlowScreen({
                 <Text style={styles.songTitleText}>
                   {songNumber}. {song.title}
                 </Text>
-                <SongTags tags={song.tags} />
+                <SongTags tags={song.tags} compact />
               </View>
               <View style={styles.cueContent}>
                 {cueBlocks.map((block) =>
@@ -298,13 +298,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   songTitle: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border_contrast,
-    gap: 8,
     paddingBottom: 12,
     marginBottom: 6,
   },
   songTitleText: {
+    flex: 1,
+    minWidth: 0,
     color: theme.colors.accent_highlight,
     fontSize: 20,
     fontWeight: theme.typography.font_weight_bold,
