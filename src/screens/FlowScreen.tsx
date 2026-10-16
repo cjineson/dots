@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Image,
   Pressable,
@@ -10,11 +9,13 @@ import {
   View,
 } from 'react-native';
 
+import FontSizeZoomControl from '../components/FontSizeZoomControl';
 import {
   createCueDocumentFromText,
   getVisibleCueBlocks,
   parseCueDocument,
 } from '../lib/cueDocument';
+import { clampFontSize } from '../lib/fontSize';
 import SongTags from '../components/SongTags';
 import { theme } from '../theme';
 import type { CueBlock, SetlistItem, Song } from '../types';
@@ -27,10 +28,6 @@ type FlowScreenProps = {
   onFontSizeChange: (songId: string, fontSize: number) => void;
 };
 
-const MIN_FONT_SIZE = 10;
-const MAX_FONT_SIZE = 64;
-const FONT_SIZE_STEP = 2;
-
 export default function FlowScreen({
   setlistName,
   setlistDetails,
@@ -38,7 +35,7 @@ export default function FlowScreen({
   onGoToDashboard,
   onFontSizeChange,
 }: FlowScreenProps) {
-  const [fontSizeBySong, setFontSizeBySong] = useState<Record<string, number>>(() =>
+  const [initialFontSizeBySong] = useState<Record<string, number>>(() =>
     Object.fromEntries(
       items.flatMap((item) => item.kind === 'song' ? [[
         item.song.id,
@@ -46,26 +43,45 @@ export default function FlowScreen({
       ]] : []),
     ),
   );
+  const [initialFlowFontSize] = useState(() => {
+    const initialSizes = Object.values(initialFontSizeBySong);
+    return initialSizes.length
+      ? Math.round(initialSizes.reduce((total, size) => total + size, 0) / initialSizes.length)
+      : theme.typography.box_text_size;
+  });
+  const [fontSizeBySong, setFontSizeBySong] = useState(initialFontSizeBySong);
+  const [flowFontSize, setFlowFontSize] = useState(initialFlowFontSize);
 
   const songFontSize = (song: Song) =>
     fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size;
   const songs = items.flatMap((item) => item.kind === 'song' ? [item.song] : []);
-  const canZoomIn = songs.some((song) => songFontSize(song) < MAX_FONT_SIZE);
-  const canZoomOut = songs.some((song) => songFontSize(song) > MIN_FONT_SIZE);
 
-  const changeFontSize = (delta: number) => {
+  const setFlowFontSizeAndPersist = (nextFontSize: number, persist: boolean) => {
+    const boundedFontSize = clampFontSize(nextFontSize);
     const updates = songs.map((song) => ({
       songId: song.id,
-      fontSize: Math.max(
-        MIN_FONT_SIZE,
-        Math.min(MAX_FONT_SIZE, songFontSize(song) + delta),
-      ),
+      fontSize: boundedFontSize,
     }));
     setFontSizeBySong((current) => ({
       ...current,
       ...Object.fromEntries(updates.map(({ songId, fontSize }) => [songId, fontSize])),
     }));
-    updates.forEach(({ songId, fontSize }) => onFontSizeChange(songId, fontSize));
+    setFlowFontSize(boundedFontSize);
+    if (persist) {
+      updates.forEach(({ songId, fontSize }) => onFontSizeChange(songId, fontSize));
+    }
+  };
+
+  const setSongFontSizeAndPersist = (
+    songId: string,
+    nextFontSize: number,
+    persist: boolean,
+  ) => {
+    const boundedFontSize = clampFontSize(nextFontSize);
+    setFontSizeBySong((current) => ({ ...current, [songId]: boundedFontSize }));
+    if (persist) {
+      onFontSizeChange(songId, boundedFontSize);
+    }
   };
 
   const renderBlock = (block: CueBlock) => {
@@ -131,35 +147,15 @@ export default function FlowScreen({
             </Text>
           )}
         </View>
-        <View style={styles.zoomControls}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Zoom out"
-            disabled={!canZoomOut}
-            onPress={() => changeFontSize(-FONT_SIZE_STEP)}
-            style={[styles.zoomButton, !canZoomOut && styles.disabledButton]}
-          >
-            <MaterialCommunityIcons
-              name="magnify-minus-outline"
-              size={25}
-              color={theme.colors.accent_highlight}
-            />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Zoom in"
-            disabled={!canZoomIn}
-            onPress={() => changeFontSize(FONT_SIZE_STEP)}
-            style={[styles.zoomButton, !canZoomIn && styles.disabledButton]}
-          >
-            <MaterialCommunityIcons
-              name="magnify-plus-outline"
-              size={25}
-              color={theme.colors.accent_highlight}
-            />
-          </Pressable>
-        </View>
       </View>
+
+      {songs.length > 0 && (
+        <FontSizeZoomControl
+          label="Set entire setlist"
+          value={flowFontSize}
+          onValueChange={setFlowFontSizeAndPersist}
+        />
+      )}
 
       <ScrollView contentContainerStyle={styles.content}>
         {items.map((item) => {
@@ -191,6 +187,13 @@ export default function FlowScreen({
                 </Text>
                 <SongTags tags={song.tags} compact />
               </View>
+              <FontSizeZoomControl
+                label={`${song.title} text size`}
+                value={songFontSize(song)}
+                onValueChange={(nextFontSize, persist) =>
+                  setSongFontSizeAndPersist(song.id, nextFontSize, persist)
+                }
+              />
               <View style={styles.cueContent}>
                 {cueBlocks.map((block) =>
                   renderBlock({
@@ -249,20 +252,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text_secondary,
     fontSize: 11,
     textAlign: 'right',
-  },
-  zoomControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  zoomButton: {
-    width: 38,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  disabledButton: {
-    opacity: 0.4,
   },
   content: {
     paddingBottom: 24,

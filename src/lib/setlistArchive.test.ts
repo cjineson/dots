@@ -330,7 +330,7 @@ test('parseSetlistArchive rejects malformed setlists and songs', () => {
     },
     {
       setlists: [
-        { name: 'Set', songs: [{ title: 'Song', notes_raw_text: 'Cue', font_size: 65 }] },
+        { name: 'Set', songs: [{ title: 'Song', notes_raw_text: 'Cue', font_size: 129 }] },
       ],
     },
   ];
@@ -342,6 +342,21 @@ test('parseSetlistArchive rejects malformed setlists and songs', () => {
       ),
     );
   }
+});
+
+test('parseSetlistArchive accepts the maximum performance font size', () => {
+  assert.doesNotThrow(() =>
+    parseSetlistArchive(
+      JSON.stringify({
+        format: 'gigbox-setlists',
+        version: 1,
+        setlists: [{
+          name: 'Set',
+          songs: [{ title: 'Song', notes_raw_text: 'Cue', font_size: 128 }],
+        }],
+      }),
+    ),
+  );
 });
 
 test('parseSetlistArchive rejects unsupported song tag colors', () => {
