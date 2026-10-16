@@ -6,9 +6,14 @@ import type { SongTag } from '../types';
 type SongTagsProps = {
   tags?: SongTag[];
   compact?: boolean;
+  wrapCompact?: boolean;
 };
 
-export default function SongTags({ tags = [], compact = false }: SongTagsProps) {
+export default function SongTags({
+  tags = [],
+  compact = false,
+  wrapCompact = false,
+}: SongTagsProps) {
   if (tags.length === 0) {
     return null;
   }
@@ -27,7 +32,7 @@ export default function SongTags({ tags = [], compact = false }: SongTagsProps) 
     </Text>
   ));
 
-  if (compact) {
+  if (compact && !wrapCompact) {
     return (
       <ScrollView
         horizontal
@@ -41,7 +46,13 @@ export default function SongTags({ tags = [], compact = false }: SongTagsProps) 
   }
 
   return (
-    <View style={styles.tags}>
+    <View
+      style={[
+        styles.tags,
+        compact && styles.compactTags,
+        compact && wrapCompact && styles.wrappedCompactTags,
+      ]}
+    >
       {tagLabels}
     </View>
   );
@@ -61,6 +72,11 @@ const styles = StyleSheet.create({
   },
   compactTags: {
     flexWrap: 'nowrap',
+    justifyContent: 'flex-end',
+  },
+  wrappedCompactTags: {
+    width: '100%',
+    flexWrap: 'wrap',
     justifyContent: 'flex-end',
   },
   tag: {

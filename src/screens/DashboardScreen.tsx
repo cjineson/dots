@@ -285,7 +285,6 @@ export default function DashboardScreen({
             style={styles.headerActionButton}
           >
             <MaterialCommunityIcons name="folder-plus" size={22} color="#FFB74D" />
-            <Text style={styles.headerGroupActionText}>Group</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -294,7 +293,6 @@ export default function DashboardScreen({
             style={styles.headerActionButton}
           >
             <MaterialCommunityIcons name="plus-circle" size={22} color="#4FC3F7" />
-            <Text style={styles.headerSetlistActionText}>Setlist</Text>
           </Pressable>
         </View>
       </View>
@@ -338,7 +336,6 @@ export default function DashboardScreen({
                       style={styles.groupAction}
                     >
                       <MaterialCommunityIcons name="playlist-plus" size={22} color="#4FC3F7" />
-                      <Text style={styles.groupActionAddText}>Add</Text>
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
@@ -347,7 +344,6 @@ export default function DashboardScreen({
                       style={styles.groupAction}
                     >
                       <MaterialCommunityIcons name="pencil" size={19} color="#FFB74D" />
-                      <Text style={styles.groupActionEditText}>Edit</Text>
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
@@ -356,7 +352,6 @@ export default function DashboardScreen({
                       style={styles.groupAction}
                     >
                       <MaterialCommunityIcons name="folder-remove" size={20} color="#FF8A80" />
-                      <Text style={styles.groupActionRemoveText}>Remove</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -711,21 +706,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   headerActionButton: {
-    minHeight: 40,
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 6,
-  },
-  headerGroupActionText: {
-    color: '#FFB74D',
-    fontSize: 13,
-    fontWeight: theme.typography.font_weight_bold,
-  },
-  headerSetlistActionText: {
-    color: '#4FC3F7',
-    fontSize: 13,
-    fontWeight: theme.typography.font_weight_bold,
+    justifyContent: 'center',
   },
   logo: {
     width: 112,
@@ -757,12 +741,18 @@ const styles = StyleSheet.create({
   exportLabel: {
     color: '#4FC3F7',
     fontSize: 13,
+    lineHeight: 28,
     fontWeight: theme.typography.font_weight_bold,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   importLabel: {
     color: '#FFB74D',
     fontSize: 13,
+    lineHeight: 28,
     fontWeight: theme.typography.font_weight_bold,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -806,28 +796,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   groupAction: {
-    minHeight: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: 36,
     height: 40,
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
-    paddingHorizontal: 3,
-  },
-  groupActionAddText: {
-    color: '#4FC3F7',
-    fontSize: 10,
-    fontWeight: theme.typography.font_weight_bold,
-  },
-  groupActionEditText: {
-    color: '#FFB74D',
-    fontSize: 10,
-    fontWeight: theme.typography.font_weight_bold,
-  },
-  groupActionRemoveText: {
-    color: '#FF8A80',
-    fontSize: 10,
-    fontWeight: theme.typography.font_weight_bold,
   },
   cardHeader: {
     flexDirection: 'row',

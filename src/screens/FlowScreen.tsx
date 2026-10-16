@@ -104,7 +104,6 @@ export default function FlowScreen({
     );
   };
 
-  let songNumber = 0;
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
@@ -178,7 +177,6 @@ export default function FlowScreen({
           }
 
           const song = item.song;
-          songNumber += 1;
           const cueDocument = song.cue_document
             ? parseCueDocument(song.cue_document)
             : createCueDocumentFromText(song.notes_raw_text);
@@ -189,7 +187,7 @@ export default function FlowScreen({
             <View key={song.id} style={styles.song}>
               <View style={styles.songTitle}>
                 <Text style={styles.songTitleText}>
-                  {songNumber}. {song.title}
+                  {song.title}
                 </Text>
                 <SongTags tags={song.tags} compact />
               </View>
