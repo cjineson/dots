@@ -68,8 +68,6 @@ type RootStackParamList = {
   Performance: {
     items: SetlistItem[];
     index: number;
-    setlistName?: string;
-    setlistDetails?: string;
     isEditorPreview?: boolean;
   };
   Flow: { setlistName: string; setlistDetails?: string; items: SetlistItem[] };
@@ -351,12 +349,10 @@ export default function App() {
                 onOpenSongForEdit={(setlistId, song) =>
                   navigation.navigate('Editor', { setlistId, song })
                 }
-                onOpenPerformance={(setlist, items, index) =>
+                onOpenPerformance={(_, items, index) =>
                   navigation.navigate('Performance', {
                     items,
                     index,
-                    setlistName: setlist.name,
-                    setlistDetails: formatSetlistDetails(setlist),
                   })
                 }
                 onOpenNewSong={(setlistId) => navigation.navigate('Editor', { setlistId })}
@@ -464,14 +460,9 @@ export default function App() {
                   )
                 }
                 onPlay={(song) => {
-                  const storedSetlist = setlists.find(
-                    (setlist) => setlist.id === route.params.setlistId,
-                  );
                   navigation.navigate('Performance', {
                     items: [{ kind: 'song', song }],
                     index: 0,
-                    setlistName: storedSetlist?.name,
-                    setlistDetails: formatSetlistDetails(storedSetlist),
                     isEditorPreview: true,
                   });
                 }}
@@ -489,8 +480,6 @@ export default function App() {
               <LivePerformanceScreen
                 items={route.params.items}
                 index={route.params.index}
-                setlistName={route.params.setlistName}
-                setlistDetails={route.params.setlistDetails}
                 isEditorPreview={route.params.isEditorPreview}
                 onGoToDashboard={() => navigation.popToTop()}
                 onExitEditorPreview={() => navigation.goBack()}

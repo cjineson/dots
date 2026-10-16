@@ -13,7 +13,7 @@ Local-first dark-mode live setlist app for musicians.
 - Copy complete setlists or individual songs between setlists; songs stay linked, so edits and tags are shared across setlists
 - Song editor with title, colored song tags and quick picks from tags currently used in the library, cue sections, styled cue blocks, and editable tables
 - Performance-styled cue preview while editing, with a separate performance preview that returns to the unsaved editor
-- Live performance view with one cue box per song, preserving cue line breaks
+- Live performance view with one cue box per song, preserving cue line breaks and focusing on the current song
 - Song tags are shown with song titles in Flow and performance views
 - Swipe left/right in performance mode to move through songs and breaks in the current setlist
 - Dark theme tokens matching the stage-ready spec

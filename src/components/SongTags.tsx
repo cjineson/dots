@@ -54,8 +54,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   compactTagsScroll: {
+    maxWidth: 220,
     flexGrow: 0,
-    flexShrink: 1,
+    flexShrink: 0,
     minWidth: 0,
   },
   compactTags: {
@@ -71,6 +72,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   compactTag: {
-    maxWidth: 118,
+    maxWidth: 180,
   },
 });
