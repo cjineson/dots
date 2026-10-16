@@ -19,7 +19,7 @@ Local-first dark-mode live setlist app for musicians.
 - Dark theme tokens matching the stage-ready spec
 - Reorder songs and breaks in a setlist by dragging their handles
 - Long cue lines automatically scale down to fit the performance boxes
-- Adjust performance text size per song from the performance top bar; preferences are saved locally and included in JSON archives
+- Adjust performance text size per song using the expandable zoom slider; preferences are saved locally and included in JSON archives
 - Export the library to a shareable JSON file and import JSON exports as additional setlists
 
 ## Getting started
