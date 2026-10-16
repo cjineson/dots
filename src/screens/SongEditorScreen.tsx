@@ -27,6 +27,7 @@ import type { CueBlock, CueDocument, CueTextColor, Song, SongTag } from '../type
 type SongEditorScreenProps = {
   setlistId: string;
   initialSong?: Song;
+  commonTags: SongTag[];
   onCancel: () => void;
   onSave: (payload: {
     title: string;
@@ -44,6 +45,7 @@ const FONT_SIZE_STEP = 2;
 export default function SongEditorScreen({
   setlistId,
   initialSong,
+  commonTags,
   onCancel,
   onSave,
   onPlay,
@@ -70,6 +72,11 @@ export default function SongEditorScreen({
     [document, tags, title, initialSong],
   );
   const previewCueBlocks = useMemo(() => getVisibleCueBlocks(document), [document]);
+  const availableCommonTags = commonTags.filter(
+    (tag) => !tags.some(
+      (current) => current.label.toLocaleLowerCase() === tag.label.toLocaleLowerCase(),
+    ),
+  );
 
   const addTag = () => {
     const label = tagName.trim();
@@ -88,6 +95,10 @@ export default function SongEditorScreen({
       );
     });
     setTagName('');
+  };
+
+  const addCommonTag = (tag: SongTag) => {
+    setTags((current) => [...current, tag]);
   };
 
   const updateBlock = (blockId: string, update: (block: CueBlock) => CueBlock) => {
@@ -331,6 +342,25 @@ export default function SongEditorScreen({
               />
             ))}
           </View>
+          {availableCommonTags.length > 0 && (
+            <View style={styles.commonTags}>
+              <Text style={styles.commonTagsLabel}>Common tags</Text>
+              <View style={styles.commonTagOptions}>
+                {availableCommonTags.map((tag) => (
+                  <Pressable
+                    key={tag.label.toLocaleLowerCase()}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Add ${tag.label} tag`}
+                    onPress={() => addCommonTag(tag)}
+                    style={[styles.commonTagButton, { borderColor: tag.color }]}
+                  >
+                    <MaterialCommunityIcons name="plus" size={14} color={tag.color} />
+                    <Text style={[styles.commonTagText, { color: tag.color }]}>{tag.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
           <View style={styles.editableTags}>
             {tags.map((tag, index) => (
               <Pressable
@@ -474,6 +504,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginVertical: 8,
+  },
+  commonTags: {
+    marginBottom: 8,
+  },
+  commonTagsLabel: {
+    color: theme.colors.text_secondary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  commonTagOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  commonTagButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  commonTagText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   editableTags: {
     flexDirection: 'row',

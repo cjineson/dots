@@ -5,9 +5,10 @@ import type { SongTag } from '../types';
 
 type SongTagsProps = {
   tags?: SongTag[];
+  compact?: boolean;
 };
 
-export default function SongTags({ tags = [] }: SongTagsProps) {
+export default function SongTags({ tags = [], compact = false }: SongTagsProps) {
   if (tags.length === 0) {
     return null;
   }
@@ -17,7 +18,12 @@ export default function SongTags({ tags = [] }: SongTagsProps) {
       {tags.map((tag, index) => (
         <Text
           key={`${tag.label}-${index}`}
-          style={[styles.tag, { borderColor: tag.color, color: tag.color }]}
+          numberOfLines={compact ? 1 : undefined}
+          style={[
+            styles.tag,
+            compact && styles.compactTag,
+            { borderColor: tag.color, color: tag.color },
+          ]}
         >
           {tag.label}
         </Text>
@@ -39,5 +45,8 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     fontSize: 12,
     fontWeight: '600',
+  },
+  compactTag: {
+    maxWidth: 118,
   },
 });

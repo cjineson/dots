@@ -1,7 +1,9 @@
 import type {
   CueDocument,
+  ImportedLibrary,
   ImportedSetlist,
   SetlistArchive,
+  SetlistGroup,
   SetlistItem,
   SetlistWithSongs,
 } from '../types';
@@ -25,13 +27,18 @@ function exportSong(song: SetlistItem & { kind: 'song' }) {
   };
 }
 
-export function createSetlistArchive(setlists: SetlistWithSongs[]): SetlistArchive {
+export function createSetlistArchive(
+  setlists: SetlistWithSongs[],
+  groups: SetlistGroup[] = [],
+): SetlistArchive {
   return {
     format: 'gigbox-setlists',
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
-    setlists: setlists.map(({ name, location, date, time, items }) => ({
+    groups: groups.map(({ name }) => name),
+    setlists: setlists.map(({ name, group_name, location, date, time, items }) => ({
       name,
+      group: group_name ?? null,
       ...(location ? { location } : {}),
       ...(date ? { date } : {}),
       ...(time ? { time } : {}),
@@ -116,7 +123,7 @@ function parseItem(item: unknown, setlistName: string, itemIndex: number): Impor
   throw new Error(`Item ${itemIndex + 1} in "${setlistName}" is invalid.`);
 }
 
-export function parseSetlistArchive(json: string): ImportedSetlist[] {
+export function parseSetlistArchive(json: string): ImportedLibrary {
   let value: unknown;
 
   try {
@@ -128,7 +135,11 @@ export function parseSetlistArchive(json: string): ImportedSetlist[] {
   if (
     !isRecord(value) ||
     value.format !== 'gigbox-setlists' ||
-    (value.version !== 1 && value.version !== 2 && value.version !== 3 && value.version !== 4)
+    (value.version !== 1 &&
+      value.version !== 2 &&
+      value.version !== 3 &&
+      value.version !== 4 &&
+      value.version !== 5)
   ) {
     throw new Error('This file is not a supported GigBox setlist export.');
   }
@@ -137,25 +148,62 @@ export function parseSetlistArchive(json: string): ImportedSetlist[] {
     throw new Error('The GigBox export is missing its setlists.');
   }
 
+  const groups: string[] = [];
+  if (value.version === 5) {
+    if (
+      !Array.isArray(value.groups) ||
+      value.groups.some((group) => typeof group !== 'string' || !group.trim())
+    ) {
+      throw new Error('The GigBox export has an invalid groups list.');
+    }
+    const normalizedGroups = new Set<string>();
+    for (const group of value.groups) {
+      const cleanedGroup = (group as string).trim();
+      const normalizedGroup = cleanedGroup.toLocaleLowerCase();
+      if (normalizedGroups.has(normalizedGroup)) {
+        throw new Error('The GigBox export contains duplicate group names.');
+      }
+      normalizedGroups.add(normalizedGroup);
+      groups.push(cleanedGroup);
+    }
+  }
+
   const setlists = value.setlists.map((setlist, setlistIndex) => {
     if (!isRecord(setlist) || typeof setlist.name !== 'string' || !setlist.name.trim()) {
       throw new Error(`Setlist ${setlistIndex + 1} must have a name.`);
     }
 
-    if (value.version === 3 || value.version === 4) {
+    if (value.version === 3 || value.version === 4 || value.version === 5) {
       if (!Array.isArray(setlist.items)) {
         throw new Error(`Setlist "${setlist.name}" has an invalid items list.`);
       }
       if (
-        value.version === 4 &&
+        (value.version === 4 || value.version === 5) &&
         ['location', 'date', 'time'].some(
           (field) => setlist[field] !== undefined && typeof setlist[field] !== 'string',
         )
       ) {
         throw new Error(`Setlist "${setlist.name}" has invalid header details.`);
       }
+      let setlistGroup: string | null = null;
+      if (value.version === 5) {
+        if (setlist.group !== null && typeof setlist.group !== 'string') {
+          throw new Error(`Setlist "${setlist.name}" has an invalid group.`);
+        }
+        if (typeof setlist.group === 'string') {
+          setlistGroup = setlist.group.trim();
+          const normalizedGroup = setlistGroup.toLocaleLowerCase();
+          if (
+            !setlistGroup ||
+            !groups.some((group) => group.toLocaleLowerCase() === normalizedGroup)
+          ) {
+            throw new Error(`Setlist "${setlist.name}" has an invalid group.`);
+          }
+        }
+      }
       return {
         name: setlist.name,
+        group: setlistGroup,
         ...(typeof setlist.location === 'string' && setlist.location.trim()
           ? { location: setlist.location.trim() }
           : {}),
@@ -176,6 +224,7 @@ export function parseSetlistArchive(json: string): ImportedSetlist[] {
     }
     return {
       name: setlist.name,
+      group: null,
       items: setlist.songs.map((song, songIndex) =>
         parseSong(song, setlist.name as string, songIndex),
       ),
@@ -186,5 +235,5 @@ export function parseSetlistArchive(json: string): ImportedSetlist[] {
     throw new Error('This export does not contain any setlists.');
   }
 
-  return setlists;
+  return { groups, setlists };
 }

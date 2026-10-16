@@ -33,9 +33,9 @@ test('converts multiple Markdown setlists and multiline cue table cells', () => 
   const archive = convertNotesMarkdown(markdown);
 
   assert.equal(archive.format, 'gigbox-setlists');
-  assert.equal(archive.version, 4);
+  assert.equal(archive.version, 5);
   assert.deepEqual(
-    parseSetlistArchive(JSON.stringify(archive)).map(({ name, items }) => [
+    parseSetlistArchive(JSON.stringify(archive)).setlists.map(({ name, items }) => [
       name,
       items.flatMap((item) => item.type === 'song' ? [item.title] : []),
     ]),

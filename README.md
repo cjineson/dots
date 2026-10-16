@@ -7,11 +7,11 @@ Local-first dark-mode live setlist app for musicians.
 - expo-sqlite for local storage
 
 ## Features
-- Dashboard with setlist list and quick setlist creation, plus bottom-bar JSON import/export
+- Dashboard with collapsible setlists, root-level setlist groups, quick creation, and labeled JSON import/export actions
 - Rename setlists and add optional location, date, and time details; delete setlists and browse the full setlist in a vertically scrolling Flow view
 - Add standalone breaks with optional display-only durations, reorder them with songs, and see them in Flow and performance mode
 - Copy complete setlists or individual songs between setlists; songs stay linked, so edits and tags are shared across setlists
-- Song editor with title, colored song tags, cue sections, styled cue blocks, and editable tables
+- Song editor with title, colored song tags and quick picks from tags currently used in the library, cue sections, styled cue blocks, and editable tables
 - Performance-styled cue preview while editing, with a separate performance preview that returns to the unsaved editor
 - Live performance view with one cue box per song, preserving cue line breaks
 - Song tags are shown with song titles in Flow and performance views
@@ -86,11 +86,12 @@ If you have the GigBox repository and its npm dependencies installed, the equiva
 ## Database behavior
 The app uses SQLite locally on device with these tables:
 - setlists
+- setlist_groups
 - songs
 - setlist_songs
 - setlist_breaks
 
-New songs store a versioned cue document for sections, per-block text size/color, and tables, plus colored tags attached to each song. Older plain-text cues remain readable and are preserved as a single cue block. JSON exports use archive version 4, including ordered song/break items, optional setlist location/date/time details, and optional song tags; imports continue to accept versions 1 through 4.
+New songs store a versioned cue document for sections, per-block text size/color, and tables, plus colored tags attached to each song. Older plain-text cues remain readable and are preserved as a single cue block. Setlists can be assigned to one-level groups or remain at the dashboard root. JSON exports use archive version 5, including groups, ordered song/break items, optional setlist details, and optional song tags; imports continue to accept versions 1 through 5.
 
 ## Future phases
 - Local P2P sync pathing
