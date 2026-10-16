@@ -25,8 +25,6 @@ import type { CueBlock, SetlistItem, Song } from '../types';
 type LivePerformanceScreenProps = {
   items: SetlistItem[];
   index: number;
-  setlistName?: string;
-  setlistDetails?: string;
   isEditorPreview?: boolean;
   onGoToDashboard: () => void;
   onExitEditorPreview: () => void;
@@ -41,8 +39,6 @@ const FONT_SIZE_STEP = 2;
 export default function LivePerformanceScreen({
   items,
   index,
-  setlistName,
-  setlistDetails,
   isEditorPreview = false,
   onGoToDashboard,
   onExitEditorPreview,
@@ -181,16 +177,6 @@ export default function LivePerformanceScreen({
           <Text numberOfLines={1} style={styles.songTitle}>
             {song?.title ?? 'Break'}
           </Text>
-          {setlistName && (
-            <Text numberOfLines={1} style={styles.setlistName}>
-              {setlistName}
-            </Text>
-          )}
-          {setlistDetails && (
-            <Text numberOfLines={1} style={styles.setlistDetails}>
-              {setlistDetails}
-            </Text>
-          )}
         </View>
         <View style={styles.performanceTags}>
           <SongTags tags={song?.tags} compact />
@@ -302,15 +288,6 @@ const styles = StyleSheet.create({
     maxWidth: 128,
     flexShrink: 1,
     alignItems: 'flex-end',
-  },
-  setlistDetails: {
-    color: theme.colors.text_secondary,
-    fontSize: 12,
-  },
-  setlistName: {
-    color: theme.colors.text_secondary,
-    fontSize: 12,
-    fontWeight: '600',
   },
   breakContent: {
     flex: 1,

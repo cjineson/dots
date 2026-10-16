@@ -773,8 +773,6 @@ const styles = StyleSheet.create({
   },
   indentedCard: {
     marginLeft: 24,
-    borderLeftWidth: 3,
-    borderLeftColor: theme.colors.accent_highlight,
   },
   groupBranch: {
     borderLeftWidth: 2,
@@ -1000,6 +998,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 2,
     alignItems: 'center',
+    marginLeft: 8,
   },
   breakTitle: {
     color: theme.colors.accent_highlight,
