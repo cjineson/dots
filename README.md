@@ -7,8 +7,8 @@ Local-first dark-mode live setlist app for musicians.
 - expo-sqlite for local storage
 
 ## Features
-- Dashboard with collapsible setlists, root-level setlist groups, quick creation, and labeled JSON import/export actions
-- Rename setlists and add optional location, date, and time details; delete setlists and browse the full setlist in a vertically scrolling Flow view
+- Dashboard with collapsible setlists, root-level setlist groups, song tags, quick creation, and labeled JSON import/export actions
+- Edit setlist details and groups on dedicated screens; add optional location, date, and time details, delete setlists, and browse the full setlist in a vertically scrolling Flow view
 - Add standalone breaks with optional display-only durations, reorder them with songs, and see them in Flow and performance mode
 - Copy complete setlists or individual songs between setlists; songs stay linked, so edits and tags are shared across setlists
 - Song editor with title, colored song tags and quick picks from tags currently used in the library, cue sections, styled cue blocks, and editable tables

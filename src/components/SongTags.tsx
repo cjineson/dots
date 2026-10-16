@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { SongTag } from '../types';
 
@@ -13,21 +13,36 @@ export default function SongTags({ tags = [], compact = false }: SongTagsProps) 
     return null;
   }
 
+  const tagLabels = tags.map((tag, index) => (
+    <Text
+      key={`${tag.label}-${index}`}
+      numberOfLines={compact ? 1 : undefined}
+      style={[
+        styles.tag,
+        compact && styles.compactTag,
+        { borderColor: tag.color, color: tag.color },
+      ]}
+    >
+      {tag.label}
+    </Text>
+  ));
+
+  if (compact) {
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.compactTagsScroll}
+        contentContainerStyle={[styles.tags, styles.compactTags]}
+      >
+        {tagLabels}
+      </ScrollView>
+    );
+  }
+
   return (
     <View style={styles.tags}>
-      {tags.map((tag, index) => (
-        <Text
-          key={`${tag.label}-${index}`}
-          numberOfLines={compact ? 1 : undefined}
-          style={[
-            styles.tag,
-            compact && styles.compactTag,
-            { borderColor: tag.color, color: tag.color },
-          ]}
-        >
-          {tag.label}
-        </Text>
-      ))}
+      {tagLabels}
     </View>
   );
 }
@@ -37,6 +52,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+  },
+  compactTagsScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  compactTags: {
+    flexWrap: 'nowrap',
+    justifyContent: 'flex-end',
   },
   tag: {
     borderWidth: 1,
