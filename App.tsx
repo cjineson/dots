@@ -28,21 +28,35 @@ import {
   copySongToSetlist,
   createBreakForSetlist,
   createSetlist,
+  createSetlistGroup,
+  deleteSetlistGroup,
   deleteBreakFromSetlist,
   deleteSongFromSetlist,
   deleteSetlist,
+  getDashboardExpansionState,
+  getSetlistGroups,
   getSetlistsWithSongs,
   importSetlists,
   initializeDatabase,
   renameSetlist,
+  renameSetlistGroup,
   reorderItemsForSetlist,
+  saveDashboardExpansionState,
   saveSongForSetlist,
   updateSongFontSize,
 } from './src/lib/db';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
+import { getCommonSongTags } from './src/lib/songTags';
 import { decodeTextFile } from './src/lib/textEncoding';
 import { theme } from './src/theme';
-import type { SetlistHeaderDetails, SetlistItem, Song, SetlistWithSongs } from './src/types';
+import type {
+  DashboardExpansionState,
+  SetlistGroup,
+  SetlistHeaderDetails,
+  SetlistItem,
+  Song,
+  SetlistWithSongs,
+} from './src/types';
 
 type RootStackParamList = {
   Dashboard: undefined;
@@ -71,19 +85,27 @@ function formatSetlistDetails(setlist: SetlistHeaderDetails | undefined): string
 
 export default function App() {
   const [setlists, setSetlists] = useState<SetlistWithSongs[]>([]);
+  const [groups, setGroups] = useState<SetlistGroup[]>([]);
+  const [dashboardExpansion, setDashboardExpansion] = useState<DashboardExpansionState>({
+    expandedSetlists: {},
+    collapsedGroups: {},
+  });
   const [isReady, setIsReady] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
+  const commonSongTags = getCommonSongTags(setlists);
 
   const refreshSetlists = () => {
     setSetlists(getSetlistsWithSongs());
+    setGroups(getSetlistGroups());
   };
 
   useEffect(() => {
     try {
       initializeDatabase();
       refreshSetlists();
+      setDashboardExpansion(getDashboardExpansionState());
       setStartupError(null);
     } catch (error) {
       setStartupError(
@@ -127,10 +149,35 @@ export default function App() {
   const handleRenameSetlist = (
     setlistId: string,
     name: string,
-    details: { location?: string; date?: string; time?: string },
+    details: {
+      location?: string;
+      date?: string;
+      time?: string;
+      groupId?: string | null;
+    },
   ) => {
     renameSetlist(setlistId, name, details);
     refreshSetlists();
+  };
+
+  const handleCreateSetlistGroup = (name: string) => {
+    createSetlistGroup(name);
+    refreshSetlists();
+  };
+
+  const handleRenameSetlistGroup = (groupId: string, name: string) => {
+    renameSetlistGroup(groupId, name);
+    refreshSetlists();
+  };
+
+  const handleDeleteSetlistGroup = (groupId: string) => {
+    deleteSetlistGroup(groupId);
+    refreshSetlists();
+  };
+
+  const handleDashboardExpansionChange = (state: DashboardExpansionState) => {
+    saveDashboardExpansionState(state);
+    setDashboardExpansion(state);
   };
 
   const handleDeleteSetlist = (setlistId: string) => {
@@ -168,7 +215,7 @@ export default function App() {
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const fileUri = `${FileSystem.cacheDirectory}gigbox-library-${timestamp}.json`;
-      const archive = createSetlistArchive(setlists);
+      const archive = createSetlistArchive(setlists, groups);
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(archive, null, 2));
       await Sharing.shareAsync(fileUri, {
         mimeType: 'application/json',
@@ -194,10 +241,10 @@ export default function App() {
       }
 
       const json = decodeTextFile(await new File(result.assets[0].uri).bytes());
-      const importedSetlists = parseSetlistArchive(json);
-      importSetlists(importedSetlists);
+      const importedLibrary = parseSetlistArchive(json);
+      importSetlists(importedLibrary);
       refreshSetlists();
-      Alert.alert('Import complete', `Added ${importedSetlists.length} setlist(s).`);
+      Alert.alert('Import complete', `Added ${importedLibrary.setlists.length} setlist(s).`);
     } catch (error) {
       setImportError(error instanceof Error ? error.message : String(error));
     }
@@ -261,10 +308,16 @@ export default function App() {
             {({ navigation }) => (
               <DashboardScreen
                 setlists={setlists}
-                onCreateSetlist={() => {
-                  createSetlist('New Setlist');
+                groups={groups}
+                expansionState={dashboardExpansion}
+                onExpansionStateChange={handleDashboardExpansionChange}
+                onCreateSetlist={(groupId) => {
+                  createSetlist('New Setlist', groupId);
                   refreshSetlists();
                 }}
+                onCreateGroup={handleCreateSetlistGroup}
+                onRenameGroup={handleRenameSetlistGroup}
+                onDeleteGroup={handleDeleteSetlistGroup}
                 onRenameSetlist={handleRenameSetlist}
                 onDeleteSetlist={handleDeleteSetlist}
                 onCopySetlist={handleCopySetlist}
@@ -331,6 +384,7 @@ export default function App() {
               <SongEditorScreen
                 setlistId={route.params.setlistId}
                 initialSong={route.params.song}
+                commonTags={commonSongTags}
                 onCancel={() => navigation.goBack()}
                 onSave={(payload) =>
                   handleSaveSong(route.params.setlistId, route.params.song, payload, () =>

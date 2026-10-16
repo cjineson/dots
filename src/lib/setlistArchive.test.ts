@@ -9,6 +9,8 @@ const setlists: SetlistWithSongs[] = [
     id: 'setlist-1',
     name: 'Friday Night',
     order_index: 0,
+    group_id: 'group-1',
+    group_name: 'The Band',
     location: 'The Blue Room',
     date: 'Friday, May 8',
     time: '8:30 PM',
@@ -72,14 +74,18 @@ const setlists: SetlistWithSongs[] = [
 ];
 
 test('createSetlistArchive writes the current format and cue document', () => {
-  const archive = createSetlistArchive(setlists);
+  const archive = createSetlistArchive(setlists, [
+    { id: 'group-1', name: 'The Band', order_index: 0 },
+  ]);
 
   assert.equal(archive.format, 'gigbox-setlists');
-  assert.equal(archive.version, 4);
+  assert.equal(archive.version, 5);
+  assert.deepEqual(archive.groups, ['The Band']);
   assert.ok(Number.isFinite(Date.parse(archive.exportedAt)));
   assert.deepEqual(archive.setlists, [
     {
       name: 'Friday Night',
+      group: 'The Band',
       location: 'The Blue Room',
       date: 'Friday, May 8',
       time: '8:30 PM',
@@ -110,12 +116,16 @@ test('createSetlistArchive writes the current format and cue document', () => {
 });
 
 test('parseSetlistArchive reads current archives and preserves formatted cue blocks', () => {
-  const archive = createSetlistArchive(setlists);
+  const archive = createSetlistArchive(setlists, [
+    { id: 'group-1', name: 'The Band', order_index: 0 },
+  ]);
   const parsed = parseSetlistArchive(JSON.stringify(archive));
 
-  assert.deepEqual(parsed, [
-    {
+  assert.deepEqual(parsed, {
+    groups: ['The Band'],
+    setlists: [{
       name: 'Friday Night',
+      group: 'The Band',
       location: 'The Blue Room',
       date: 'Friday, May 8',
       time: '8:30 PM',
@@ -141,8 +151,8 @@ test('parseSetlistArchive reads current archives and preserves formatted cue blo
         { type: 'song', title: 'Second Song', notes_raw_text: 'Intro', font_size: undefined },
         { type: 'break' },
       ],
-    },
-  ]);
+    }],
+  });
 });
 
 test('parseSetlistArchive accepts version 1 archives without cue documents', () => {
@@ -153,12 +163,14 @@ test('parseSetlistArchive accepts version 1 archives without cue documents', () 
     setlists: [{ name: 'Old Set', songs: [{ title: 'Old Song', notes_raw_text: 'Cue' }] }],
   });
 
-  assert.deepEqual(parseSetlistArchive(archive), [
-    {
+  assert.deepEqual(parseSetlistArchive(archive), {
+    groups: [],
+    setlists: [{
       name: 'Old Set',
+      group: null,
       items: [{ type: 'song', title: 'Old Song', notes_raw_text: 'Cue', font_size: undefined }],
-    },
-  ]);
+    }],
+  });
 });
 
 test('parseSetlistArchive accepts version 3 archives with ordered breaks', () => {
@@ -177,15 +189,31 @@ test('parseSetlistArchive accepts version 3 archives with ordered breaks', () =>
     ],
   });
 
-  assert.deepEqual(parseSetlistArchive(archive), [
-    {
+  assert.deepEqual(parseSetlistArchive(archive), {
+    groups: [],
+    setlists: [{
       name: 'Old Set',
+      group: null,
       items: [
         { type: 'song', title: 'First', notes_raw_text: 'Cue', font_size: undefined },
         { type: 'break', duration_minutes: 10 },
       ],
-    },
-  ]);
+    }],
+  });
+});
+
+test('parseSetlistArchive accepts version 4 archives as ungrouped setlists', () => {
+  const archive = JSON.stringify({
+    format: 'gigbox-setlists',
+    version: 4,
+    exportedAt: '2026-01-01T00:00:00.000Z',
+    setlists: [{ name: 'Old Set', items: [] }],
+  });
+
+  assert.deepEqual(parseSetlistArchive(archive), {
+    groups: [],
+    setlists: [{ name: 'Old Set', group: null, items: [] }],
+  });
 });
 
 test('parseSetlistArchive rejects malformed optional setlist header details', () => {
@@ -200,6 +228,27 @@ test('parseSetlistArchive rejects malformed optional setlist header details', ()
   });
 });
 
+test('parseSetlistArchive rejects missing and unknown version 5 group references', () => {
+  const base = {
+    format: 'gigbox-setlists',
+    version: 5,
+    groups: ['Band'],
+    setlists: [{ name: 'Set', group: 'Unknown', items: [] }],
+  };
+  assert.throws(() => parseSetlistArchive(JSON.stringify(base)), {
+    message: 'Setlist "Set" has an invalid group.',
+  });
+
+  assert.throws(
+    () =>
+      parseSetlistArchive(JSON.stringify({
+        ...base,
+        setlists: [{ name: 'Set', items: [] }],
+      })),
+    { message: 'Setlist "Set" has an invalid group.' },
+  );
+});
+
 test('parseSetlistArchive rejects invalid JSON', () => {
   assert.throws(() => parseSetlistArchive('{'), {
     message: 'The selected file is not valid JSON.',
@@ -209,7 +258,7 @@ test('parseSetlistArchive rejects invalid JSON', () => {
 test('parseSetlistArchive rejects unsupported formats and versions', () => {
   for (const archive of [
     JSON.stringify({ format: 'other', version: 1, setlists: [] }),
-    JSON.stringify({ format: 'gigbox-setlists', version: 5, setlists: [] }),
+    JSON.stringify({ format: 'gigbox-setlists', version: 6, setlists: [] }),
   ]) {
     assert.throws(() => parseSetlistArchive(archive), {
       message: 'This file is not a supported GigBox setlist export.',
@@ -300,10 +349,12 @@ test('parseSetlistArchive rejects unsupported song tag colors', () => {
     () =>
       parseSetlistArchive(JSON.stringify({
         format: 'gigbox-setlists',
-        version: 4,
+        version: 5,
         exportedAt: '2026-01-01T00:00:00.000Z',
+        groups: [],
         setlists: [{
           name: 'Tagged Set',
+          group: null,
           items: [{
             type: 'song',
             title: 'Song',

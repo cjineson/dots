@@ -233,8 +233,13 @@ export function convertNotesMarkdown(markdown: string): SetlistArchive {
 
   return {
     format: 'gigbox-setlists',
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
-    setlists: populatedSetlists.map(({ name, songs }) => ({ name, items: songs })),
+    groups: [],
+    setlists: populatedSetlists.map(({ name, songs }) => ({
+      name,
+      group: null,
+      items: songs,
+    })),
   };
 }

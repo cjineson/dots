@@ -2,12 +2,20 @@ export type Setlist = {
   id: string;
   name: string;
   order_index: number;
+  group_id?: string | null;
+  group_name?: string;
   location?: string;
   date?: string;
   time?: string;
 };
 
 export type SetlistHeaderDetails = Pick<Setlist, 'name' | 'location' | 'date' | 'time'>;
+
+export type SetlistGroup = {
+  id: string;
+  name: string;
+  order_index: number;
+};
 
 export type Song = {
   id: string;
@@ -66,10 +74,12 @@ export type SetlistWithSongs = Setlist & {
 
 export type SetlistArchive = {
   format: 'gigbox-setlists';
-  version: 4;
+  version: 5;
   exportedAt: string;
+  groups: string[];
   setlists: Array<{
     name: string;
+    group: string | null;
     location?: string;
     date?: string;
     time?: string;
@@ -89,6 +99,7 @@ export type SetlistArchive = {
 
 export type ImportedSetlist = {
   name: string;
+  group: string | null;
   location?: string;
   date?: string;
   time?: string;
@@ -103,4 +114,14 @@ export type ImportedSetlist = {
       }
     | { type: 'break'; duration_minutes?: number }
   >;
+};
+
+export type ImportedLibrary = {
+  groups: string[];
+  setlists: ImportedSetlist[];
+};
+
+export type DashboardExpansionState = {
+  expandedSetlists: Record<string, true>;
+  collapsedGroups: Record<string, true>;
 };

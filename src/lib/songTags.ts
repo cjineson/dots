@@ -1,5 +1,5 @@
 import { CUE_COLORS } from './cueDocument';
-import type { CueTextColor, SongTag } from '../types';
+import type { CueTextColor, SetlistWithSongs, SongTag } from '../types';
 
 function isCueTextColor(value: unknown): value is CueTextColor {
   return CUE_COLORS.some((color) => color === value);
@@ -36,4 +36,32 @@ export function parseStoredSongTags(value: string | null): SongTag[] {
     throw new Error('Saved song tags are not valid JSON.');
   }
   return validateSongTags(parsed);
+}
+
+export function getCommonSongTags(setlists: SetlistWithSongs[]): SongTag[] {
+  const songs = new Map(
+    setlists.flatMap((setlist) => setlist.songs.map((song) => [song.id, song] as const)),
+  );
+  const tagCounts = new Map<string, { tag: SongTag; count: number }>();
+
+  for (const song of songs.values()) {
+    const labelsOnSong = new Set<string>();
+    for (const tag of song.tags ?? []) {
+      const normalizedLabel = tag.label.trim().toLocaleLowerCase();
+      if (labelsOnSong.has(normalizedLabel)) {
+        continue;
+      }
+      labelsOnSong.add(normalizedLabel);
+      const existing = tagCounts.get(normalizedLabel);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        tagCounts.set(normalizedLabel, { tag, count: 1 });
+      }
+    }
+  }
+
+  return [...tagCounts.values()]
+    .sort((left, right) => right.count - left.count || left.tag.label.localeCompare(right.tag.label))
+    .map(({ tag }) => tag);
 }

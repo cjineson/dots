@@ -181,7 +181,6 @@ export default function LivePerformanceScreen({
           <Text numberOfLines={1} style={styles.songTitle}>
             {song?.title ?? 'Break'}
           </Text>
-          <SongTags tags={song?.tags} />
           {setlistName && (
             <Text numberOfLines={1} style={styles.setlistName}>
               {setlistName}
@@ -192,6 +191,9 @@ export default function LivePerformanceScreen({
               {setlistDetails}
             </Text>
           )}
+        </View>
+        <View style={styles.performanceTags}>
+          <SongTags tags={song?.tags} compact />
         </View>
         {song && !isEditorPreview && (
           <View style={styles.zoomControls}>
@@ -295,6 +297,11 @@ const styles = StyleSheet.create({
   performanceHeading: {
     flex: 1,
     minWidth: 0,
+  },
+  performanceTags: {
+    maxWidth: 128,
+    flexShrink: 1,
+    alignItems: 'flex-end',
   },
   setlistDetails: {
     color: theme.colors.text_secondary,
