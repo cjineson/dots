@@ -8,6 +8,7 @@ import type {
   SetlistWithSongs,
 } from '../types';
 import { parseCueDocument, validateCueDocument } from './cueDocument';
+import { MAX_FONT_SIZE, MIN_FONT_SIZE } from './fontSize';
 import { validateSongTags } from './songTags';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -62,7 +63,9 @@ function parseSong(song: unknown, setlistName: string, songIndex: number) {
     typeof song.title !== 'string' ||
     typeof song.notes_raw_text !== 'string' ||
     (song.font_size !== undefined &&
-      (typeof song.font_size !== 'number' || song.font_size < 10 || song.font_size > 64))
+      (typeof song.font_size !== 'number' ||
+        song.font_size < MIN_FONT_SIZE ||
+        song.font_size > MAX_FONT_SIZE))
   ) {
     throw new Error(`Song ${songIndex + 1} in "${setlistName}" is invalid.`);
   }
