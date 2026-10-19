@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Pressable,
@@ -31,23 +31,35 @@ export default function FontSizeZoomControl({
   step = FONT_SIZE_STEP,
 }: FontSizeZoomControlProps) {
   const [trackWidth, setTrackWidth] = useState(0);
+  const hitAreaRef = useRef<View>(null);
+  const hitAreaLeft = useRef<number | null>(null);
   const progress = (value - min) / (max - min);
 
-  const setValueFromEvent = (event: GestureResponderEvent, persist: boolean) => {
-    if (trackWidth <= 0) {
+  const setValueFromX = (x: number, persist: boolean) => {
+    if (trackWidth <= 0 || !Number.isFinite(x)) {
       return;
     }
-    const position = Math.max(
-      0,
-      Math.min(
-        1,
-        (event.nativeEvent.locationX - SLIDER_HORIZONTAL_INSET) / trackWidth,
-      ),
-    );
-    const steps = Math.round(
-      position * ((max - min) / step),
-    );
+    const position = Math.max(0, Math.min(1, (x - SLIDER_HORIZONTAL_INSET) / trackWidth));
+    const steps = Math.round(position * ((max - min) / step));
     onValueChange(min + steps * step, persist);
+  };
+
+  // locationX is missing on web, so fall back to pageX relative to the measured slider.
+  const setValueFromEvent = (event: GestureResponderEvent, persist: boolean) => {
+    const { locationX, pageX } = event.nativeEvent;
+    if (Number.isFinite(locationX)) {
+      setValueFromX(locationX, persist);
+    } else if (hitAreaLeft.current !== null) {
+      setValueFromX(pageX - hitAreaLeft.current, persist);
+    }
+  };
+
+  const handleGrant = (event: GestureResponderEvent) => {
+    const { locationX, pageX } = event.nativeEvent;
+    hitAreaRef.current?.measureInWindow((left) => {
+      hitAreaLeft.current = left;
+      setValueFromX(Number.isFinite(locationX) ? locationX : pageX - left, false);
+    });
   };
 
   return (
@@ -68,6 +80,7 @@ export default function FontSizeZoomControl({
           />
         </Pressable>
         <View
+          ref={hitAreaRef}
           accessible
           accessibilityRole="adjustable"
           accessibilityLabel={label}
@@ -97,7 +110,7 @@ export default function FontSizeZoomControl({
           }
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => true}
-          onResponderGrant={(event) => setValueFromEvent(event, false)}
+          onResponderGrant={handleGrant}
           onResponderMove={(event) => setValueFromEvent(event, false)}
           onResponderRelease={(event) => setValueFromEvent(event, true)}
           onResponderTerminate={(event) => setValueFromEvent(event, true)}
