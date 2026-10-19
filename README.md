@@ -10,6 +10,7 @@ Local-first dark-mode live setlist app for musicians.
 - Dashboard with collapsible setlists, root-level setlist groups, song tags, quick creation, and a bottom Settings button
 - Reorder setlists within the dashboard or a group with up/down buttons (new and copied setlists appear at the top)
 - Edit setlist details and groups on dedicated screens; pick the date and time with native pickers, set a location by typing it or using current location / address lookup (the map position is saved with the setlist and can be opened in Maps), create a group inline, delete setlists, and browse the full setlist in a vertically scrolling Flow view
+- Add standalone breaks with optional display-only durations, reorder them with songs, and see them in Flow and performance mode
 - Copy complete setlists or individual songs between setlists; songs stay linked, so edits and tags are shared across setlists
 - Song editor with title, colored song tags and quick picks from tags currently used in the library, cue sections, styled cue blocks, and editable tables
 - Performance-styled cue preview while editing, with a separate performance preview that returns to the unsaved editor
