@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { theme } from '../theme';
+import { useTheme } from '../themeContext';
+import type { AppTheme } from '../theme';
 import type { CueBlock } from '../types';
 
 type PerformanceCueContentProps = {
@@ -15,6 +16,8 @@ export default function PerformanceCueContent({
   blocks,
   fontScale = 1,
 }: PerformanceCueContentProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <>
       {blocks.map((block) => {
@@ -22,7 +25,9 @@ export default function PerformanceCueContent({
           MIN_FONT_SIZE,
           (block.font_size ?? theme.typography.box_text_size) * fontScale,
         );
-        const color = block.color ?? theme.colors.text_primary;
+        const color =
+          !block.color || block.color === '#FFFFFF' ? theme.colors.text_primary
+            : block.color;
 
         if (block.type === 'table') {
           return (
@@ -64,7 +69,7 @@ export default function PerformanceCueContent({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   cueText: {
     color: theme.colors.text_primary,
     fontWeight: '600',

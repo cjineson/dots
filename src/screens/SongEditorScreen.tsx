@@ -21,7 +21,8 @@ import {
 import PerformanceCueContent from '../components/PerformanceCueContent';
 import SongTagsView from '../components/SongTags';
 import { makeId } from '../lib/uuid';
-import { theme } from '../theme';
+import { useTheme } from '../themeContext';
+import type { AppTheme } from '../theme';
 import type { CueBlock, CueDocument, CueTextColor, Song, SongTag } from '../types';
 
 type SongEditorScreenProps = {
@@ -50,6 +51,8 @@ export default function SongEditorScreen({
   onSave,
   onPlay,
 }: SongEditorScreenProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [title, setTitle] = useState(initialSong?.title ?? '');
   const [document, setDocument] = useState<CueDocument>(() =>
     initialSong?.cue_document
@@ -448,7 +451,7 @@ export default function SongEditorScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,

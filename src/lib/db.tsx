@@ -94,6 +94,23 @@ export function getSetlistGroups(): SetlistGroup[] {
   );
 }
 
+export function getThemePreference(): 'system' | 'dark' | 'light' {
+  const row = db.getFirstSync<{ value: string }>(
+    "SELECT value FROM app_settings WHERE key = 'theme_preference'",
+  );
+  return row?.value === 'light' || row?.value === 'dark' || row?.value === 'system'
+    ? row.value
+    : 'dark';
+}
+
+export function saveThemePreference(preference: 'system' | 'dark' | 'light'): void {
+  db.runSync(
+    `INSERT INTO app_settings (key, value) VALUES ('theme_preference', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [preference],
+  );
+}
+
 export function getTagSize(): number {
   const row = db.getFirstSync<{ value: string }>(
     "SELECT value FROM app_settings WHERE key = 'tag_size'",

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Alert,
@@ -21,7 +21,8 @@ import {
 } from 'react-native-draggable-flatlist';
 
 import SongTags from '../components/SongTags';
-import { theme } from '../theme';
+import { useTheme } from '../themeContext';
+import type { AppTheme } from '../theme';
 import type {
   DashboardExpansionState,
   SetlistGroup,
@@ -54,8 +55,7 @@ type DashboardScreenProps = {
   ) => void;
   onOpenNewSong: (setlistId: string) => void;
   onReorderItems: (setlistId: string, items: SetlistItem[]) => void;
-  onExportLibrary: () => void;
-  onImportLibrary: () => void;
+  onOpenSettings: () => void;
 };
 
 export default function DashboardScreen({
@@ -78,9 +78,10 @@ export default function DashboardScreen({
   onOpenPerformance,
   onOpenNewSong,
   onReorderItems,
-  onExportLibrary,
-  onImportLibrary,
+  onOpenSettings,
 }: DashboardScreenProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [addingBreakTo, setAddingBreakTo] = React.useState<string | null>(null);
   const [breakDuration, setBreakDuration] = React.useState('');
   const [copyingSong, setCopyingSong] = React.useState<{
@@ -571,21 +572,12 @@ export default function DashboardScreen({
       <View style={styles.bottomBar}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Export setlists as JSON"
+          accessibilityLabel="Settings"
           style={styles.bottomBarButton}
-          onPress={onExportLibrary}
+          onPress={onOpenSettings}
         >
-          <MaterialCommunityIcons name="database-export" size={28} color="#4FC3F7" />
-          <Text style={styles.exportLabel}>Export</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Import setlists from JSON"
-          style={styles.bottomBarButton}
-          onPress={onImportLibrary}
-        >
-          <MaterialCommunityIcons name="database-import" size={28} color="#FFB74D" />
-          <Text style={styles.importLabel}>Import</Text>
+          <MaterialCommunityIcons name="cog" size={28} color={theme.colors.accent_highlight} />
+          <Text style={styles.settingsLabel}>Settings</Text>
         </Pressable>
       </View>
 
@@ -687,7 +679,7 @@ export default function DashboardScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -738,16 +730,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
   },
-  exportLabel: {
-    color: '#4FC3F7',
-    fontSize: 13,
-    lineHeight: 28,
-    fontWeight: theme.typography.font_weight_bold,
-    textAlignVertical: 'center',
-    includeFontPadding: false,
-  },
-  importLabel: {
-    color: '#FFB74D',
+  settingsLabel: {
+    color: theme.colors.accent_highlight,
     fontSize: 13,
     lineHeight: 28,
     fontWeight: theme.typography.font_weight_bold,
@@ -850,7 +834,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: '#000000AA',
+    backgroundColor: theme.colors.overlay,
   },
   modalScrollContent: {
     flexGrow: 1,

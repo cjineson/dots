@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Pressable,
@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import type { GestureResponderEvent } from 'react-native';
 
-import { theme } from '../theme';
+import { useTheme } from '../themeContext';
+import type { AppTheme } from '../theme';
 import { FONT_SIZE_STEP, MAX_FONT_SIZE, MIN_FONT_SIZE } from '../lib/fontSize';
 
 const SLIDER_HORIZONTAL_INSET = 10;
@@ -30,6 +31,8 @@ export default function FontSizeZoomControl({
   max = MAX_FONT_SIZE,
   step = FONT_SIZE_STEP,
 }: FontSizeZoomControlProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [trackWidth, setTrackWidth] = useState(0);
   const progress = (value - min) / (max - min);
 
@@ -127,7 +130,7 @@ export default function FontSizeZoomControl({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   controlGroup: {
     marginBottom: 8,
   },

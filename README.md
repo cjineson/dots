@@ -7,7 +7,7 @@ Local-first dark-mode live setlist app for musicians.
 - expo-sqlite for local storage
 
 ## Features
-- Dashboard with collapsible setlists, root-level setlist groups, song tags, quick creation, and labeled JSON import/export actions
+- Dashboard with collapsible setlists, root-level setlist groups, song tags, quick creation, and a bottom Settings button
 - Edit setlist details and groups on dedicated screens; add optional location, date, and time details, delete setlists, and browse the full setlist in a vertically scrolling Flow view
 - Add standalone breaks with optional display-only durations, reorder them with songs, and see them in Flow and performance mode
 - Copy complete setlists or individual songs between setlists; songs stay linked, so edits and tags are shared across setlists
@@ -20,7 +20,7 @@ Local-first dark-mode live setlist app for musicians.
 - Reorder songs and breaks in a setlist by dragging their handles
 - Long cue lines automatically scale down to fit the performance boxes
 - Adjust performance text size per song and both individual songs and the entire setlist in Flow using zoom sliders and large step buttons that appear when the zoom button is tapped, plus a separate tag size slider, opened by its own tag button in the Performance and Flow headers and never shown alongside the zoom controls (saved locally); preferences are saved locally and included in JSON archives, up to 128 points
-- Export the library to a shareable JSON file and import JSON exports as additional setlists
+- Settings page (dashboard bottom bar) with a Dark / Light / System theme switch (saved locally) and JSON export/import: export the library to a shareable file and import JSON exports as additional setlists
 
 ## Getting started
 
@@ -69,7 +69,7 @@ You can also drag the ZIP file from Finder into the Terminal window after typing
   ```
 
 - The converter will not overwrite an existing output file. Rename or move the existing output, or choose a different destination before running it again.
-- In GigBox, tap the dashboard's **Import JSON** icon and select the generated `.gigbox.json` file. Imported setlists are added to your library; they do not replace existing setlists.
+- In GigBox, open **Settings** from the dashboard's bottom bar and tap **Import setlists from JSON** and select the generated `.gigbox.json` file. Imported setlists are added to your library; they do not replace existing setlists.
 
 ### Supported Notes formatting
 

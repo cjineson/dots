@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Image,
@@ -24,7 +24,8 @@ import {
   TAG_SIZE_STEP,
 } from '../lib/fontSize';
 import SongTags from '../components/SongTags';
-import { theme } from '../theme';
+import { useTheme } from '../themeContext';
+import type { AppTheme } from '../theme';
 import type { CueBlock, SetlistItem, Song } from '../types';
 
 type FlowScreenProps = {
@@ -46,6 +47,8 @@ export default function FlowScreen({
   tagSize,
   onTagSizeChange,
 }: FlowScreenProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [initialFontSizeBySong] = useState<Record<string, number>>(() =>
     Object.fromEntries(
       items.flatMap((item) => item.kind === 'song' ? [[
@@ -106,7 +109,8 @@ export default function FlowScreen({
 
   const renderBlock = (block: CueBlock) => {
     const fontSize = block.font_size ?? theme.typography.box_text_size;
-    const color = block.color ?? theme.colors.text_primary;
+    const color =
+      !block.color || block.color === '#FFFFFF' ? theme.colors.text_primary : block.color;
     if (block.type === 'table') {
       return (
         <View key={block.id} style={styles.table}>
@@ -297,7 +301,7 @@ export default function FlowScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,

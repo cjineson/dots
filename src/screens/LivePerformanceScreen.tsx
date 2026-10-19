@@ -12,7 +12,8 @@ import {
   View,
 } from 'react-native';
 
-import { theme } from '../theme';
+import { useTheme } from '../themeContext';
+import type { AppTheme } from '../theme';
 import SongTags from '../components/SongTags';
 import FontSizeZoomControl from '../components/FontSizeZoomControl';
 import PerformanceCueContent from '../components/PerformanceCueContent';
@@ -53,6 +54,8 @@ export default function LivePerformanceScreen({
   tagSize,
   onTagSizeChange,
 }: LivePerformanceScreenProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const item = items[index];
   const song = item?.kind === 'song' ? item.song : undefined;
   const cueDocument = song?.cue_document
@@ -276,7 +279,7 @@ export default function LivePerformanceScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,

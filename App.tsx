@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useColorScheme,
   View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -16,7 +17,7 @@ import { File } from 'expo-file-system';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import DashboardScreen from './src/screens/DashboardScreen';
@@ -38,6 +39,7 @@ import {
   getDashboardExpansionState,
   getSetlistGroups,
   getTagSize,
+  getThemePreference,
   getSetlistsWithSongs,
   importSetlists,
   initializeDatabase,
@@ -47,13 +49,17 @@ import {
   saveDashboardExpansionState,
   saveSongForSetlist,
   saveTagSize,
+  saveThemePreference,
   updateSongFontSize,
 } from './src/lib/db';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
 import { getCommonSongTags } from './src/lib/songTags';
 import { decodeTextFile } from './src/lib/textEncoding';
 import { clampTagSize, DEFAULT_TAG_SIZE } from './src/lib/fontSize';
-import { theme } from './src/theme';
+import { resolveTheme, ThemeProvider } from './src/themeContext';
+import type { ThemePreference } from './src/themeContext';
+import SettingsScreen from './src/screens/SettingsScreen';
+import type { AppTheme } from './src/theme';
 import type {
   DashboardExpansionState,
   SetlistGroup,
@@ -65,6 +71,7 @@ import type {
 
 type RootStackParamList = {
   Dashboard: undefined;
+  Settings: undefined;
   Editor: { setlistId: string; song?: Song };
   SetlistDetails: { setlistId: string };
   GroupEditor: { groupId?: string };
@@ -89,6 +96,10 @@ function formatSetlistDetails(setlist: SetlistHeaderDetails | undefined): string
 }
 
 export default function App() {
+  const systemScheme = useColorScheme();
+  const [themePreference, setThemePreference] = useState<ThemePreference>('dark');
+  const theme = resolveTheme(themePreference, systemScheme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [setlists, setSetlists] = useState<SetlistWithSongs[]>([]);
   const [groups, setGroups] = useState<SetlistGroup[]>([]);
   const [dashboardExpansion, setDashboardExpansion] = useState<DashboardExpansionState>({
@@ -113,6 +124,7 @@ export default function App() {
       refreshSetlists();
       setDashboardExpansion(getDashboardExpansionState());
       setTagSize(getTagSize());
+      setThemePreference(getThemePreference());
       setStartupError(null);
     } catch (error) {
       setStartupError(
@@ -180,6 +192,11 @@ export default function App() {
   const handleDeleteSetlistGroup = (groupId: string) => {
     deleteSetlistGroup(groupId);
     refreshSetlists();
+  };
+
+  const handleThemePreferenceChange = (preference: ThemePreference) => {
+    saveThemePreference(preference);
+    setThemePreference(preference);
   };
 
   const handleTagSizeChange = (size: number, persist: boolean) => {
@@ -307,9 +324,22 @@ export default function App() {
   }
 
   return (
+    <ThemeProvider value={theme}>
     <GestureHandlerRootView style={styles.root}>
-      <NavigationContainer>
-        <StatusBar style="light" />
+      <NavigationContainer
+        theme={{
+          ...(theme.mode === 'light' ? DefaultTheme : DarkTheme),
+          colors: {
+            ...(theme.mode === 'light' ? DefaultTheme : DarkTheme).colors,
+            background: theme.colors.background,
+            card: theme.colors.background,
+            text: theme.colors.text_primary,
+            border: theme.colors.border_contrast,
+            primary: theme.colors.accent_highlight,
+          },
+        }}
+      >
+        <StatusBar style={theme.mode === 'light' ? 'dark' : 'light'} />
         <Stack.Navigator
           screenOptions={{
             contentStyle: { backgroundColor: theme.colors.background },
@@ -370,6 +400,15 @@ export default function App() {
                 }
                 onOpenNewSong={(setlistId) => navigation.navigate('Editor', { setlistId })}
                 onReorderItems={handleReorderItems}
+                onOpenSettings={() => navigation.navigate('Settings')}
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Settings" options={{ title: 'Settings' }}>
+            {() => (
+              <SettingsScreen
+                themePreference={themePreference}
+                onThemePreferenceChange={handleThemePreferenceChange}
                 onExportLibrary={handleExportLibrary}
                 onImportLibrary={handleImportLibrary}
               />
@@ -544,10 +583,11 @@ export default function App() {
         </View>
       </Modal>
     </GestureHandlerRootView>
+    </ThemeProvider>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: theme.colors.background,
