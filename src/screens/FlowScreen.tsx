@@ -382,7 +382,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   },
   songTitle: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.border_contrast,
