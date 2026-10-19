@@ -381,3 +381,21 @@ test('parseSetlistArchive rejects unsupported song tag colors', () => {
     /has invalid tags/,
   );
 });
+
+test('setlist map position round-trips and invalid positions are rejected', () => {
+  const base = { format: 'gigbox-setlists', version: 5, groups: [] };
+  const parsed = parseSetlistArchive(JSON.stringify({
+    ...base,
+    setlists: [{ name: 'Set', group: null, location: 'Pub', latitude: 51.5, longitude: -0.12, items: [] }],
+  }));
+  assert.equal(parsed.setlists[0].latitude, 51.5);
+  assert.equal(parsed.setlists[0].longitude, -0.12);
+
+  assert.throws(
+    () => parseSetlistArchive(JSON.stringify({
+      ...base,
+      setlists: [{ name: 'Set', group: null, latitude: 95, longitude: 0, items: [] }],
+    })),
+    { message: 'Setlist "Set" has an invalid map position.' },
+  );
+});

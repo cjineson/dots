@@ -170,6 +170,8 @@ export default function App() {
     name: string,
     details: {
       location?: string;
+      latitude?: number | null;
+      longitude?: number | null;
       date?: string;
       time?: string;
       groupId?: string | null;
@@ -180,8 +182,9 @@ export default function App() {
   };
 
   const handleCreateSetlistGroup = (name: string) => {
-    createSetlistGroup(name);
+    const group = createSetlistGroup(name);
     refreshSetlists();
+    return group;
   };
 
   const handleRenameSetlistGroup = (groupId: string, name: string) => {
@@ -434,6 +437,7 @@ export default function App() {
                 <SetlistDetailsScreen
                   setlist={setlist}
                   groups={groups}
+                  onCreateGroup={handleCreateSetlistGroup}
                   onCancel={() => navigation.goBack()}
                   onSave={(name, details) => {
                     handleRenameSetlist(setlist.id, name, details);
