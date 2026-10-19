@@ -50,6 +50,7 @@ import {
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
 import { getCommonSongTags } from './src/lib/songTags';
 import { decodeTextFile } from './src/lib/textEncoding';
+import { DEFAULT_TAG_SIZE } from './src/lib/fontSize';
 import { theme } from './src/theme';
 import type {
   DashboardExpansionState,
@@ -93,6 +94,7 @@ export default function App() {
     collapsedGroups: {},
   });
   const [isReady, setIsReady] = useState(false);
+  const [tagSize, setTagSize] = useState(DEFAULT_TAG_SIZE);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
@@ -441,6 +443,8 @@ export default function App() {
                 items={route.params.items}
                 onGoToDashboard={() => navigation.popToTop()}
                 onFontSizeChange={handleSongFontSizeChange}
+                tagSize={tagSize}
+                onTagSizeChange={setTagSize}
               />
             )}
           </Stack.Screen>
@@ -485,6 +489,8 @@ export default function App() {
                 onExitEditorPreview={() => navigation.goBack()}
                 onIndexChange={(index) => navigation.setParams({ index })}
                 onFontSizeChange={handleSongFontSizeChange}
+                tagSize={tagSize}
+                onTagSizeChange={setTagSize}
               />
             )}
           </Stack.Screen>

@@ -17,19 +17,21 @@ type FontSizeZoomControlProps = {
   label: string;
   value: number;
   onValueChange: (value: number, persist: boolean) => void;
-  tagsEnlarged?: boolean;
-  onTagsEnlargedChange?: (enlarged: boolean) => void;
+  min?: number;
+  max?: number;
+  step?: number;
 };
 
 export default function FontSizeZoomControl({
   label,
   value,
   onValueChange,
-  tagsEnlarged,
-  onTagsEnlargedChange,
+  min = MIN_FONT_SIZE,
+  max = MAX_FONT_SIZE,
+  step = FONT_SIZE_STEP,
 }: FontSizeZoomControlProps) {
   const [trackWidth, setTrackWidth] = useState(0);
-  const progress = (value - MIN_FONT_SIZE) / (MAX_FONT_SIZE - MIN_FONT_SIZE);
+  const progress = (value - min) / (max - min);
 
   const setValueFromEvent = (event: GestureResponderEvent, persist: boolean) => {
     if (trackWidth <= 0) {
@@ -43,9 +45,9 @@ export default function FontSizeZoomControl({
       ),
     );
     const steps = Math.round(
-      position * ((MAX_FONT_SIZE - MIN_FONT_SIZE) / FONT_SIZE_STEP),
+      position * ((max - min) / step),
     );
-    onValueChange(MIN_FONT_SIZE + steps * FONT_SIZE_STEP, persist);
+    onValueChange(min + steps * step, persist);
   };
 
   return (
@@ -55,9 +57,9 @@ export default function FontSizeZoomControl({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Zoom out"
-          disabled={value <= MIN_FONT_SIZE}
-          onPress={() => onValueChange(Math.max(MIN_FONT_SIZE, value - FONT_SIZE_STEP), true)}
-          style={[styles.stepButton, value <= MIN_FONT_SIZE && styles.disabledButton]}
+          disabled={value <= min}
+          onPress={() => onValueChange(Math.max(min, value - step), true)}
+          style={[styles.stepButton, value <= min && styles.disabledButton]}
         >
           <MaterialCommunityIcons
             name="magnify-minus-outline"
@@ -69,7 +71,7 @@ export default function FontSizeZoomControl({
           accessible
           accessibilityRole="adjustable"
           accessibilityLabel={label}
-          accessibilityValue={{ min: MIN_FONT_SIZE, max: MAX_FONT_SIZE, now: value }}
+          accessibilityValue={{ min: min, max: max, now: value }}
           accessibilityActions={[
             { name: 'increment', label: 'Increase text size' },
             { name: 'decrement', label: 'Decrease text size' },
@@ -77,12 +79,12 @@ export default function FontSizeZoomControl({
           onAccessibilityAction={(event) =>
             onValueChange(
               Math.max(
-                MIN_FONT_SIZE,
+                min,
                 Math.min(
-                  MAX_FONT_SIZE,
+                  max,
                   value + (event.nativeEvent.actionName === 'increment'
-                    ? FONT_SIZE_STEP
-                    : -FONT_SIZE_STEP),
+                    ? step
+                    : -step),
                 ),
               ),
               true,
@@ -110,9 +112,9 @@ export default function FontSizeZoomControl({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Zoom in"
-          disabled={value >= MAX_FONT_SIZE}
-          onPress={() => onValueChange(Math.min(MAX_FONT_SIZE, value + FONT_SIZE_STEP), true)}
-          style={[styles.stepButton, value >= MAX_FONT_SIZE && styles.disabledButton]}
+          disabled={value >= max}
+          onPress={() => onValueChange(Math.min(max, value + step), true)}
+          style={[styles.stepButton, value >= max && styles.disabledButton]}
         >
           <MaterialCommunityIcons
             name="magnify-plus-outline"
@@ -121,22 +123,6 @@ export default function FontSizeZoomControl({
           />
         </Pressable>
       </View>
-      {onTagsEnlargedChange && (
-        <Pressable
-          accessibilityRole="switch"
-          accessibilityLabel="Enlarge tags with text"
-          accessibilityState={{ checked: !!tagsEnlarged }}
-          onPress={() => onTagsEnlargedChange(!tagsEnlarged)}
-          style={styles.tagToggle}
-        >
-          <MaterialCommunityIcons
-            name={tagsEnlarged ? 'checkbox-marked' : 'checkbox-blank-outline'}
-            size={26}
-            color={theme.colors.accent_highlight}
-          />
-          <Text style={styles.tagToggleText}>Enlarge tags with text</Text>
-        </Pressable>
-      )}
     </View>
   );
 }
@@ -204,18 +190,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  tagToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    minHeight: 44,
-    paddingHorizontal: 4,
-  },
-  tagToggleText: {
-    color: theme.colors.text_primary,
-    fontSize: 14,
-    fontWeight: '600',
   },
   disabledButton: {
     opacity: 0.4,

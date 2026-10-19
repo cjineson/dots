@@ -16,7 +16,13 @@ import {
   getVisibleCueBlocks,
   parseCueDocument,
 } from '../lib/cueDocument';
-import { clampFontSize } from '../lib/fontSize';
+import {
+  clampFontSize,
+  DEFAULT_TAG_SIZE,
+  MAX_TAG_SIZE,
+  MIN_TAG_SIZE,
+  TAG_SIZE_STEP,
+} from '../lib/fontSize';
 import SongTags from '../components/SongTags';
 import { theme } from '../theme';
 import type { CueBlock, SetlistItem, Song } from '../types';
@@ -27,6 +33,8 @@ type FlowScreenProps = {
   items: SetlistItem[];
   onGoToDashboard: () => void;
   onFontSizeChange: (songId: string, fontSize: number) => void;
+  tagSize: number;
+  onTagSizeChange: (tagSize: number) => void;
 };
 
 export default function FlowScreen({
@@ -35,6 +43,8 @@ export default function FlowScreen({
   items,
   onGoToDashboard,
   onFontSizeChange,
+  tagSize,
+  onTagSizeChange,
 }: FlowScreenProps) {
   const [initialFontSizeBySong] = useState<Record<string, number>>(() =>
     Object.fromEntries(
@@ -54,7 +64,6 @@ export default function FlowScreen({
   const [flowFontSize, setFlowFontSize] = useState(initialFlowFontSize);
   const [flowZoomOpen, setFlowZoomOpen] = useState(false);
   const [openSongZoomIds, setOpenSongZoomIds] = useState<Record<string, boolean>>({});
-  const [tagsEnlarged, setTagsEnlarged] = useState(true);
 
   const songFontSize = (song: Song) =>
     fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size;
@@ -169,13 +178,21 @@ export default function FlowScreen({
       </View>
 
       {songs.length > 0 && flowZoomOpen && (
-        <FontSizeZoomControl
-          label="Set entire setlist"
-          tagsEnlarged={tagsEnlarged}
-          onTagsEnlargedChange={setTagsEnlarged}
-          value={flowFontSize}
-          onValueChange={setFlowFontSizeAndPersist}
-        />
+        <>
+          <FontSizeZoomControl
+            label="Tag size"
+            value={tagSize}
+            min={MIN_TAG_SIZE}
+            max={MAX_TAG_SIZE}
+            step={TAG_SIZE_STEP}
+            onValueChange={(next) => onTagSizeChange(next)}
+          />
+          <FontSizeZoomControl
+            label="Set entire setlist"
+            value={flowFontSize}
+            onValueChange={setFlowFontSizeAndPersist}
+          />
+        </>
       )}
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -209,7 +226,7 @@ export default function FlowScreen({
                 <SongTags
                   tags={song.tags}
                   compact
-                  scale={tagsEnlarged ? Math.max(1, songZoom) : 1}
+                  scale={tagSize / DEFAULT_TAG_SIZE}
                 />
                 <Pressable
                   accessibilityRole="button"

@@ -21,7 +21,13 @@ import {
   getVisibleCueBlocks,
   parseCueDocument,
 } from '../lib/cueDocument';
-import { clampFontSize } from '../lib/fontSize';
+import {
+  clampFontSize,
+  DEFAULT_TAG_SIZE,
+  MAX_TAG_SIZE,
+  MIN_TAG_SIZE,
+  TAG_SIZE_STEP,
+} from '../lib/fontSize';
 import type { CueBlock, SetlistItem, Song } from '../types';
 
 type LivePerformanceScreenProps = {
@@ -32,6 +38,8 @@ type LivePerformanceScreenProps = {
   onExitEditorPreview: () => void;
   onIndexChange: (index: number) => void;
   onFontSizeChange: (songId: string, fontSize: number) => void;
+  tagSize: number;
+  onTagSizeChange: (tagSize: number) => void;
 };
 
 export default function LivePerformanceScreen({
@@ -42,6 +50,8 @@ export default function LivePerformanceScreen({
   onExitEditorPreview,
   onIndexChange,
   onFontSizeChange,
+  tagSize,
+  onTagSizeChange,
 }: LivePerformanceScreenProps) {
   const item = items[index];
   const song = item?.kind === 'song' ? item.song : undefined;
@@ -63,7 +73,6 @@ export default function LivePerformanceScreen({
   const availableHeight = Math.max(0, boxSize.height - theme.layout.box_padding * 2);
   const songFontScale = fontSize / theme.typography.box_text_size;
   const [zoomOpen, setZoomOpen] = useState(false);
-  const [tagsEnlarged, setTagsEnlarged] = useState(true);
 
   const baseSizeForBlock = (block: CueBlock) =>
     (block.font_size ?? theme.typography.box_text_size) * songFontScale;
@@ -174,7 +183,7 @@ export default function LivePerformanceScreen({
             tags={song?.tags}
             compact
             wrapCompact
-            scale={tagsEnlarged ? Math.max(1, songFontScale) : 1}
+            scale={tagSize / DEFAULT_TAG_SIZE}
           />
         </View>
         {song && !isEditorPreview && (
@@ -195,10 +204,17 @@ export default function LivePerformanceScreen({
       </View>
 
       {song && !isEditorPreview && zoomOpen && (
+        <>
+        <FontSizeZoomControl
+          label="Tag size"
+          value={tagSize}
+          min={MIN_TAG_SIZE}
+          max={MAX_TAG_SIZE}
+          step={TAG_SIZE_STEP}
+          onValueChange={(next) => onTagSizeChange(next)}
+        />
         <FontSizeZoomControl
           label="Song text size"
-          tagsEnlarged={tagsEnlarged}
-          onTagsEnlargedChange={setTagsEnlarged}
           value={fontSize}
           onValueChange={(nextFontSize, persist) => {
             const updatedFontSize = clampFontSize(nextFontSize);
@@ -211,6 +227,7 @@ export default function LivePerformanceScreen({
             }
           }}
         />
+        </>
       )}
 
       <View style={styles.boxGestureArea} {...swipeResponder.panHandlers}>
