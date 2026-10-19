@@ -63,7 +63,14 @@ export default function FlowScreen({
   const [fontSizeBySong, setFontSizeBySong] = useState(initialFontSizeBySong);
   const [flowFontSize, setFlowFontSize] = useState(initialFlowFontSize);
   const [flowZoomOpen, setFlowZoomOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
   const [openSongZoomIds, setOpenSongZoomIds] = useState<Record<string, boolean>>({});
+
+  const toggleTags = () => {
+    setFlowZoomOpen(false);
+    setOpenSongZoomIds({});
+    setTagsOpen((open) => !open);
+  };
 
   const songFontSize = (song: Song) =>
     fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size;
@@ -161,38 +168,57 @@ export default function FlowScreen({
           )}
         </View>
         {songs.length > 0 && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={flowZoomOpen ? 'Hide setlist zoom controls' : 'Show setlist zoom controls'}
-            accessibilityState={{ expanded: flowZoomOpen }}
-            onPress={() => setFlowZoomOpen((open) => !open)}
-            hitSlop={8}
-          >
-            <MaterialCommunityIcons
-              name={flowZoomOpen ? 'magnify-close' : 'magnify-plus-outline'}
-              size={28}
-              color={theme.colors.accent_highlight}
-            />
-          </Pressable>
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={tagsOpen ? 'Hide tag size control' : 'Show tag size control'}
+              accessibilityState={{ expanded: tagsOpen }}
+              onPress={toggleTags}
+              hitSlop={8}
+            >
+              <MaterialCommunityIcons
+                name={tagsOpen ? 'tag-off-outline' : 'tag-outline'}
+                size={28}
+                color={theme.colors.accent_highlight}
+              />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={flowZoomOpen ? 'Hide setlist zoom controls' : 'Show setlist zoom controls'}
+              accessibilityState={{ expanded: flowZoomOpen }}
+              onPress={() => {
+                setTagsOpen(false);
+                setFlowZoomOpen((open) => !open);
+              }}
+              hitSlop={8}
+            >
+              <MaterialCommunityIcons
+                name={flowZoomOpen ? 'magnify-close' : 'magnify-plus-outline'}
+                size={28}
+                color={theme.colors.accent_highlight}
+              />
+            </Pressable>
+          </>
         )}
       </View>
 
+      {songs.length > 0 && tagsOpen && (
+        <FontSizeZoomControl
+          label="Tag size"
+          value={tagSize}
+          min={MIN_TAG_SIZE}
+          max={MAX_TAG_SIZE}
+          step={TAG_SIZE_STEP}
+          onValueChange={onTagSizeChange}
+        />
+      )}
+
       {songs.length > 0 && flowZoomOpen && (
-        <>
-          <FontSizeZoomControl
-            label="Tag size"
-            value={tagSize}
-            min={MIN_TAG_SIZE}
-            max={MAX_TAG_SIZE}
-            step={TAG_SIZE_STEP}
-            onValueChange={onTagSizeChange}
-          />
-          <FontSizeZoomControl
-            label="Set entire setlist"
-            value={flowFontSize}
-            onValueChange={setFlowFontSizeAndPersist}
-          />
-        </>
+        <FontSizeZoomControl
+          label="Set entire setlist"
+          value={flowFontSize}
+          onValueChange={setFlowFontSizeAndPersist}
+        />
       )}
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -232,9 +258,10 @@ export default function FlowScreen({
                   accessibilityRole="button"
                   accessibilityLabel={`Toggle zoom controls for ${song.title}`}
                   accessibilityState={{ expanded: !!openSongZoomIds[song.id] }}
-                  onPress={() =>
-                    setOpenSongZoomIds((current) => ({ ...current, [song.id]: !current[song.id] }))
-                  }
+                  onPress={() => {
+                    setTagsOpen(false);
+                    setOpenSongZoomIds((current) => ({ ...current, [song.id]: !current[song.id] }));
+                  }}
                   hitSlop={8}
                 >
                   <MaterialCommunityIcons

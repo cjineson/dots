@@ -72,7 +72,9 @@ export default function LivePerformanceScreen({
   const availableWidth = Math.max(0, boxSize.width - theme.layout.box_padding * 2);
   const availableHeight = Math.max(0, boxSize.height - theme.layout.box_padding * 2);
   const songFontScale = fontSize / theme.typography.box_text_size;
-  const [zoomOpen, setZoomOpen] = useState(false);
+  const [panel, setPanel] = useState<'zoom' | 'tags' | null>(null);
+  const zoomOpen = panel === 'zoom';
+  const tagsOpen = panel === 'tags';
 
   const baseSizeForBlock = (block: CueBlock) =>
     (block.font_size ?? theme.typography.box_text_size) * songFontScale;
@@ -187,24 +189,38 @@ export default function LivePerformanceScreen({
           />
         </View>
         {song && !isEditorPreview && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={zoomOpen ? 'Hide zoom controls' : 'Show zoom controls'}
-            accessibilityState={{ expanded: zoomOpen }}
-            onPress={() => setZoomOpen((open) => !open)}
-            hitSlop={8}
-          >
-            <MaterialCommunityIcons
-              name={zoomOpen ? 'magnify-close' : 'magnify-plus-outline'}
-              size={30}
-              color={theme.colors.accent_highlight}
-            />
-          </Pressable>
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={tagsOpen ? 'Hide tag size control' : 'Show tag size control'}
+              accessibilityState={{ expanded: tagsOpen }}
+              onPress={() => setPanel(tagsOpen ? null : 'tags')}
+              hitSlop={8}
+            >
+              <MaterialCommunityIcons
+                name={tagsOpen ? 'tag-off-outline' : 'tag-outline'}
+                size={30}
+                color={theme.colors.accent_highlight}
+              />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={zoomOpen ? 'Hide zoom controls' : 'Show zoom controls'}
+              accessibilityState={{ expanded: zoomOpen }}
+              onPress={() => setPanel(zoomOpen ? null : 'zoom')}
+              hitSlop={8}
+            >
+              <MaterialCommunityIcons
+                name={zoomOpen ? 'magnify-close' : 'magnify-plus-outline'}
+                size={30}
+                color={theme.colors.accent_highlight}
+              />
+            </Pressable>
+          </>
         )}
       </View>
 
-      {song && !isEditorPreview && zoomOpen && (
-        <>
+      {song && !isEditorPreview && tagsOpen && (
         <FontSizeZoomControl
           label="Tag size"
           value={tagSize}
@@ -213,6 +229,9 @@ export default function LivePerformanceScreen({
           step={TAG_SIZE_STEP}
           onValueChange={onTagSizeChange}
         />
+      )}
+
+      {song && !isEditorPreview && zoomOpen && (
         <FontSizeZoomControl
           label="Song text size"
           value={fontSize}
@@ -227,7 +246,6 @@ export default function LivePerformanceScreen({
             }
           }}
         />
-        </>
       )}
 
       <View style={styles.boxGestureArea} {...swipeResponder.panHandlers}>
