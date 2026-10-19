@@ -19,7 +19,11 @@ Local-first dark-mode live setlist app for musicians.
 - Dark theme tokens matching the stage-ready spec
 - Reorder songs and breaks in a setlist by dragging their handles
 - Long cue lines automatically scale down to fit the performance boxes
+<<<<<<< HEAD
 - Adjust performance text size per song and both individual songs and the entire setlist in Flow using zoom sliders and large step buttons that appear when the zoom button is tapped, plus a separate tag size slider in the Performance and Flow headers (saved locally); preferences are saved locally and included in JSON archives, up to 128 points
+=======
+- Adjust performance text size per song using the expandable zoom slider; preferences are saved locally and included in JSON archives
+>>>>>>> origin/main
 - Export the library to a shareable JSON file and import JSON exports as additional setlists
 
 ## Getting started

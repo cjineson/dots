@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
+  GestureResponderEvent,
   Image,
   LayoutChangeEvent,
   PanResponder,
@@ -14,13 +15,13 @@ import {
 
 import { theme } from '../theme';
 import SongTags from '../components/SongTags';
-import FontSizeZoomControl from '../components/FontSizeZoomControl';
 import PerformanceCueContent from '../components/PerformanceCueContent';
 import {
   createCueDocumentFromText,
   getVisibleCueBlocks,
   parseCueDocument,
 } from '../lib/cueDocument';
+<<<<<<< HEAD
 import {
   clampFontSize,
   DEFAULT_TAG_SIZE,
@@ -28,6 +29,8 @@ import {
   MIN_TAG_SIZE,
   TAG_SIZE_STEP,
 } from '../lib/fontSize';
+=======
+>>>>>>> origin/main
 import type { CueBlock, SetlistItem, Song } from '../types';
 
 type LivePerformanceScreenProps = {
@@ -41,6 +44,10 @@ type LivePerformanceScreenProps = {
   tagSize: number;
   onTagSizeChange: (tagSize: number, persist: boolean) => void;
 };
+
+const MIN_FONT_SIZE = 10;
+const MAX_FONT_SIZE = 64;
+const FONT_SIZE_STEP = 2;
 
 export default function LivePerformanceScreen({
   items,
@@ -61,6 +68,8 @@ export default function LivePerformanceScreen({
   const cueBlocks = getVisibleCueBlocks(cueDocument);
   const [boxSize, setBoxSize] = useState({ width: 0, height: 0 });
   const [fontSizeBySong, setFontSizeBySong] = useState<Record<string, number>>({});
+  const [isZoomControlOpen, setIsZoomControlOpen] = useState(false);
+  const [zoomTrackWidth, setZoomTrackWidth] = useState(0);
   const fontSize =
     song ? fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size
       : theme.typography.box_text_size;
@@ -71,8 +80,12 @@ export default function LivePerformanceScreen({
     );
   const availableWidth = Math.max(0, boxSize.width - theme.layout.box_padding * 2);
   const availableHeight = Math.max(0, boxSize.height - theme.layout.box_padding * 2);
+<<<<<<< HEAD
   const songFontScale = fontSize / theme.typography.box_text_size;
   const [zoomOpen, setZoomOpen] = useState(false);
+=======
+  const songFontScale = fontSize / (song?.font_size ?? theme.typography.box_text_size);
+>>>>>>> origin/main
 
   const baseSizeForBlock = (block: CueBlock) =>
     (block.font_size ?? theme.typography.box_text_size) * songFontScale;
@@ -144,6 +157,28 @@ export default function LivePerformanceScreen({
     );
   };
 
+  const changeFontSize = (delta: number) => {
+    if (!song) {
+      return;
+    }
+    const nextFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, fontSize + delta));
+    setFontSizeBySong((current) => ({ ...current, [song.id]: nextFontSize }));
+    onFontSizeChange(song.id, nextFontSize);
+  };
+
+  const setFontSizeFromSlider = (event: GestureResponderEvent, persist: boolean) => {
+    if (!song || zoomTrackWidth <= 0) {
+      return;
+    }
+    const progress = Math.max(0, Math.min(1, event.nativeEvent.locationX / zoomTrackWidth));
+    const steps = Math.round(progress * ((MAX_FONT_SIZE - MIN_FONT_SIZE) / FONT_SIZE_STEP));
+    const nextFontSize = MIN_FONT_SIZE + steps * FONT_SIZE_STEP;
+    setFontSizeBySong((current) => ({ ...current, [song.id]: nextFontSize }));
+    if (persist) {
+      onFontSizeChange(song.id, nextFontSize);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
@@ -189,6 +224,7 @@ export default function LivePerformanceScreen({
         {song && !isEditorPreview && (
           <Pressable
             accessibilityRole="button"
+<<<<<<< HEAD
             accessibilityLabel={zoomOpen ? 'Hide zoom controls' : 'Show zoom controls'}
             accessibilityState={{ expanded: zoomOpen }}
             onPress={() => setZoomOpen((open) => !open)}
@@ -199,10 +235,28 @@ export default function LivePerformanceScreen({
               size={30}
               color={theme.colors.accent_highlight}
             />
+=======
+            accessibilityLabel="Toggle text size controls"
+            accessibilityState={{ expanded: isZoomControlOpen }}
+            onPress={() => setIsZoomControlOpen((open) => !open)}
+            style={styles.zoomToggle}
+          >
+            <MaterialCommunityIcons
+              name="magnify-plus-outline"
+              size={25}
+              color={theme.colors.accent_highlight}
+            />
+            <MaterialCommunityIcons
+              name={isZoomControlOpen ? 'chevron-up' : 'chevron-down'}
+              size={14}
+              color={theme.colors.text_secondary}
+            />
+>>>>>>> origin/main
           </Pressable>
         )}
       </View>
 
+<<<<<<< HEAD
       {song && !isEditorPreview && zoomOpen && (
         <>
         <FontSizeZoomControl
@@ -228,6 +282,76 @@ export default function LivePerformanceScreen({
           }}
         />
         </>
+=======
+      {song && !isEditorPreview && isZoomControlOpen && (
+        <View style={styles.zoomPanel}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Decrease text size"
+            disabled={fontSize <= MIN_FONT_SIZE}
+            onPress={() => changeFontSize(-FONT_SIZE_STEP)}
+            style={[styles.zoomStepButton, fontSize <= MIN_FONT_SIZE && styles.disabledButton]}
+          >
+            <MaterialCommunityIcons
+              name="magnify-minus-outline"
+              size={22}
+              color={theme.colors.accent_highlight}
+            />
+          </Pressable>
+          <View
+            accessible
+            accessibilityRole="adjustable"
+            accessibilityLabel="Song text size"
+            accessibilityValue={{ min: MIN_FONT_SIZE, max: MAX_FONT_SIZE, now: fontSize }}
+            accessibilityActions={[
+              { name: 'increment', label: 'Increase text size' },
+              { name: 'decrement', label: 'Decrease text size' },
+            ]}
+            onAccessibilityAction={(event) =>
+              changeFontSize(event.nativeEvent.actionName === 'increment'
+                ? FONT_SIZE_STEP
+                : -FONT_SIZE_STEP)
+            }
+            onLayout={(event) => setZoomTrackWidth(event.nativeEvent.layout.width)}
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => true}
+            onResponderGrant={(event) => setFontSizeFromSlider(event, false)}
+            onResponderMove={(event) => setFontSizeFromSlider(event, false)}
+            onResponderRelease={(event) => setFontSizeFromSlider(event, true)}
+            onResponderTerminate={(event) => setFontSizeFromSlider(event, true)}
+            style={styles.zoomSlider}
+          >
+            <View style={styles.zoomTrack}>
+              <View
+                style={[
+                  styles.zoomTrackFill,
+                  { width: `${((fontSize - MIN_FONT_SIZE) / (MAX_FONT_SIZE - MIN_FONT_SIZE)) * 100}%` },
+                ]}
+              />
+              <View
+                style={[
+                  styles.zoomThumb,
+                  { left: `${((fontSize - MIN_FONT_SIZE) / (MAX_FONT_SIZE - MIN_FONT_SIZE)) * 100}%` },
+                ]}
+              />
+            </View>
+          </View>
+          <Text style={styles.zoomValue}>{fontSize}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Increase text size"
+            disabled={fontSize >= MAX_FONT_SIZE}
+            onPress={() => changeFontSize(FONT_SIZE_STEP)}
+            style={[styles.zoomStepButton, fontSize >= MAX_FONT_SIZE && styles.disabledButton]}
+          >
+            <MaterialCommunityIcons
+              name="magnify-plus-outline"
+              size={22}
+              color={theme.colors.accent_highlight}
+            />
+          </Pressable>
+        </View>
+>>>>>>> origin/main
       )}
 
       <View style={styles.boxGestureArea} {...swipeResponder.panHandlers}>
@@ -322,8 +446,68 @@ const styles = StyleSheet.create({
     color: theme.colors.text_secondary,
     fontSize: 20,
   },
+  zoomToggle: {
+    width: 40,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 48,
+    marginBottom: 8,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surface,
+  },
+  zoomStepButton: {
+    width: 36,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomSlider: {
+    flex: 1,
+    height: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  zoomTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.border_contrast,
+  },
+  zoomTrackFill: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.accent_highlight,
+  },
+  zoomThumb: {
+    position: 'absolute',
+    top: -6,
+    width: 16,
+    height: 16,
+    marginLeft: -8,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: theme.colors.background,
+    backgroundColor: theme.colors.accent_highlight,
+  },
+  zoomValue: {
+    minWidth: 22,
+    color: theme.colors.text_secondary,
+    textAlign: 'center',
+    fontSize: 12,
+  },
   boxGestureArea: {
     flex: 1,
+  },
+  disabledButton: {
+    opacity: 0.4,
   },
   box: {
     flex: 1,
