@@ -86,6 +86,11 @@ export function initializeDatabase(): void {
       db.execSync(`ALTER TABLE setlists ADD COLUMN ${column} TEXT`);
     }
   }
+  for (const column of ['latitude', 'longitude']) {
+    if (!setlistColumns.some((existing) => existing.name === column)) {
+      db.execSync(`ALTER TABLE setlists ADD COLUMN ${column} REAL`);
+    }
+  }
 }
 
 export function getSetlistGroups(): SetlistGroup[] {
@@ -224,6 +229,8 @@ export function renameSetlist(
   name: string,
   details: {
     location?: string;
+    latitude?: number | null;
+    longitude?: number | null;
     date?: string;
     time?: string;
     groupId?: string | null;
@@ -241,10 +248,12 @@ export function renameSetlist(
   }
 
   db.runSync(
-    'UPDATE setlists SET name = ?, location = ?, date = ?, time = ?, group_id = ? WHERE id = ?',
+    'UPDATE setlists SET name = ?, location = ?, latitude = ?, longitude = ?, date = ?, time = ?, group_id = ? WHERE id = ?',
     [
       cleanedName,
       details.location?.trim() || null,
+      details.latitude ?? null,
+      details.longitude ?? null,
       details.date?.trim() || null,
       details.time?.trim() || null,
       details.groupId ?? null,
@@ -283,6 +292,8 @@ export function copySetlist(setlistId: string): Setlist {
     name: `Copy of ${source.name}`,
     order_index: getNextSetlistOrderIndex(),
     location: source.location,
+    latitude: source.latitude ?? undefined,
+    longitude: source.longitude ?? undefined,
     date: source.date,
     time: source.time,
     group_id: source.group_id,
@@ -290,12 +301,14 @@ export function copySetlist(setlistId: string): Setlist {
 
   db.withTransactionSync(() => {
     db.runSync(
-      'INSERT INTO setlists (id, name, order_index, location, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO setlists (id, name, order_index, location, latitude, longitude, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         copy.id,
         copy.name,
         copy.order_index,
         copy.location ?? null,
+        copy.latitude ?? null,
+        copy.longitude ?? null,
         copy.date ?? null,
         copy.time ?? null,
         copy.group_id ?? null,
@@ -401,6 +414,8 @@ export function getSetlistsWithSongs(): SetlistWithSongs[] {
     return {
       ...setlist,
       location: setlist.location ?? undefined,
+      latitude: setlist.latitude ?? undefined,
+      longitude: setlist.longitude ?? undefined,
       date: setlist.date ?? undefined,
       time: setlist.time ?? undefined,
       group_id: setlist.group_id ?? undefined,
@@ -583,12 +598,14 @@ export function importSetlists(library: ImportedLibrary): void {
         throw new Error(`Group "${setlist.group}" for setlist "${setlist.name}" is missing.`);
       }
       db.runSync(
-        'INSERT INTO setlists (id, name, order_index, location, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO setlists (id, name, order_index, location, latitude, longitude, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           setlistId,
           setlist.name.trim(),
           nextSetlistOrderIndex++,
           setlist.location?.trim() || null,
+          setlist.latitude ?? null,
+          setlist.longitude ?? null,
           setlist.date?.trim() || null,
           setlist.time?.trim() || null,
           groupId ?? null,
