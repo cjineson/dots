@@ -256,6 +256,23 @@ export default function DashboardScreen({
     ]),
   ];
 
+  const chooseSetlistMove = (
+    name: string,
+    siblingIndex: number,
+    siblingCount: number,
+    setlistId: string,
+  ) => {
+    const buttons: Array<{ text: string; style?: 'cancel'; onPress?: () => void }> = [];
+    if (siblingIndex > 0) {
+      buttons.push({ text: 'Move up', onPress: () => onMoveSetlist(setlistId, 'up') });
+    }
+    if (siblingIndex < siblingCount - 1) {
+      buttons.push({ text: 'Move down', onPress: () => onMoveSetlist(setlistId, 'down') });
+    }
+    buttons.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Change order', name, buttons);
+  };
+
   const toggleSetlist = (setlistId: string) => {
     const expandedSetlists = { ...expansionState.expandedSetlists };
     if (expandedSetlists[setlistId]) {
@@ -436,31 +453,15 @@ export default function DashboardScreen({
                 </View>
                 <View style={styles.setlistActions}>
                   {siblings.length > 1 && (
-                    <View style={styles.moveButtons}>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Move ${setlist.name} up`}
-                        disabled={siblingIndex === 0}
-                        onPress={() => onMoveSetlist(setlist.id, 'up')}
-                        hitSlop={4}
-                        style={[styles.moveButton, siblingIndex === 0 && styles.disabledIconButton]}
-                      >
-                        <MaterialCommunityIcons name="chevron-up" size={24} color={theme.colors.accent_highlight} />
-                      </Pressable>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Move ${setlist.name} down`}
-                        disabled={siblingIndex === siblings.length - 1}
-                        onPress={() => onMoveSetlist(setlist.id, 'down')}
-                        hitSlop={4}
-                        style={[
-                          styles.moveButton,
-                          siblingIndex === siblings.length - 1 && styles.disabledIconButton,
-                        ]}
-                      >
-                        <MaterialCommunityIcons name="chevron-down" size={24} color={theme.colors.accent_highlight} />
-                      </Pressable>
-                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Change order of ${setlist.name}`}
+                      onPress={() => chooseSetlistMove(setlist.name, siblingIndex, siblings.length, setlist.id)}
+                      hitSlop={6}
+                      style={styles.setlistOrderHandle}
+                    >
+                      <Text style={styles.setlistOrderHandleText}>☰</Text>
+                    </Pressable>
                   )}
                   <Pressable
                     accessibilityRole="button"
@@ -588,7 +589,7 @@ export default function DashboardScreen({
                               style={styles.songIconButton}
                               onPress={() => confirmDeleteSong(setlist.id, item.song)}
                             >
-                              <MaterialCommunityIcons name="delete" size={21} color="#FF8A80" />
+                              <MaterialCommunityIcons name="minus-circle" size={24} color="#FF8A80" />
                             </Pressable>
                           </View>
                         </View>
@@ -626,7 +627,7 @@ export default function DashboardScreen({
                             style={styles.songIconButton}
                             onPress={() => confirmDeleteBreak(setlist.id, item.id)}
                           >
-                            <MaterialCommunityIcons name="delete" size={21} color="#FF8A80" />
+                            <MaterialCommunityIcons name="minus-circle" size={24} color="#FF8A80" />
                           </Pressable>
                         </View>
                       )}
@@ -927,15 +928,6 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     alignItems: 'center',
     gap: 0,
   },
-  moveButtons: {
-    justifyContent: 'center',
-  },
-  moveButton: {
-    width: 30,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   compactIconButton: {
     width: 34,
     height: 40,
@@ -1043,6 +1035,17 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 6,
+  },
+  setlistOrderHandle: {
+    minWidth: 36,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  setlistOrderHandleText: {
+    color: theme.colors.accent_highlight,
+    fontSize: 22,
+    fontWeight: '900',
   },
   dragHandleText: {
     color: theme.colors.text_secondary,
