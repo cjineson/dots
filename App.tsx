@@ -37,6 +37,7 @@ import {
   deleteSetlist,
   getDashboardExpansionState,
   getSetlistGroups,
+  getTagSize,
   getSetlistsWithSongs,
   importSetlists,
   initializeDatabase,
@@ -45,11 +46,13 @@ import {
   reorderItemsForSetlist,
   saveDashboardExpansionState,
   saveSongForSetlist,
+  saveTagSize,
   updateSongFontSize,
 } from './src/lib/db';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
 import { getCommonSongTags } from './src/lib/songTags';
 import { decodeTextFile } from './src/lib/textEncoding';
+import { clampTagSize, DEFAULT_TAG_SIZE } from './src/lib/fontSize';
 import { theme } from './src/theme';
 import type {
   DashboardExpansionState,
@@ -93,6 +96,7 @@ export default function App() {
     collapsedGroups: {},
   });
   const [isReady, setIsReady] = useState(false);
+  const [tagSize, setTagSize] = useState(DEFAULT_TAG_SIZE);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
@@ -108,6 +112,7 @@ export default function App() {
       initializeDatabase();
       refreshSetlists();
       setDashboardExpansion(getDashboardExpansionState());
+      setTagSize(getTagSize());
       setStartupError(null);
     } catch (error) {
       setStartupError(
@@ -175,6 +180,14 @@ export default function App() {
   const handleDeleteSetlistGroup = (groupId: string) => {
     deleteSetlistGroup(groupId);
     refreshSetlists();
+  };
+
+  const handleTagSizeChange = (size: number, persist: boolean) => {
+    const bounded = clampTagSize(size);
+    setTagSize(bounded);
+    if (persist) {
+      saveTagSize(bounded);
+    }
   };
 
   const handleDashboardExpansionChange = (state: DashboardExpansionState) => {
@@ -441,6 +454,8 @@ export default function App() {
                 items={route.params.items}
                 onGoToDashboard={() => navigation.popToTop()}
                 onFontSizeChange={handleSongFontSizeChange}
+                tagSize={tagSize}
+                onTagSizeChange={handleTagSizeChange}
               />
             )}
           </Stack.Screen>
@@ -485,6 +500,8 @@ export default function App() {
                 onExitEditorPreview={() => navigation.goBack()}
                 onIndexChange={(index) => navigation.setParams({ index })}
                 onFontSizeChange={handleSongFontSizeChange}
+                tagSize={tagSize}
+                onTagSizeChange={handleTagSizeChange}
               />
             )}
           </Stack.Screen>
