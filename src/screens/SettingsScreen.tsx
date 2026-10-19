@@ -1,0 +1,322 @@
+import React, { useMemo } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+import {
+  Alert,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
+
+import FontSizeZoomControl from '../components/FontSizeZoomControl';
+import { MAX_TAG_SIZE, MIN_TAG_SIZE, TAG_SIZE_STEP } from '../lib/fontSize';
+import {
+  AUTO_SCROLL_SPEED_STEP,
+  MAX_AUTO_SCROLL_SPEED,
+  MIN_AUTO_SCROLL_SPEED,
+} from '../lib/settings';
+import type { AppSettings, SwipeMode } from '../lib/settings';
+import { useTheme } from '../themeContext';
+import type { ThemePreference } from '../themeContext';
+import type { AppTheme } from '../theme';
+
+type SettingsScreenProps = {
+  themePreference: ThemePreference;
+  onThemePreferenceChange: (preference: ThemePreference) => void;
+  onExportLibrary: () => void;
+  onImportLibrary: () => void;
+  settings: AppSettings;
+  onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  tagSize: number;
+  onTagSizeChange: (tagSize: number, persist: boolean) => void;
+  onResetSettings: () => void;
+  onClearAllData: () => void;
+  hasData: boolean;
+};
+
+const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
+  { value: 'dark', label: 'Dark' },
+  { value: 'light', label: 'Light' },
+  { value: 'system', label: 'System' },
+];
+
+const SWIPE_OPTIONS: Array<{ value: SwipeMode; label: string }> = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'firm', label: 'Firm' },
+  { value: 'off', label: 'Off' },
+];
+
+function formatLastExport(lastExportAt: string | null) {
+  return lastExportAt ? new Date(lastExportAt).toLocaleString() : 'Never';
+}
+
+export default function SettingsScreen({
+  themePreference,
+  onThemePreferenceChange,
+  onExportLibrary,
+  onImportLibrary,
+  settings,
+  onSettingChange,
+  tagSize,
+  onTagSizeChange,
+  onResetSettings,
+  onClearAllData,
+  hasData,
+}: SettingsScreenProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
+  const confirmReset = () =>
+    Alert.alert('Reset settings?', 'Theme, sizes and performance options return to their defaults. Your songs and setlists are kept.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Reset', style: 'destructive', onPress: onResetSettings },
+    ]);
+
+  const confirmClear = () =>
+    Alert.alert(
+      'Delete all data?',
+      'This removes every setlist, group and song. Export a backup first if you might need them.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert('Really delete everything?', 'This cannot be undone.', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete all', style: 'destructive', onPress: onClearAllData },
+            ]),
+        },
+      ],
+    );
+
+  const renderSegments = <T extends string>(
+    options: Array<{ value: T; label: string }>,
+    selectedValue: T,
+    onSelect: (value: T) => void,
+    labelSuffix: string,
+  ) => (
+    <View style={styles.segmented}>
+      {options.map((option) => {
+        const selected = selectedValue === option.value;
+        return (
+          <Pressable
+            key={option.value}
+            accessibilityRole="button"
+            accessibilityLabel={`${option.label} ${labelSuffix}`}
+            accessibilityState={{ selected }}
+            onPress={() => onSelect(option.value)}
+            style={[styles.segment, selected && styles.segmentSelected]}
+          >
+            <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+
+  const renderSwitch = (
+    label: string,
+    hint: string,
+    key: 'keepAwake' | 'showPosition' | 'highContrast',
+  ) => (
+    <View style={styles.row}>
+      <View style={styles.rowBody}>
+        <Text style={styles.rowText}>{label}</Text>
+        <Text style={styles.hint}>{hint}</Text>
+      </View>
+      <Switch
+        accessibilityLabel={label}
+        value={settings[key]}
+        onValueChange={(value) => onSettingChange(key, value)}
+      />
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        {renderSegments(THEME_OPTIONS, themePreference, onThemePreferenceChange, 'theme')}
+        {renderSwitch('High contrast', 'Stronger text and borders for dim or bright stages.', 'highContrast')}
+
+        <Text style={styles.sectionTitle}>Performance</Text>
+        {renderSwitch('Keep screen awake', 'Stops the screen sleeping in Performance and Flow.', 'keepAwake')}
+        {renderSwitch('Show song position', 'Shows "3 of 12" in the Performance header.', 'showPosition')}
+        <Text style={styles.label}>Swipe between songs</Text>
+        {renderSegments(
+          SWIPE_OPTIONS,
+          settings.swipeMode,
+          (value) => onSettingChange('swipeMode', value),
+          'swipe',
+        )}
+        <FontSizeZoomControl
+          label="Default auto-scroll speed (pts/sec)"
+          value={settings.autoScrollSpeed}
+          min={MIN_AUTO_SCROLL_SPEED}
+          max={MAX_AUTO_SCROLL_SPEED}
+          step={AUTO_SCROLL_SPEED_STEP}
+          decreaseIcon="tortoise"
+          increaseIcon="rabbit"
+          decreaseLabel="Slower"
+          increaseLabel="Faster"
+          onValueChange={(value, persist) => {
+            if (persist) {
+              onSettingChange('autoScrollSpeed', value);
+            }
+          }}
+        />
+
+        <Text style={styles.sectionTitle}>Defaults</Text>
+        <FontSizeZoomControl
+          label="Text size for new songs"
+          value={settings.defaultFontSize}
+          min={10}
+          max={64}
+          onValueChange={(value, persist) => {
+            if (persist) {
+              onSettingChange('defaultFontSize', value);
+            }
+          }}
+        />
+        <FontSizeZoomControl
+          label="Tag size"
+          value={tagSize}
+          min={MIN_TAG_SIZE}
+          max={MAX_TAG_SIZE}
+          step={TAG_SIZE_STEP}
+          onValueChange={onTagSizeChange}
+        />
+
+        <Text style={styles.sectionTitle}>Library</Text>
+        <Text style={styles.hint}>Last exported: {formatLastExport(settings.lastExportAt)}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Export setlists as JSON"
+          style={styles.row}
+          onPress={onExportLibrary}
+        >
+          <MaterialCommunityIcons name="database-export" size={26} color="#4FC3F7" />
+          <Text style={styles.rowText}>Export setlists as JSON</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Import setlists from JSON"
+          style={styles.row}
+          onPress={onImportLibrary}
+        >
+          <MaterialCommunityIcons name="database-import" size={26} color="#FFB74D" />
+          <Text style={styles.rowText}>Import setlists from JSON</Text>
+        </Pressable>
+
+        <Text style={styles.sectionTitle}>Data</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Reset settings"
+          style={styles.row}
+          onPress={confirmReset}
+        >
+          <MaterialCommunityIcons name="backup-restore" size={26} color={theme.colors.accent_highlight} />
+          <Text style={styles.rowText}>Reset settings to defaults</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Delete all data"
+          accessibilityState={{ disabled: !hasData }}
+          disabled={!hasData}
+          style={[styles.row, !hasData && styles.disabledRow]}
+          onPress={confirmClear}
+        >
+          <MaterialCommunityIcons name="delete-forever-outline" size={26} color="#FF8A80" />
+          <Text style={[styles.rowText, { color: '#FF8A80' }]}>Delete all setlists and songs</Text>
+        </Pressable>
+
+        <Text style={styles.sectionTitle}>About</Text>
+        <Text style={styles.hint}>
+          GigBox version {Constants.expoConfig?.version ?? 'unknown'}
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    content: {
+      padding: 20,
+      gap: 12,
+    },
+    sectionTitle: {
+      marginTop: 8,
+      color: theme.colors.text_secondary,
+      fontSize: 14,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+    },
+    label: {
+      color: theme.colors.text_secondary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    hint: {
+      color: theme.colors.text_secondary,
+      fontSize: 13,
+    },
+    segmented: {
+      flexDirection: 'row',
+      borderWidth: 1,
+      borderColor: theme.colors.border_contrast,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    segment: {
+      flex: 1,
+      minHeight: 48,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+    },
+    segmentSelected: {
+      backgroundColor: theme.colors.accent_highlight,
+    },
+    segmentText: {
+      color: theme.colors.text_primary,
+      fontWeight: '600',
+    },
+    segmentTextSelected: {
+      color: theme.mode === 'light' ? '#FFFFFF' : '#000000',
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      minHeight: 56,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border_contrast,
+      borderRadius: 12,
+      backgroundColor: theme.colors.surface,
+    },
+    rowBody: {
+      flex: 1,
+      gap: 2,
+    },
+    disabledRow: {
+      opacity: 0.4,
+    },
+    rowText: {
+      color: theme.colors.text_primary,
+      fontSize: 16,
+    },
+  });

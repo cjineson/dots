@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import * as Location from 'expo-location';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -12,17 +13,25 @@ import {
   View,
 } from 'react-native';
 
-import { theme } from '../theme';
+import DateTimeField from '../components/DateTimeField';
+import { hasMapTarget, openInMaps } from '../lib/maps';
+import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
+import { useTheme } from '../themeContext';
+import type { AppTheme } from '../theme';
 import type { SetlistGroup, SetlistWithSongs } from '../types';
 
 type SetlistDetailsScreenProps = {
   setlist: SetlistWithSongs;
   groups: SetlistGroup[];
+  onCreateGroup: (name: string) => SetlistGroup;
   onCancel: () => void;
   onSave: (
     name: string,
     details: {
       location: string;
+      latitude: number | null;
+      longitude: number | null;
+      notes: string;
       date: string;
       time: string;
       groupId: string | null;
@@ -33,21 +42,96 @@ type SetlistDetailsScreenProps = {
 export default function SetlistDetailsScreen({
   setlist,
   groups,
+  onCreateGroup,
   onCancel,
   onSave,
 }: SetlistDetailsScreenProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState(setlist.name);
   const [location, setLocation] = useState(setlist.location ?? '');
+  const [latitude, setLatitude] = useState<number | null>(setlist.latitude ?? null);
+  const [longitude, setLongitude] = useState<number | null>(setlist.longitude ?? null);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [notes, setNotes] = useState(setlist.notes ?? '');
   const [date, setDate] = useState(setlist.date ?? '');
   const [time, setTime] = useState(setlist.time ?? '');
   const [groupId, setGroupId] = useState<string | null>(setlist.group_id ?? null);
+
+  const hasPin = latitude !== null && longitude !== null;
+
+  const showLocationError = (error: unknown) =>
+    Alert.alert(
+      'Location unavailable',
+      error instanceof Error ? error.message : 'An unexpected error occurred.',
+    );
+
+  const useCurrentLocation = async () => {
+    setLocationBusy(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        throw new Error('Location permission was not granted. You can still type the location.');
+      }
+      const position = await Location.getCurrentPositionAsync({});
+      setLatitude(position.coords.latitude);
+      setLongitude(position.coords.longitude);
+      if (!location.trim()) {
+        const [place] = await Location.reverseGeocodeAsync(position.coords).catch(() => []);
+        const label = place
+          ? [place.name, place.street, place.city].filter(Boolean).join(', ')
+          : '';
+        setLocation(label || `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`);
+      }
+    } catch (error) {
+      showLocationError(error);
+    } finally {
+      setLocationBusy(false);
+    }
+  };
+
+  const findTypedLocation = async () => {
+    if (!location.trim()) {
+      return;
+    }
+    setLocationBusy(true);
+    try {
+      const [match] = await Location.geocodeAsync(location.trim());
+      if (!match) {
+        throw new Error('No map position was found for that text.');
+      }
+      setLatitude(match.latitude);
+      setLongitude(match.longitude);
+    } catch (error) {
+      showLocationError(error);
+    } finally {
+      setLocationBusy(false);
+    }
+  };
+
+  const { runSave } = useUnsavedChangesPrompt({
+    snapshot: JSON.stringify([
+      name, location, latitude, longitude, notes, date, time, groupId,
+      creatingGroup ? newGroupName.trim() : '',
+    ]),
+    canSave: () => name.trim().length > 0,
+    save: () => save(),
+  });
 
   const save = () => {
     if (!name.trim()) {
       return;
     }
     try {
-      onSave(name, { location, date, time, groupId });
+      let resolvedGroupId = groupId;
+      if (creatingGroup && newGroupName.trim()) {
+        resolvedGroupId = onCreateGroup(newGroupName).id;
+      }
+      runSave(() =>
+        onSave(name, { location, latitude, longitude, notes, date, time, groupId: resolvedGroupId }),
+      );
     } catch (error) {
       Alert.alert(
         'Save failed',
@@ -84,45 +168,108 @@ export default function SetlistDetailsScreen({
             value={location}
             onChangeText={setLocation}
             returnKeyType="next"
-            placeholder="Optional"
+            placeholder="Venue or address (optional)"
             placeholderTextColor={theme.colors.text_secondary}
             style={styles.input}
             accessibilityLabel="Setlist location"
           />
+          <View style={styles.groupOptions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Use current location"
+              disabled={locationBusy}
+              onPress={useCurrentLocation}
+              style={styles.groupChoice}
+            >
+              <Text style={styles.groupChoiceText}>Use current location</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Find typed location on map"
+              disabled={locationBusy || !location.trim()}
+              onPress={findTypedLocation}
+              style={[styles.groupChoice, !location.trim() && styles.disabledButton]}
+            >
+              <Text style={styles.groupChoiceText}>Find on map</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open in Maps"
+              disabled={!hasMapTarget({ location, latitude, longitude })}
+              onPress={() =>
+                openInMaps({ location, latitude, longitude }).catch(showLocationError)
+              }
+              style={[
+                styles.groupChoice,
+                !hasMapTarget({ location, latitude, longitude }) && styles.disabledButton,
+              ]}
+            >
+              <Text style={styles.groupChoiceText}>Open in Maps</Text>
+            </Pressable>
+          </View>
+          {hasPin && (
+            <View style={styles.pinRow}>
+              <Text style={styles.pinText}>
+                Map position saved ({latitude.toFixed(5)}, {longitude.toFixed(5)})
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Clear map position"
+                onPress={() => {
+                  setLatitude(null);
+                  setLongitude(null);
+                }}
+                hitSlop={8}
+              >
+                <Text style={styles.pinClear}>Clear</Text>
+              </Pressable>
+            </View>
+          )}
 
           <View style={styles.row}>
             <View style={styles.halfField}>
               <Text style={styles.label}>Date</Text>
-              <TextInput
+              <DateTimeField
+                mode="date"
                 value={date}
-                onChangeText={setDate}
-                returnKeyType="next"
-                placeholder="Optional"
-                placeholderTextColor={theme.colors.text_secondary}
-                style={styles.input}
+                onChange={setDate}
                 accessibilityLabel="Setlist date"
               />
             </View>
             <View style={styles.halfField}>
               <Text style={styles.label}>Time</Text>
-              <TextInput
+              <DateTimeField
+                mode="time"
                 value={time}
-                onChangeText={setTime}
-                returnKeyType="done"
-                placeholder="Optional"
-                placeholderTextColor={theme.colors.text_secondary}
-                style={styles.input}
+                onChange={setTime}
                 accessibilityLabel="Setlist time"
               />
             </View>
           </View>
+
+          <Text style={styles.label}>Notes / checklist</Text>
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            placeholder={'Load-in 6pm\n[ ] Spare strings\n[ ] Set lists printed'}
+            placeholderTextColor={theme.colors.text_secondary}
+            accessibilityLabel="Setlist notes"
+            style={[styles.input, styles.notesInput]}
+          />
+          <Text style={styles.pinText}>
+            Start a line with [ ] to make a tickable checklist item in Flow view.
+          </Text>
 
           <Text style={styles.label}>Group</Text>
           <View style={styles.groupOptions}>
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ selected: groupId === null }}
-              onPress={() => setGroupId(null)}
+              onPress={() => {
+                setGroupId(null);
+                setCreatingGroup(false);
+              }}
               style={[styles.groupChoice, groupId === null && styles.groupChoiceSelected]}
             >
               <Text style={[styles.groupChoiceText, groupId === null && styles.selectedText]}>
@@ -134,7 +281,10 @@ export default function SetlistDetailsScreen({
                 key={group.id}
                 accessibilityRole="button"
                 accessibilityState={{ selected: groupId === group.id }}
-                onPress={() => setGroupId(group.id)}
+                onPress={() => {
+                  setGroupId(group.id);
+                  setCreatingGroup(false);
+                }}
                 style={[
                   styles.groupChoice,
                   groupId === group.id && styles.groupChoiceSelected,
@@ -148,7 +298,29 @@ export default function SetlistDetailsScreen({
                 </Text>
               </Pressable>
             ))}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add group"
+              accessibilityState={{ selected: creatingGroup }}
+              onPress={() => setCreatingGroup((creating) => !creating)}
+              style={[styles.groupChoice, creatingGroup && styles.groupChoiceSelected]}
+            >
+              <Text style={[styles.groupChoiceText, creatingGroup && styles.selectedText]}>
+                + New group
+              </Text>
+            </Pressable>
           </View>
+          {creatingGroup && (
+            <TextInput
+              value={newGroupName}
+              onChangeText={setNewGroupName}
+              returnKeyType="done"
+              placeholder="New group name"
+              placeholderTextColor={theme.colors.text_secondary}
+              style={styles.input}
+              accessibilityLabel="New group name"
+            />
+          )}
         </ScrollView>
 
         <View style={styles.actions}>
@@ -169,7 +341,7 @@ export default function SetlistDetailsScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -195,6 +367,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 11,
+  },
+  notesInput: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  pinRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  pinText: {
+    flex: 1,
+    color: theme.colors.text_secondary,
+    fontSize: 13,
+  },
+  pinClear: {
+    color: theme.colors.accent_highlight,
+    fontWeight: '600',
   },
   row: {
     flexDirection: 'row',

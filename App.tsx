@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useColorScheme,
   View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -16,7 +17,7 @@ import { File } from 'expo-file-system';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import DashboardScreen from './src/screens/DashboardScreen';
@@ -26,6 +27,7 @@ import LivePerformanceScreen from './src/screens/LivePerformanceScreen';
 import SetlistDetailsScreen from './src/screens/SetlistDetailsScreen';
 import SongEditorScreen from './src/screens/SongEditorScreen';
 import {
+  clearAllLibraryData,
   copySetlist,
   copySongToSetlist,
   createBreakForSetlist,
@@ -35,25 +37,37 @@ import {
   deleteBreakFromSetlist,
   deleteSongFromSetlist,
   deleteSetlist,
+  getAppSettings,
   getDashboardExpansionState,
   getSetlistGroups,
   getTagSize,
+  getThemePreference,
   getSetlistsWithSongs,
+  moveSetlist,
   importSetlists,
   initializeDatabase,
   renameSetlist,
   renameSetlistGroup,
+  resetAppSettings,
+  saveAppSetting,
+  updateSetlistNotes,
   reorderItemsForSetlist,
   saveDashboardExpansionState,
   saveSongForSetlist,
   saveTagSize,
+  saveThemePreference,
   updateSongFontSize,
 } from './src/lib/db';
+import { DEFAULT_SETTINGS, needsBackupReminder } from './src/lib/settings';
+import type { AppSettings } from './src/lib/settings';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
 import { getCommonSongTags } from './src/lib/songTags';
 import { decodeTextFile } from './src/lib/textEncoding';
 import { clampTagSize, DEFAULT_TAG_SIZE } from './src/lib/fontSize';
-import { theme } from './src/theme';
+import { resolveTheme, ThemeProvider } from './src/themeContext';
+import type { ThemePreference } from './src/themeContext';
+import SettingsScreen from './src/screens/SettingsScreen';
+import type { AppTheme } from './src/theme';
 import type {
   DashboardExpansionState,
   SetlistGroup,
@@ -65,6 +79,7 @@ import type {
 
 type RootStackParamList = {
   Dashboard: undefined;
+  Settings: undefined;
   Editor: { setlistId: string; song?: Song };
   SetlistDetails: { setlistId: string };
   GroupEditor: { groupId?: string };
@@ -73,7 +88,7 @@ type RootStackParamList = {
     index: number;
     isEditorPreview?: boolean;
   };
-  Flow: { setlistName: string; setlistDetails?: string; items: SetlistItem[] };
+  Flow: { setlistId: string; setlistName: string; setlistDetails?: string; items: SetlistItem[] };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -89,6 +104,11 @@ function formatSetlistDetails(setlist: SetlistHeaderDetails | undefined): string
 }
 
 export default function App() {
+  const systemScheme = useColorScheme();
+  const [themePreference, setThemePreference] = useState<ThemePreference>('dark');
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const theme = resolveTheme(themePreference, systemScheme, settings.highContrast);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [setlists, setSetlists] = useState<SetlistWithSongs[]>([]);
   const [groups, setGroups] = useState<SetlistGroup[]>([]);
   const [dashboardExpansion, setDashboardExpansion] = useState<DashboardExpansionState>({
@@ -113,6 +133,8 @@ export default function App() {
       refreshSetlists();
       setDashboardExpansion(getDashboardExpansionState());
       setTagSize(getTagSize());
+      setThemePreference(getThemePreference());
+      setSettings(getAppSettings());
       setStartupError(null);
     } catch (error) {
       setStartupError(
@@ -132,7 +154,14 @@ export default function App() {
       notesRawText,
       cueDocument,
       tags,
-    }: { title: string; notesRawText: string; cueDocument: string; tags: Song['tags'] },
+      fontSize,
+    }: {
+      title: string;
+      notesRawText: string;
+      cueDocument: string;
+      tags: Song['tags'];
+      fontSize?: number;
+    },
     onSaved: () => void,
   ) => {
     saveSongForSetlist({
@@ -142,6 +171,7 @@ export default function App() {
       notes_raw_text: notesRawText,
       cue_document: cueDocument,
       tags,
+      font_size: fontSize,
     });
 
     refreshSetlists();
@@ -158,6 +188,9 @@ export default function App() {
     name: string,
     details: {
       location?: string;
+      latitude?: number | null;
+      longitude?: number | null;
+      notes?: string;
       date?: string;
       time?: string;
       groupId?: string | null;
@@ -167,9 +200,15 @@ export default function App() {
     refreshSetlists();
   };
 
-  const handleCreateSetlistGroup = (name: string) => {
-    createSetlistGroup(name);
+  const handleMoveSetlist = (setlistId: string, direction: 'up' | 'down') => {
+    moveSetlist(setlistId, direction);
     refreshSetlists();
+  };
+
+  const handleCreateSetlistGroup = (name: string) => {
+    const group = createSetlistGroup(name);
+    refreshSetlists();
+    return group;
   };
 
   const handleRenameSetlistGroup = (groupId: string, name: string) => {
@@ -179,6 +218,34 @@ export default function App() {
 
   const handleDeleteSetlistGroup = (groupId: string) => {
     deleteSetlistGroup(groupId);
+    refreshSetlists();
+  };
+
+  const handleThemePreferenceChange = (preference: ThemePreference) => {
+    saveThemePreference(preference);
+    setThemePreference(preference);
+  };
+
+  const handleSettingChange = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    saveAppSetting(key, value);
+    setSettings((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleResetSettings = () => {
+    resetAppSettings();
+    setSettings(getAppSettings());
+    setTagSize(getTagSize());
+    setThemePreference(getThemePreference());
+  };
+
+  const handleClearAllData = () => {
+    clearAllLibraryData();
+    setDashboardExpansion(getDashboardExpansionState());
+    refreshSetlists();
+  };
+
+  const handleToggleSetlistNotes = (setlistId: string, notes: string) => {
+    updateSetlistNotes(setlistId, notes);
     refreshSetlists();
   };
 
@@ -228,7 +295,9 @@ export default function App() {
         throw new Error('The temporary file directory is not available.');
       }
 
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const now = new Date();
+      const pad = (value: number) => String(value).padStart(2, '0');
+      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
       const fileUri = `${FileSystem.cacheDirectory}gigbox-library-${timestamp}.json`;
       const archive = createSetlistArchive(setlists, groups);
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(archive, null, 2));
@@ -237,6 +306,7 @@ export default function App() {
         dialogTitle: 'Export GigBox setlists',
         UTI: 'public.json',
       });
+      handleSettingChange('lastExportAt', new Date().toISOString());
     } catch (error) {
       Alert.alert(
         'Export failed',
@@ -307,9 +377,22 @@ export default function App() {
   }
 
   return (
+    <ThemeProvider value={theme}>
     <GestureHandlerRootView style={styles.root}>
-      <NavigationContainer>
-        <StatusBar style="light" />
+      <NavigationContainer
+        theme={{
+          ...(theme.mode === 'light' ? DefaultTheme : DarkTheme),
+          colors: {
+            ...(theme.mode === 'light' ? DefaultTheme : DarkTheme).colors,
+            background: theme.colors.background,
+            card: theme.colors.background,
+            text: theme.colors.text_primary,
+            border: theme.colors.border_contrast,
+            primary: theme.colors.accent_highlight,
+          },
+        }}
+      >
+        <StatusBar style={theme.mode === 'light' ? 'dark' : 'light'} />
         <Stack.Navigator
           screenOptions={{
             contentStyle: { backgroundColor: theme.colors.background },
@@ -354,6 +437,7 @@ export default function App() {
                 }}
                 onOpenFlow={(setlist) =>
                   navigation.navigate('Flow', {
+                    setlistId: setlist.id,
                     setlistName: setlist.name,
                     setlistDetails: formatSetlistDetails(setlist),
                     items: setlist.items,
@@ -369,9 +453,27 @@ export default function App() {
                   })
                 }
                 onOpenNewSong={(setlistId) => navigation.navigate('Editor', { setlistId })}
+                onMoveSetlist={handleMoveSetlist}
                 onReorderItems={handleReorderItems}
+                onOpenSettings={() => navigation.navigate('Settings')}
+                backupReminder={needsBackupReminder(settings.lastExportAt, setlists.length > 0)}
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Settings" options={{ title: 'Settings' }}>
+            {() => (
+              <SettingsScreen
+                themePreference={themePreference}
+                onThemePreferenceChange={handleThemePreferenceChange}
                 onExportLibrary={handleExportLibrary}
                 onImportLibrary={handleImportLibrary}
+                settings={settings}
+                onSettingChange={handleSettingChange}
+                tagSize={tagSize}
+                onTagSizeChange={handleTagSizeChange}
+                onResetSettings={handleResetSettings}
+                onClearAllData={handleClearAllData}
+                hasData={setlists.length > 0}
               />
             )}
           </Stack.Screen>
@@ -395,6 +497,7 @@ export default function App() {
                 <SetlistDetailsScreen
                   setlist={setlist}
                   groups={groups}
+                  onCreateGroup={handleCreateSetlistGroup}
                   onCancel={() => navigation.goBack()}
                   onSave={(name, details) => {
                     handleRenameSetlist(setlist.id, name, details);
@@ -447,17 +550,28 @@ export default function App() {
               gestureEnabled: false,
             }}
           >
-            {({ navigation, route }) => (
+            {({ navigation, route }) => {
+              const flowSetlist = setlists.find((item) => item.id === route.params.setlistId);
+              return (
               <FlowScreen
+                setlistId={route.params.setlistId}
                 setlistName={route.params.setlistName}
                 setlistDetails={route.params.setlistDetails}
+                notes={flowSetlist?.notes}
+                location={flowSetlist?.location}
+                latitude={flowSetlist?.latitude}
+                longitude={flowSetlist?.longitude}
+                onNotesChange={handleToggleSetlistNotes}
+                settings={settings}
+                onSettingChange={handleSettingChange}
                 items={route.params.items}
                 onGoToDashboard={() => navigation.popToTop()}
                 onFontSizeChange={handleSongFontSizeChange}
                 tagSize={tagSize}
                 onTagSizeChange={handleTagSizeChange}
               />
-            )}
+              );
+            }}
           </Stack.Screen>
           <Stack.Screen
             name="Editor"
@@ -468,6 +582,7 @@ export default function App() {
                 setlistId={route.params.setlistId}
                 initialSong={route.params.song}
                 commonTags={commonSongTags}
+                defaultFontSize={settings.defaultFontSize}
                 onCancel={() => navigation.goBack()}
                 onSave={(payload) =>
                   handleSaveSong(route.params.setlistId, route.params.song, payload, () =>
@@ -496,6 +611,7 @@ export default function App() {
                 items={route.params.items}
                 index={route.params.index}
                 isEditorPreview={route.params.isEditorPreview}
+                settings={settings}
                 onGoToDashboard={() => navigation.popToTop()}
                 onExitEditorPreview={() => navigation.goBack()}
                 onIndexChange={(index) => navigation.setParams({ index })}
@@ -544,10 +660,11 @@ export default function App() {
         </View>
       </Modal>
     </GestureHandlerRootView>
+    </ThemeProvider>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: theme.colors.background,

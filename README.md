@@ -7,8 +7,9 @@ Local-first dark-mode live setlist app for musicians.
 - expo-sqlite for local storage
 
 ## Features
-- Dashboard with collapsible setlists, root-level setlist groups, song tags, quick creation, and labeled JSON import/export actions
-- Edit setlist details and groups on dedicated screens; add optional location, date, and time details, delete setlists, and browse the full setlist in a vertically scrolling Flow view
+- Dashboard with collapsible setlists, root-level setlist groups, song tags, quick creation, and a bottom Settings button
+- Reorder setlists within the dashboard or a group with up/down buttons (new and copied setlists appear at the top)
+- Edit setlist details and groups on dedicated screens; pick the date and time with native pickers, set a location by typing it or using current location / address lookup (the map position is saved with the setlist and can be opened in Maps), create a group inline, delete setlists, and browse the full setlist in a vertically scrolling Flow view
 - Add standalone breaks with optional display-only durations, reorder them with songs, and see them in Flow and performance mode
 - Copy complete setlists or individual songs between setlists; songs stay linked, so edits and tags are shared across setlists
 - Song editor with title, colored song tags and quick picks from tags currently used in the library, cue sections, styled cue blocks, and editable tables
@@ -20,7 +21,16 @@ Local-first dark-mode live setlist app for musicians.
 - Reorder songs and breaks in a setlist by dragging their handles
 - Long cue lines automatically scale down to fit the performance boxes
 - Adjust performance text size per song and both individual songs and the entire setlist in Flow using zoom sliders and large step buttons that appear when the zoom button is tapped, plus a separate tag size slider, opened by its own tag button in the Performance and Flow headers and never shown alongside the zoom controls (saved locally); preferences are saved locally and included in JSON archives, up to 128 points
-- Export the library to a shareable JSON file and import JSON exports as additional setlists
+- Settings page (dashboard bottom bar), all saved locally:
+  - Appearance: Dark / Light / System theme and a high-contrast mode
+  - Performance: keep screen awake, show "3 of 12" song position, swipe sensitivity (normal / firm / off), default auto-scroll speed
+  - Defaults: text size for new songs and tag size
+  - Library: JSON export (date-stamped file name, last-exported time) and import of JSON exports as additional setlists; the dashboard shows a backup reminder when there is no export in the last 30 days
+  - Data: reset settings, delete all setlists and songs (double confirmation); About shows the app version
+- Setlist notes with `[ ]` / `[x]` checklist lines, shown at the top of Flow where items can be ticked (saved and included in JSON archives)
+- Flow header: Open in Maps button when the setlist has a location, and an auto-scroll play/pause control with an adjustable speed slider
+- Leaving the song, setlist or group editor with unsaved changes (Cancel, back button or swipe) prompts to keep editing, discard, or save
+- The GigBox logo in the Performance and Flow headers fills the header height as the home button
 
 ## Getting started
 
@@ -69,7 +79,7 @@ You can also drag the ZIP file from Finder into the Terminal window after typing
   ```
 
 - The converter will not overwrite an existing output file. Rename or move the existing output, or choose a different destination before running it again.
-- In GigBox, tap the dashboard's **Import JSON** icon and select the generated `.gigbox.json` file. Imported setlists are added to your library; they do not replace existing setlists.
+- In GigBox, open **Settings** from the dashboard's bottom bar and tap **Import setlists from JSON** and select the generated `.gigbox.json` file. Imported setlists are added to your library; they do not replace existing setlists.
 
 ### Supported Notes formatting
 
