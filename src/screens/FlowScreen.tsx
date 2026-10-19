@@ -537,13 +537,13 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     textDecorationLine: 'line-through',
   },
   dashboardButton: {
-    alignSelf: 'stretch',
+    width: 150,
+    flexShrink: 1,
     minHeight: 52,
-    maxWidth: 160,
     justifyContent: 'center',
   },
   logo: {
-    height: '100%',
+    width: '100%',
     aspectRatio: 580 / 164,
   },
   setlistTitle: {

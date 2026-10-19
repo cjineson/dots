@@ -315,9 +315,9 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     fontWeight: '600',
   },
   dashboardButton: {
-    alignSelf: 'stretch',
+    width: 160,
+    flexShrink: 1,
     minHeight: 56,
-    maxWidth: 170,
     justifyContent: 'center',
   },
   backToEditButton: {
@@ -332,7 +332,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     fontWeight: '700',
   },
   logo: {
-    height: '100%',
+    width: '100%',
     aspectRatio: 580 / 164,
   },
   songTitle: {
