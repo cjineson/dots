@@ -37,6 +37,7 @@ import {
   deleteSetlist,
   getDashboardExpansionState,
   getSetlistGroups,
+  getTagSize,
   getSetlistsWithSongs,
   importSetlists,
   initializeDatabase,
@@ -45,12 +46,13 @@ import {
   reorderItemsForSetlist,
   saveDashboardExpansionState,
   saveSongForSetlist,
+  saveTagSize,
   updateSongFontSize,
 } from './src/lib/db';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
 import { getCommonSongTags } from './src/lib/songTags';
 import { decodeTextFile } from './src/lib/textEncoding';
-import { DEFAULT_TAG_SIZE } from './src/lib/fontSize';
+import { clampTagSize, DEFAULT_TAG_SIZE } from './src/lib/fontSize';
 import { theme } from './src/theme';
 import type {
   DashboardExpansionState,
@@ -110,6 +112,7 @@ export default function App() {
       initializeDatabase();
       refreshSetlists();
       setDashboardExpansion(getDashboardExpansionState());
+      setTagSize(getTagSize());
       setStartupError(null);
     } catch (error) {
       setStartupError(
@@ -177,6 +180,14 @@ export default function App() {
   const handleDeleteSetlistGroup = (groupId: string) => {
     deleteSetlistGroup(groupId);
     refreshSetlists();
+  };
+
+  const handleTagSizeChange = (size: number, persist: boolean) => {
+    const bounded = clampTagSize(size);
+    setTagSize(bounded);
+    if (persist) {
+      saveTagSize(bounded);
+    }
   };
 
   const handleDashboardExpansionChange = (state: DashboardExpansionState) => {
@@ -444,7 +455,7 @@ export default function App() {
                 onGoToDashboard={() => navigation.popToTop()}
                 onFontSizeChange={handleSongFontSizeChange}
                 tagSize={tagSize}
-                onTagSizeChange={setTagSize}
+                onTagSizeChange={handleTagSizeChange}
               />
             )}
           </Stack.Screen>
@@ -490,7 +501,7 @@ export default function App() {
                 onIndexChange={(index) => navigation.setParams({ index })}
                 onFontSizeChange={handleSongFontSizeChange}
                 tagSize={tagSize}
-                onTagSizeChange={setTagSize}
+                onTagSizeChange={handleTagSizeChange}
               />
             )}
           </Stack.Screen>

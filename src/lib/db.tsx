@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 
+import { DEFAULT_TAG_SIZE, clampTagSize } from './fontSize';
 import { parseStoredSongTags } from './songTags';
 import { makeId } from './uuid';
 import type {
@@ -62,6 +63,13 @@ export function initializeDatabase(): void {
     );
   `);
 
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL
+    );
+  `);
+
   const songColumns = db.getAllSync<{ name: string }>('PRAGMA table_info(songs)');
   if (!songColumns.some((column) => column.name === 'font_size')) {
     db.execSync('ALTER TABLE songs ADD COLUMN font_size INTEGER NOT NULL DEFAULT 18');
@@ -83,6 +91,22 @@ export function initializeDatabase(): void {
 export function getSetlistGroups(): SetlistGroup[] {
   return db.getAllSync<SetlistGroup>(
     'SELECT id, name, order_index FROM setlist_groups ORDER BY order_index ASC, name COLLATE NOCASE ASC',
+  );
+}
+
+export function getTagSize(): number {
+  const row = db.getFirstSync<{ value: string }>(
+    "SELECT value FROM app_settings WHERE key = 'tag_size'",
+  );
+  const size = row ? Number(row.value) : NaN;
+  return Number.isFinite(size) ? clampTagSize(size) : DEFAULT_TAG_SIZE;
+}
+
+export function saveTagSize(size: number): void {
+  db.runSync(
+    `INSERT INTO app_settings (key, value) VALUES ('tag_size', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [String(clampTagSize(size))],
   );
 }
 

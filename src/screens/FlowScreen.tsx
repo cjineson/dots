@@ -34,7 +34,7 @@ type FlowScreenProps = {
   onGoToDashboard: () => void;
   onFontSizeChange: (songId: string, fontSize: number) => void;
   tagSize: number;
-  onTagSizeChange: (tagSize: number) => void;
+  onTagSizeChange: (tagSize: number, persist: boolean) => void;
 };
 
 export default function FlowScreen({
@@ -185,7 +185,7 @@ export default function FlowScreen({
             min={MIN_TAG_SIZE}
             max={MAX_TAG_SIZE}
             step={TAG_SIZE_STEP}
-            onValueChange={(next) => onTagSizeChange(next)}
+            onValueChange={onTagSizeChange}
           />
           <FontSizeZoomControl
             label="Set entire setlist"

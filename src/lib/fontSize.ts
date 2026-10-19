@@ -10,3 +10,7 @@ export const DEFAULT_TAG_SIZE = 12;
 export const MIN_TAG_SIZE = 12;
 export const MAX_TAG_SIZE = 48;
 export const TAG_SIZE_STEP = 2;
+
+export function clampTagSize(size: number) {
+  return Math.max(MIN_TAG_SIZE, Math.min(MAX_TAG_SIZE, size));
+}
