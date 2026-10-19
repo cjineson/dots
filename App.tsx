@@ -36,6 +36,7 @@ import {
   deleteSetlistGroup,
   deleteBreakFromSetlist,
   deleteSongFromSetlist,
+  keepSongUngrouped,
   deleteSetlist,
   getAppSettings,
   getDashboardExpansionState,
@@ -423,6 +424,10 @@ export default function App() {
                 onDeleteSetlist={handleDeleteSetlist}
                 onCopySetlist={handleCopySetlist}
                 onCopySong={handleCopySong}
+                onKeepSongUngrouped={(setlistId, songId) => {
+                  keepSongUngrouped(setlistId, songId);
+                  refreshSetlists();
+                }}
                 onDeleteSong={(setlistId, songId) => {
                   deleteSongFromSetlist(setlistId, songId);
                   refreshSetlists();

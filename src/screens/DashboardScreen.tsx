@@ -22,6 +22,7 @@ import {
 
 import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
+import { UNGROUPED_SONGS_SETLIST_NAME } from '../lib/ungrouped';
 import { BACKUP_REMIND_LATER_DAYS, BACKUP_REMINDER_DAYS } from '../lib/settings';
 import type { AppTheme } from '../theme';
 import type {
@@ -45,6 +46,7 @@ type DashboardScreenProps = {
   onCopySetlist: (setlistId: string) => void;
   onCopySong: (songId: string, targetSetlistId: string) => void;
   onDeleteSong: (setlistId: string, songId: string) => void;
+  onKeepSongUngrouped: (setlistId: string, songId: string) => void;
   onDeleteBreak: (setlistId: string, breakId: string) => void;
   onCreateBreak: (setlistId: string, durationMinutes?: number) => void;
   onOpenFlow: (setlist: SetlistWithSongs) => void;
@@ -75,6 +77,7 @@ export default function DashboardScreen({
   onCopySetlist,
   onCopySong,
   onDeleteSong,
+  onKeepSongUngrouped,
   onDeleteBreak,
   onCreateBreak,
   onOpenFlow,
@@ -172,26 +175,55 @@ export default function DashboardScreen({
   };
 
   const confirmDeleteSong = (setlistId: string, song: Song) => {
-    Alert.alert(
-      'Delete song from setlist?',
-      `Remove "${song.title}" from this setlist? Songs used in other setlists will be kept.`,
-      [
+    const run = (action: () => void) => () => {
+      try {
+        action();
+      } catch (error) {
+        Alert.alert(
+          'Update failed',
+          error instanceof Error ? error.message : 'An unexpected error occurred.',
+        );
+      }
+    };
+    const usedElsewhere = setlists.some(
+      (setlist) =>
+        setlist.id !== setlistId &&
+        setlist.items.some((item) => item.kind === 'song' && item.song.id === song.id),
+    );
+    const currentSetlist = setlists.find((setlist) => setlist.id === setlistId);
+    const isUngroupedHolder =
+      currentSetlist?.name === UNGROUPED_SONGS_SETLIST_NAME && !currentSetlist.group_id;
+
+    if (usedElsewhere) {
+      Alert.alert('Remove song from setlist?', `"${song.title}" stays in your other setlists.`, [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Remove',
           style: 'destructive',
-          onPress: () => {
-            try {
-              onDeleteSong(setlistId, song.id);
-            } catch (error) {
-              Alert.alert(
-                'Delete failed',
-                error instanceof Error ? error.message : 'An unexpected error occurred.',
-              );
-            }
-          },
+          onPress: run(() => onDeleteSong(setlistId, song.id)),
         },
-      ],
+      ]);
+      return;
+    }
+
+    const buttons: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove permanently',
+        style: 'destructive',
+        onPress: run(() => onDeleteSong(setlistId, song.id)),
+      },
+    ];
+    if (!isUngroupedHolder) {
+      buttons.splice(1, 0, {
+        text: 'Keep ungrouped',
+        onPress: run(() => onKeepSongUngrouped(setlistId, song.id)),
+      });
+    }
+    Alert.alert(
+      'This is the last setlist for this song',
+      `"${song.title}" isn't in any other setlist. Remove it permanently, or keep it ungrouped in "${UNGROUPED_SONGS_SETLIST_NAME}"?`,
+      buttons,
     );
   };
 
