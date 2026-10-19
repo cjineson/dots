@@ -54,6 +54,7 @@ type DashboardScreenProps = {
     index: number,
   ) => void;
   onOpenNewSong: (setlistId: string) => void;
+  onMoveSetlist: (setlistId: string, direction: 'up' | 'down') => void;
   onReorderItems: (setlistId: string, items: SetlistItem[]) => void;
   onOpenSettings: () => void;
 };
@@ -77,6 +78,7 @@ export default function DashboardScreen({
   onOpenSongForEdit,
   onOpenPerformance,
   onOpenNewSong,
+  onMoveSetlist,
   onReorderItems,
   onOpenSettings,
 }: DashboardScreenProps) {
@@ -360,6 +362,10 @@ export default function DashboardScreen({
             }
             const setlist = entry.setlist;
             const expanded = Boolean(expansionState.expandedSetlists[setlist.id]);
+            const siblings = setlists.filter(
+              (other) => (other.group_id ?? null) === (setlist.group_id ?? null),
+            );
+            const siblingIndex = siblings.findIndex((other) => other.id === setlist.id);
             return (
             <View
               key={setlist.id}
@@ -391,6 +397,33 @@ export default function DashboardScreen({
                   )}
                 </View>
                 <View style={styles.setlistActions}>
+                  {siblings.length > 1 && (
+                    <View style={styles.moveButtons}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Move ${setlist.name} up`}
+                        disabled={siblingIndex === 0}
+                        onPress={() => onMoveSetlist(setlist.id, 'up')}
+                        hitSlop={4}
+                        style={[styles.moveButton, siblingIndex === 0 && styles.disabledIconButton]}
+                      >
+                        <MaterialCommunityIcons name="chevron-up" size={24} color={theme.colors.accent_highlight} />
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Move ${setlist.name} down`}
+                        disabled={siblingIndex === siblings.length - 1}
+                        onPress={() => onMoveSetlist(setlist.id, 'down')}
+                        hitSlop={4}
+                        style={[
+                          styles.moveButton,
+                          siblingIndex === siblings.length - 1 && styles.disabledIconButton,
+                        ]}
+                      >
+                        <MaterialCommunityIcons name="chevron-down" size={24} color={theme.colors.accent_highlight} />
+                      </Pressable>
+                    </View>
+                  )}
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Open ${setlist.name} flow view`}
@@ -825,6 +858,15 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 0,
+  },
+  moveButtons: {
+    justifyContent: 'center',
+  },
+  moveButton: {
+    width: 30,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   compactIconButton: {
     width: 34,

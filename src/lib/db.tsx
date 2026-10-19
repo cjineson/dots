@@ -219,7 +219,7 @@ export function deleteSetlistGroup(groupId: string): void {
 export function createSetlist(name: string, groupId?: string | null): Setlist {
   const cleanedName = name.trim() || 'New Setlist';
   const id = makeId();
-  const orderIndex = getNextSetlistOrderIndex();
+  const orderIndex = getTopSetlistOrderIndex();
   const resolvedGroupId = groupId ?? null;
   if (resolvedGroupId) {
     const group = db.getFirstSync('SELECT id FROM setlist_groups WHERE id = ?', [resolvedGroupId]);
@@ -307,7 +307,7 @@ export function copySetlist(setlistId: string): Setlist {
   const copy: Setlist = {
     id: makeId(),
     name: `Copy of ${source.name}`,
-    order_index: getNextSetlistOrderIndex(),
+    order_index: getTopSetlistOrderIndex(),
     location: source.location,
     latitude: source.latitude ?? undefined,
     longitude: source.longitude ?? undefined,
@@ -665,6 +665,35 @@ export function updateSongFontSize(songId: string, fontSize: number): void {
 function getNextSetlistOrderIndex(): number {
   const max = db.getFirstSync('SELECT MAX(order_index) as maxIndex FROM setlists') as { maxIndex: number | null } | null;
   return (max?.maxIndex ?? -1) + 1;
+}
+
+function getTopSetlistOrderIndex(): number {
+  const min = db.getFirstSync('SELECT MIN(order_index) as minIndex FROM setlists') as { minIndex: number | null } | null;
+  return min?.minIndex === null || min?.minIndex === undefined ? 0 : min.minIndex - 1;
+}
+
+export function moveSetlist(setlistId: string, direction: 'up' | 'down'): void {
+  db.withTransactionSync(() => {
+    const rows = db.getAllSync<{ id: string; group_id: string | null }>(
+      'SELECT id, group_id FROM setlists ORDER BY order_index ASC, name COLLATE NOCASE ASC',
+    );
+    const current = rows.find((row) => row.id === setlistId);
+    if (!current) {
+      throw new Error('The setlist to move could not be found.');
+    }
+    const siblings = rows.filter((row) => (row.group_id ?? null) === (current.group_id ?? null));
+    const siblingIndex = siblings.findIndex((row) => row.id === setlistId);
+    const target = siblings[siblingIndex + (direction === 'up' ? -1 : 1)];
+    if (!target) {
+      return;
+    }
+    const currentIndex = rows.indexOf(current);
+    const targetIndex = rows.indexOf(target);
+    [rows[currentIndex], rows[targetIndex]] = [rows[targetIndex], rows[currentIndex]];
+    rows.forEach((row, index) => {
+      db.runSync('UPDATE setlists SET order_index = ? WHERE id = ?', [index, row.id]);
+    });
+  });
 }
 
 function getNextSortOrderForSetlist(setlistId: string): number {
