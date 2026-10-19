@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
 import type { SetlistGroup } from '../types';
@@ -31,12 +32,18 @@ export default function GroupEditorScreen({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState(group?.name ?? '');
 
+  const { runSave } = useUnsavedChangesPrompt({
+    snapshot: name,
+    canSave: () => name.trim().length > 0,
+    save: () => save(),
+  });
+
   const save = () => {
     if (!name.trim()) {
       return;
     }
     try {
-      onSave(name);
+      runSave(() => onSave(name));
     } catch (error) {
       Alert.alert(
         group ? 'Rename failed' : 'Create failed',

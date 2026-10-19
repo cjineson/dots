@@ -21,6 +21,7 @@ import {
 import PerformanceCueContent from '../components/PerformanceCueContent';
 import SongTagsView from '../components/SongTags';
 import { makeId } from '../lib/uuid';
+import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
 import type { CueBlock, CueDocument, CueTextColor, Song, SongTag } from '../types';
@@ -77,6 +78,17 @@ export default function SongEditorScreen({
     }),
     [document, tags, title, initialSong, defaultFontSize],
   );
+  const savePayload = () => ({
+    title,
+    notesRawText: currentSong.notes_raw_text,
+    cueDocument: currentSong.cue_document,
+    tags: currentSong.tags ?? [],
+    fontSize: currentSong.font_size,
+  });
+  const { runSave } = useUnsavedChangesPrompt({
+    snapshot: JSON.stringify([title, currentSong.cue_document, tags]),
+    save: () => runSave(() => onSave(savePayload())),
+  });
   const previewCueBlocks = useMemo(() => getVisibleCueBlocks(document), [document]);
   const availableCommonTags = commonTags.filter(
     (tag) => !tags.some(
@@ -439,13 +451,7 @@ export default function SongEditorScreen({
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          onPress={() => onSave({
-            title,
-            notesRawText: currentSong.notes_raw_text,
-            cueDocument: currentSong.cue_document,
-            tags: currentSong.tags ?? [],
-            fontSize: currentSong.font_size,
-          })}
+          onPress={() => runSave(() => onSave(savePayload()))}
           style={styles.saveButton}
         >
           <Text style={styles.saveButtonText}>Save</Text>

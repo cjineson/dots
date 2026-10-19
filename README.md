@@ -29,6 +29,7 @@ Local-first dark-mode live setlist app for musicians.
   - Data: reset settings, delete all setlists and songs (double confirmation); About shows the app version
 - Setlist notes with `[ ]` / `[x]` checklist lines, shown at the top of Flow where items can be ticked (saved and included in JSON archives)
 - Flow header: Open in Maps button when the setlist has a location, and an auto-scroll play/pause control with an adjustable speed slider
+- Leaving the song, setlist or group editor with unsaved changes (Cancel, back button or swipe) prompts to keep editing, discard, or save
 - The GigBox logo in the Performance and Flow headers fills the header height as the home button
 
 ## Getting started

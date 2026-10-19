@@ -15,6 +15,7 @@ import {
 
 import DateTimeField from '../components/DateTimeField';
 import { hasMapTarget, openInMaps } from '../lib/maps';
+import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
 import type { SetlistGroup, SetlistWithSongs } from '../types';
@@ -110,6 +111,15 @@ export default function SetlistDetailsScreen({
     }
   };
 
+  const { runSave } = useUnsavedChangesPrompt({
+    snapshot: JSON.stringify([
+      name, location, latitude, longitude, notes, date, time, groupId,
+      creatingGroup ? newGroupName.trim() : '',
+    ]),
+    canSave: () => name.trim().length > 0,
+    save: () => save(),
+  });
+
   const save = () => {
     if (!name.trim()) {
       return;
@@ -119,7 +129,9 @@ export default function SetlistDetailsScreen({
       if (creatingGroup && newGroupName.trim()) {
         resolvedGroupId = onCreateGroup(newGroupName).id;
       }
-      onSave(name, { location, latitude, longitude, notes, date, time, groupId: resolvedGroupId });
+      runSave(() =>
+        onSave(name, { location, latitude, longitude, notes, date, time, groupId: resolvedGroupId }),
+      );
     } catch (error) {
       Alert.alert(
         'Save failed',
