@@ -29,6 +29,9 @@ import {
   MIN_TAG_SIZE,
   TAG_SIZE_STEP,
 } from '../lib/fontSize';
+import { useScreenAwake } from '../lib/keepAwake';
+import { SWIPE_DISTANCE } from '../lib/settings';
+import type { AppSettings } from '../lib/settings';
 import type { CueBlock, SetlistItem, Song } from '../types';
 
 type LivePerformanceScreenProps = {
@@ -41,6 +44,7 @@ type LivePerformanceScreenProps = {
   onFontSizeChange: (songId: string, fontSize: number) => void;
   tagSize: number;
   onTagSizeChange: (tagSize: number, persist: boolean) => void;
+  settings: AppSettings;
 };
 
 export default function LivePerformanceScreen({
@@ -53,7 +57,9 @@ export default function LivePerformanceScreen({
   onFontSizeChange,
   tagSize,
   onTagSizeChange,
+  settings,
 }: LivePerformanceScreenProps) {
+  useScreenAwake(settings.keepAwake);
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const item = items[index];
@@ -128,16 +134,21 @@ export default function LivePerformanceScreen({
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, gesture) =>
+          settings.swipeMode !== 'off' &&
           Math.abs(gesture.dx) > 24 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
         onPanResponderRelease: (_, gesture) => {
-          if (gesture.dx <= -60 && index < items.length - 1) {
+          if (settings.swipeMode === 'off') {
+            return;
+          }
+          const distance = SWIPE_DISTANCE[settings.swipeMode];
+          if (gesture.dx <= -distance && index < items.length - 1) {
             onIndexChange(index + 1);
-          } else if (gesture.dx >= 60 && index > 0) {
+          } else if (gesture.dx >= distance && index > 0) {
             onIndexChange(index - 1);
           }
         },
       }),
-    [index, items.length, onIndexChange],
+    [index, items.length, onIndexChange, settings.swipeMode],
   );
 
   const handleBoxLayout = (event: LayoutChangeEvent) => {
@@ -182,6 +193,11 @@ export default function LivePerformanceScreen({
           <Text numberOfLines={1} style={styles.songTitle}>
             {song?.title ?? 'Break'}
           </Text>
+          {settings.showPosition && !isEditorPreview && items.length > 1 && (
+            <Text style={styles.positionText}>
+              {index + 1} of {items.length}
+            </Text>
+          )}
         </View>
         <View style={styles.performanceTags}>
           <SongTags
@@ -293,9 +309,15 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     gap: 10,
     marginBottom: 10,
   },
+  positionText: {
+    color: theme.colors.text_secondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   dashboardButton: {
-    width: 74,
-    minHeight: 48,
+    alignSelf: 'stretch',
+    minHeight: 56,
+    maxWidth: 170,
     justifyContent: 'center',
   },
   backToEditButton: {
@@ -310,8 +332,8 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     fontWeight: '700',
   },
   logo: {
-    width: 72,
-    height: 24,
+    height: '100%',
+    aspectRatio: 580 / 164,
   },
   songTitle: {
     color: theme.colors.text_primary,

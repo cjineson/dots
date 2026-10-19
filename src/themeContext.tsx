@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from 'react';
 
-import { darkTheme, lightTheme } from './theme';
+import { darkTheme, lightTheme, withHighContrast } from './theme';
 import type { AppTheme } from './theme';
 
 export type ThemePreference = 'system' | 'dark' | 'light';
@@ -10,9 +10,11 @@ const ThemeContext = createContext<AppTheme>(darkTheme);
 export function resolveTheme(
   preference: ThemePreference,
   systemScheme: string | null | undefined,
+  highContrast = false,
 ): AppTheme {
   const mode = preference === 'system' ? systemScheme : preference;
-  return mode === 'light' ? lightTheme : darkTheme;
+  const base = mode === 'light' ? lightTheme : darkTheme;
+  return highContrast ? withHighContrast(base) : base;
 }
 
 export function ThemeProvider({

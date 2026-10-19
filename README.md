@@ -21,7 +21,15 @@ Local-first dark-mode live setlist app for musicians.
 - Reorder songs and breaks in a setlist by dragging their handles
 - Long cue lines automatically scale down to fit the performance boxes
 - Adjust performance text size per song and both individual songs and the entire setlist in Flow using zoom sliders and large step buttons that appear when the zoom button is tapped, plus a separate tag size slider, opened by its own tag button in the Performance and Flow headers and never shown alongside the zoom controls (saved locally); preferences are saved locally and included in JSON archives, up to 128 points
-- Settings page (dashboard bottom bar) with a Dark / Light / System theme switch (saved locally) and JSON export/import: export the library to a shareable file and import JSON exports as additional setlists
+- Settings page (dashboard bottom bar), all saved locally:
+  - Appearance: Dark / Light / System theme and a high-contrast mode
+  - Performance: keep screen awake, show "3 of 12" song position, swipe sensitivity (normal / firm / off), default auto-scroll speed
+  - Defaults: text size for new songs and tag size
+  - Library: JSON export (date-stamped file name, last-exported time) and import of JSON exports as additional setlists; the dashboard shows a backup reminder when there is no export in the last 30 days
+  - Data: reset settings, delete all setlists and songs (double confirmation); About shows the app version
+- Setlist notes with `[ ]` / `[x]` checklist lines, shown at the top of Flow where items can be ticked (saved and included in JSON archives)
+- Flow header: Open in Maps button when the setlist has a location, and an auto-scroll play/pause control with an adjustable speed slider
+- The GigBox logo in the Performance and Flow headers fills the header height as the home button
 
 ## Getting started
 

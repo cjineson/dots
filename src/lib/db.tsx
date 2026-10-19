@@ -1,6 +1,12 @@
 import * as SQLite from 'expo-sqlite';
 
 import { DEFAULT_TAG_SIZE, clampTagSize } from './fontSize';
+import {
+  parseSettings,
+  serializeSetting,
+  settingStorageKey,
+} from './settings';
+import type { AppSettings } from './settings';
 import { parseStoredSongTags } from './songTags';
 import { makeId } from './uuid';
 import type {
@@ -86,6 +92,9 @@ export function initializeDatabase(): void {
       db.execSync(`ALTER TABLE setlists ADD COLUMN ${column} TEXT`);
     }
   }
+  if (!setlistColumns.some((existing) => existing.name === 'notes')) {
+    db.execSync('ALTER TABLE setlists ADD COLUMN notes TEXT');
+  }
   for (const column of ['latitude', 'longitude']) {
     if (!setlistColumns.some((existing) => existing.name === column)) {
       db.execSync(`ALTER TABLE setlists ADD COLUMN ${column} REAL`);
@@ -97,6 +106,48 @@ export function getSetlistGroups(): SetlistGroup[] {
   return db.getAllSync<SetlistGroup>(
     'SELECT id, name, order_index FROM setlist_groups ORDER BY order_index ASC, name COLLATE NOCASE ASC',
   );
+}
+
+export function getAppSettings(): AppSettings {
+  const rows = db.getAllSync<{ key: string; value: string }>('SELECT key, value FROM app_settings');
+  return parseSettings(Object.fromEntries(rows.map((row) => [row.key, row.value])));
+}
+
+export function saveAppSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]): void {
+  const stored = serializeSetting(key, value);
+  const storageKey = settingStorageKey(key);
+  if (stored === null) {
+    db.runSync('DELETE FROM app_settings WHERE key = ?', [storageKey]);
+    return;
+  }
+  db.runSync(
+    `INSERT INTO app_settings (key, value) VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [storageKey, stored],
+  );
+}
+
+export function resetAppSettings(): void {
+  db.runSync('DELETE FROM app_settings');
+}
+
+export function clearAllLibraryData(): void {
+  db.withTransactionSync(() => {
+    for (const table of [
+      'setlist_songs',
+      'setlist_breaks',
+      'setlists',
+      'setlist_groups',
+      'songs',
+      'dashboard_preferences',
+    ]) {
+      db.runSync(`DELETE FROM ${table}`);
+    }
+  });
+}
+
+export function updateSetlistNotes(setlistId: string, notes: string): void {
+  db.runSync('UPDATE setlists SET notes = ? WHERE id = ?', [notes.trim() ? notes : null, setlistId]);
 }
 
 export function getThemePreference(): 'system' | 'dark' | 'light' {
@@ -248,6 +299,7 @@ export function renameSetlist(
     location?: string;
     latitude?: number | null;
     longitude?: number | null;
+    notes?: string;
     date?: string;
     time?: string;
     groupId?: string | null;
@@ -265,12 +317,13 @@ export function renameSetlist(
   }
 
   db.runSync(
-    'UPDATE setlists SET name = ?, location = ?, latitude = ?, longitude = ?, date = ?, time = ?, group_id = ? WHERE id = ?',
+    'UPDATE setlists SET name = ?, location = ?, latitude = ?, longitude = ?, notes = ?, date = ?, time = ?, group_id = ? WHERE id = ?',
     [
       cleanedName,
       details.location?.trim() || null,
       details.latitude ?? null,
       details.longitude ?? null,
+      details.notes?.trim() ? details.notes : null,
       details.date?.trim() || null,
       details.time?.trim() || null,
       details.groupId ?? null,
@@ -311,6 +364,7 @@ export function copySetlist(setlistId: string): Setlist {
     location: source.location,
     latitude: source.latitude ?? undefined,
     longitude: source.longitude ?? undefined,
+    notes: source.notes ?? undefined,
     date: source.date,
     time: source.time,
     group_id: source.group_id,
@@ -318,7 +372,7 @@ export function copySetlist(setlistId: string): Setlist {
 
   db.withTransactionSync(() => {
     db.runSync(
-      'INSERT INTO setlists (id, name, order_index, location, latitude, longitude, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO setlists (id, name, order_index, location, latitude, longitude, notes, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         copy.id,
         copy.name,
@@ -326,6 +380,7 @@ export function copySetlist(setlistId: string): Setlist {
         copy.location ?? null,
         copy.latitude ?? null,
         copy.longitude ?? null,
+        copy.notes ?? null,
         copy.date ?? null,
         copy.time ?? null,
         copy.group_id ?? null,
@@ -433,6 +488,7 @@ export function getSetlistsWithSongs(): SetlistWithSongs[] {
       location: setlist.location ?? undefined,
       latitude: setlist.latitude ?? undefined,
       longitude: setlist.longitude ?? undefined,
+      notes: setlist.notes ?? undefined,
       date: setlist.date ?? undefined,
       time: setlist.time ?? undefined,
       group_id: setlist.group_id ?? undefined,
@@ -520,9 +576,11 @@ export function saveSongForSetlist({
   notes_raw_text,
   cue_document,
   tags,
+  font_size,
 }: {
   setlistId: string;
   songId?: string;
+  font_size?: number;
   title: string;
   notes_raw_text: string;
   cue_document: string;
@@ -542,12 +600,13 @@ export function saveSongForSetlist({
       id,
     ]);
   } else {
-    db.runSync('INSERT INTO songs (id, title, notes_raw_text, cue_document, tags) VALUES (?, ?, ?, ?, ?)', [
+    db.runSync('INSERT INTO songs (id, title, notes_raw_text, cue_document, tags, font_size) VALUES (?, ?, ?, ?, ?, ?)', [
       id,
       cleanedTitle,
       notes_raw_text,
       cue_document,
       JSON.stringify(tags ?? []),
+      font_size ?? 18,
     ]);
   }
 
@@ -615,7 +674,7 @@ export function importSetlists(library: ImportedLibrary): void {
         throw new Error(`Group "${setlist.group}" for setlist "${setlist.name}" is missing.`);
       }
       db.runSync(
-        'INSERT INTO setlists (id, name, order_index, location, latitude, longitude, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO setlists (id, name, order_index, location, latitude, longitude, notes, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           setlistId,
           setlist.name.trim(),
@@ -623,6 +682,7 @@ export function importSetlists(library: ImportedLibrary): void {
           setlist.location?.trim() || null,
           setlist.latitude ?? null,
           setlist.longitude ?? null,
+          setlist.notes?.trim() ? setlist.notes : null,
           setlist.date?.trim() || null,
           setlist.time?.trim() || null,
           groupId ?? null,

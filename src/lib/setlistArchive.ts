@@ -37,11 +37,12 @@ export function createSetlistArchive(
     version: 5,
     exportedAt: new Date().toISOString(),
     groups: groups.map(({ name }) => name),
-    setlists: setlists.map(({ name, group_name, location, latitude, longitude, date, time, items }) => ({
+    setlists: setlists.map(({ name, group_name, location, latitude, longitude, notes, date, time, items }) => ({
       name,
       group: group_name ?? null,
       ...(location ? { location } : {}),
       ...(latitude !== undefined && longitude !== undefined ? { latitude, longitude } : {}),
+      ...(notes ? { notes } : {}),
       ...(date ? { date } : {}),
       ...(time ? { time } : {}),
       items: items.map((item) =>
@@ -200,6 +201,9 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
       ) {
         throw new Error(`Setlist "${setlist.name}" has an invalid map position.`);
       }
+      if (value.version === 5 && setlist.notes !== undefined && typeof setlist.notes !== 'string') {
+        throw new Error(`Setlist "${setlist.name}" has invalid header details.`);
+      }
       let setlistGroup: string | null = null;
       if (value.version === 5) {
         if (setlist.group !== null && typeof setlist.group !== 'string') {
@@ -224,6 +228,9 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
           : {}),
         ...(value.version === 5 && hasCoordinates
           ? { latitude: setlist.latitude as number, longitude: setlist.longitude as number }
+          : {}),
+        ...(value.version === 5 && typeof setlist.notes === 'string' && setlist.notes.trim()
+          ? { notes: setlist.notes }
           : {}),
         ...(typeof setlist.date === 'string' && setlist.date.trim()
           ? { date: setlist.date.trim() }

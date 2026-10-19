@@ -29,12 +29,14 @@ type SongEditorScreenProps = {
   setlistId: string;
   initialSong?: Song;
   commonTags: SongTag[];
+  defaultFontSize?: number;
   onCancel: () => void;
   onSave: (payload: {
     title: string;
     notesRawText: string;
     cueDocument: string;
     tags: SongTag[];
+    fontSize?: number;
   }) => void;
   onPlay: (song: Song) => void;
 };
@@ -47,6 +49,7 @@ export default function SongEditorScreen({
   setlistId,
   initialSong,
   commonTags,
+  defaultFontSize,
   onCancel,
   onSave,
   onPlay,
@@ -69,10 +72,10 @@ export default function SongEditorScreen({
       title: title.trim() || 'Untitled Song',
       notes_raw_text: flattenCueDocument(document),
       cue_document: serializeCueDocument(document),
-      font_size: initialSong?.font_size ?? theme.typography.box_text_size,
+      font_size: initialSong?.font_size ?? defaultFontSize ?? theme.typography.box_text_size,
       tags,
     }),
-    [document, tags, title, initialSong],
+    [document, tags, title, initialSong, defaultFontSize],
   );
   const previewCueBlocks = useMemo(() => getVisibleCueBlocks(document), [document]);
   const availableCommonTags = commonTags.filter(
@@ -441,6 +444,7 @@ export default function SongEditorScreen({
             notesRawText: currentSong.notes_raw_text,
             cueDocument: currentSong.cue_document,
             tags: currentSong.tags ?? [],
+            fontSize: currentSong.font_size,
           })}
           style={styles.saveButton}
         >

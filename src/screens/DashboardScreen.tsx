@@ -57,6 +57,7 @@ type DashboardScreenProps = {
   onMoveSetlist: (setlistId: string, direction: 'up' | 'down') => void;
   onReorderItems: (setlistId: string, items: SetlistItem[]) => void;
   onOpenSettings: () => void;
+  backupReminder?: boolean;
 };
 
 export default function DashboardScreen({
@@ -81,6 +82,7 @@ export default function DashboardScreen({
   onMoveSetlist,
   onReorderItems,
   onOpenSettings,
+  backupReminder = false,
 }: DashboardScreenProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -299,6 +301,19 @@ export default function DashboardScreen({
           </Pressable>
         </View>
       </View>
+      {backupReminder && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back up your library in Settings"
+          onPress={onOpenSettings}
+          style={styles.backupBanner}
+        >
+          <MaterialCommunityIcons name="cloud-upload-outline" size={22} color={theme.colors.accent_highlight} />
+          <Text style={styles.backupBannerText}>
+            Back up your setlists - export a copy from Settings.
+          </Text>
+        </Pressable>
+      )}
 
       <NestableScrollContainer style={styles.scroll} contentContainerStyle={styles.list}>
         {dashboardEntries.length === 0 ? (
@@ -713,6 +728,23 @@ export default function DashboardScreen({
 }
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({
+  backupBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.accent_highlight,
+    backgroundColor: theme.colors.surface,
+  },
+  backupBannerText: {
+    flex: 1,
+    color: theme.colors.text_primary,
+    fontSize: 14,
+  },
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,

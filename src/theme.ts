@@ -64,4 +64,22 @@ export const lightTheme: AppTheme = {
   },
 };
 
+export function withHighContrast(base: AppTheme): AppTheme {
+  const dark = base.mode === 'dark';
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      background: dark ? '#000000' : '#FFFFFF',
+      surface: dark ? '#000000' : '#FFFFFF',
+      surface_card: dark ? '#0A0A0A' : '#F5F5F5',
+      text_primary: dark ? '#FFFFFF' : '#000000',
+      text_secondary: dark ? '#FFFFFF' : '#000000',
+      accent_highlight: dark ? '#FFE033' : '#7A4F00',
+      border_contrast: dark ? '#FFFFFF' : '#000000',
+      box_active_state: dark ? '#262626' : '#DCDCDC',
+    },
+  };
+}
+
 export const theme = darkTheme;

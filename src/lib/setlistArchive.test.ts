@@ -399,3 +399,18 @@ test('setlist map position round-trips and invalid positions are rejected', () =
     { message: 'Setlist "Set" has an invalid map position.' },
   );
 });
+
+test('archive round-trips setlist notes and rejects non-string notes', () => {
+  const archive = createSetlistArchive(
+    [{ id: 's', name: 'Set', order_index: 0, notes: '[ ] Cables', items: [] }] as never,
+    [],
+  );
+  assert.equal(archive.setlists[0].notes, '[ ] Cables');
+  const parsed = parseSetlistArchive(JSON.stringify(archive));
+  assert.equal(parsed.setlists[0].notes, '[ ] Cables');
+  assert.throws(() =>
+    parseSetlistArchive(
+      JSON.stringify({ ...archive, setlists: [{ ...archive.setlists[0], notes: 5 }] }),
+    ),
+  );
+});

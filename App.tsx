@@ -27,6 +27,7 @@ import LivePerformanceScreen from './src/screens/LivePerformanceScreen';
 import SetlistDetailsScreen from './src/screens/SetlistDetailsScreen';
 import SongEditorScreen from './src/screens/SongEditorScreen';
 import {
+  clearAllLibraryData,
   copySetlist,
   copySongToSetlist,
   createBreakForSetlist,
@@ -36,6 +37,7 @@ import {
   deleteBreakFromSetlist,
   deleteSongFromSetlist,
   deleteSetlist,
+  getAppSettings,
   getDashboardExpansionState,
   getSetlistGroups,
   getTagSize,
@@ -46,6 +48,9 @@ import {
   initializeDatabase,
   renameSetlist,
   renameSetlistGroup,
+  resetAppSettings,
+  saveAppSetting,
+  updateSetlistNotes,
   reorderItemsForSetlist,
   saveDashboardExpansionState,
   saveSongForSetlist,
@@ -53,6 +58,8 @@ import {
   saveThemePreference,
   updateSongFontSize,
 } from './src/lib/db';
+import { DEFAULT_SETTINGS, needsBackupReminder } from './src/lib/settings';
+import type { AppSettings } from './src/lib/settings';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
 import { getCommonSongTags } from './src/lib/songTags';
 import { decodeTextFile } from './src/lib/textEncoding';
@@ -81,7 +88,7 @@ type RootStackParamList = {
     index: number;
     isEditorPreview?: boolean;
   };
-  Flow: { setlistName: string; setlistDetails?: string; items: SetlistItem[] };
+  Flow: { setlistId: string; setlistName: string; setlistDetails?: string; items: SetlistItem[] };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -99,7 +106,8 @@ function formatSetlistDetails(setlist: SetlistHeaderDetails | undefined): string
 export default function App() {
   const systemScheme = useColorScheme();
   const [themePreference, setThemePreference] = useState<ThemePreference>('dark');
-  const theme = resolveTheme(themePreference, systemScheme);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const theme = resolveTheme(themePreference, systemScheme, settings.highContrast);
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [setlists, setSetlists] = useState<SetlistWithSongs[]>([]);
   const [groups, setGroups] = useState<SetlistGroup[]>([]);
@@ -126,6 +134,7 @@ export default function App() {
       setDashboardExpansion(getDashboardExpansionState());
       setTagSize(getTagSize());
       setThemePreference(getThemePreference());
+      setSettings(getAppSettings());
       setStartupError(null);
     } catch (error) {
       setStartupError(
@@ -145,7 +154,14 @@ export default function App() {
       notesRawText,
       cueDocument,
       tags,
-    }: { title: string; notesRawText: string; cueDocument: string; tags: Song['tags'] },
+      fontSize,
+    }: {
+      title: string;
+      notesRawText: string;
+      cueDocument: string;
+      tags: Song['tags'];
+      fontSize?: number;
+    },
     onSaved: () => void,
   ) => {
     saveSongForSetlist({
@@ -155,6 +171,7 @@ export default function App() {
       notes_raw_text: notesRawText,
       cue_document: cueDocument,
       tags,
+      font_size: fontSize,
     });
 
     refreshSetlists();
@@ -173,6 +190,7 @@ export default function App() {
       location?: string;
       latitude?: number | null;
       longitude?: number | null;
+      notes?: string;
       date?: string;
       time?: string;
       groupId?: string | null;
@@ -206,6 +224,29 @@ export default function App() {
   const handleThemePreferenceChange = (preference: ThemePreference) => {
     saveThemePreference(preference);
     setThemePreference(preference);
+  };
+
+  const handleSettingChange = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    saveAppSetting(key, value);
+    setSettings((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleResetSettings = () => {
+    resetAppSettings();
+    setSettings(getAppSettings());
+    setTagSize(getTagSize());
+    setThemePreference(getThemePreference());
+  };
+
+  const handleClearAllData = () => {
+    clearAllLibraryData();
+    setDashboardExpansion(getDashboardExpansionState());
+    refreshSetlists();
+  };
+
+  const handleToggleSetlistNotes = (setlistId: string, notes: string) => {
+    updateSetlistNotes(setlistId, notes);
+    refreshSetlists();
   };
 
   const handleTagSizeChange = (size: number, persist: boolean) => {
@@ -254,7 +295,9 @@ export default function App() {
         throw new Error('The temporary file directory is not available.');
       }
 
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const now = new Date();
+      const pad = (value: number) => String(value).padStart(2, '0');
+      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
       const fileUri = `${FileSystem.cacheDirectory}gigbox-library-${timestamp}.json`;
       const archive = createSetlistArchive(setlists, groups);
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(archive, null, 2));
@@ -263,6 +306,7 @@ export default function App() {
         dialogTitle: 'Export GigBox setlists',
         UTI: 'public.json',
       });
+      handleSettingChange('lastExportAt', new Date().toISOString());
     } catch (error) {
       Alert.alert(
         'Export failed',
@@ -393,6 +437,7 @@ export default function App() {
                 }}
                 onOpenFlow={(setlist) =>
                   navigation.navigate('Flow', {
+                    setlistId: setlist.id,
                     setlistName: setlist.name,
                     setlistDetails: formatSetlistDetails(setlist),
                     items: setlist.items,
@@ -411,6 +456,7 @@ export default function App() {
                 onMoveSetlist={handleMoveSetlist}
                 onReorderItems={handleReorderItems}
                 onOpenSettings={() => navigation.navigate('Settings')}
+                backupReminder={needsBackupReminder(settings.lastExportAt, setlists.length > 0)}
               />
             )}
           </Stack.Screen>
@@ -421,6 +467,13 @@ export default function App() {
                 onThemePreferenceChange={handleThemePreferenceChange}
                 onExportLibrary={handleExportLibrary}
                 onImportLibrary={handleImportLibrary}
+                settings={settings}
+                onSettingChange={handleSettingChange}
+                tagSize={tagSize}
+                onTagSizeChange={handleTagSizeChange}
+                onResetSettings={handleResetSettings}
+                onClearAllData={handleClearAllData}
+                hasData={setlists.length > 0}
               />
             )}
           </Stack.Screen>
@@ -497,17 +550,28 @@ export default function App() {
               gestureEnabled: false,
             }}
           >
-            {({ navigation, route }) => (
+            {({ navigation, route }) => {
+              const flowSetlist = setlists.find((item) => item.id === route.params.setlistId);
+              return (
               <FlowScreen
+                setlistId={route.params.setlistId}
                 setlistName={route.params.setlistName}
                 setlistDetails={route.params.setlistDetails}
+                notes={flowSetlist?.notes}
+                location={flowSetlist?.location}
+                latitude={flowSetlist?.latitude}
+                longitude={flowSetlist?.longitude}
+                onNotesChange={handleToggleSetlistNotes}
+                settings={settings}
+                onSettingChange={handleSettingChange}
                 items={route.params.items}
                 onGoToDashboard={() => navigation.popToTop()}
                 onFontSizeChange={handleSongFontSizeChange}
                 tagSize={tagSize}
                 onTagSizeChange={handleTagSizeChange}
               />
-            )}
+              );
+            }}
           </Stack.Screen>
           <Stack.Screen
             name="Editor"
@@ -518,6 +582,7 @@ export default function App() {
                 setlistId={route.params.setlistId}
                 initialSong={route.params.song}
                 commonTags={commonSongTags}
+                defaultFontSize={settings.defaultFontSize}
                 onCancel={() => navigation.goBack()}
                 onSave={(payload) =>
                   handleSaveSong(route.params.setlistId, route.params.song, payload, () =>
@@ -546,6 +611,7 @@ export default function App() {
                 items={route.params.items}
                 index={route.params.index}
                 isEditorPreview={route.params.isEditorPreview}
+                settings={settings}
                 onGoToDashboard={() => navigation.popToTop()}
                 onExitEditorPreview={() => navigation.goBack()}
                 onIndexChange={(index) => navigation.setParams({ index })}

@@ -30,6 +30,7 @@ type SetlistDetailsScreenProps = {
       location: string;
       latitude: number | null;
       longitude: number | null;
+      notes: string;
       date: string;
       time: string;
       groupId: string | null;
@@ -53,6 +54,7 @@ export default function SetlistDetailsScreen({
   const [locationBusy, setLocationBusy] = useState(false);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [notes, setNotes] = useState(setlist.notes ?? '');
   const [date, setDate] = useState(setlist.date ?? '');
   const [time, setTime] = useState(setlist.time ?? '');
   const [groupId, setGroupId] = useState<string | null>(setlist.group_id ?? null);
@@ -117,7 +119,7 @@ export default function SetlistDetailsScreen({
       if (creatingGroup && newGroupName.trim()) {
         resolvedGroupId = onCreateGroup(newGroupName).id;
       }
-      onSave(name, { location, latitude, longitude, date, time, groupId: resolvedGroupId });
+      onSave(name, { location, latitude, longitude, notes, date, time, groupId: resolvedGroupId });
     } catch (error) {
       Alert.alert(
         'Save failed',
@@ -233,6 +235,20 @@ export default function SetlistDetailsScreen({
             </View>
           </View>
 
+          <Text style={styles.label}>Notes / checklist</Text>
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            placeholder={'Load-in 6pm\n[ ] Spare strings\n[ ] Set lists printed'}
+            placeholderTextColor={theme.colors.text_secondary}
+            accessibilityLabel="Setlist notes"
+            style={[styles.input, styles.notesInput]}
+          />
+          <Text style={styles.pinText}>
+            Start a line with [ ] to make a tickable checklist item in Flow view.
+          </Text>
+
           <Text style={styles.label}>Group</Text>
           <View style={styles.groupOptions}>
             <Pressable
@@ -339,6 +355,10 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 11,
+  },
+  notesInput: {
+    minHeight: 100,
+    textAlignVertical: 'top',
   },
   pinRow: {
     flexDirection: 'row',

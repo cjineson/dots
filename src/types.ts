@@ -7,6 +7,7 @@ export type Setlist = {
   location?: string;
   latitude?: number;
   longitude?: number;
+  notes?: string;
   date?: string;
   time?: string;
 };
@@ -85,6 +86,7 @@ export type SetlistArchive = {
     location?: string;
     latitude?: number;
     longitude?: number;
+    notes?: string;
     date?: string;
     time?: string;
     items: Array<
@@ -107,6 +109,7 @@ export type ImportedSetlist = {
   location?: string;
   latitude?: number;
   longitude?: number;
+  notes?: string;
   date?: string;
   time?: string;
   items: Array<
