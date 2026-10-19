@@ -10,12 +10,14 @@ export type AppSettings = {
   highContrast: boolean;
   autoScrollSpeed: number;
   lastExportAt: string | null;
+  backupSnoozedUntil: string | null;
 };
 
 export const MIN_AUTO_SCROLL_SPEED = 10;
 export const MAX_AUTO_SCROLL_SPEED = 200;
 export const AUTO_SCROLL_SPEED_STEP = 10;
 export const BACKUP_REMINDER_DAYS = 30;
+export const BACKUP_REMIND_LATER_DAYS = 3;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   keepAwake: true,
@@ -25,6 +27,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   highContrast: false,
   autoScrollSpeed: 40,
   lastExportAt: null,
+  backupSnoozedUntil: null,
 };
 
 export const SWIPE_DISTANCE: Record<Exclude<SwipeMode, 'off'>, number> = {
@@ -40,6 +43,7 @@ const SETTING_KEYS = {
   highContrast: 'high_contrast',
   autoScrollSpeed: 'auto_scroll_speed',
   lastExportAt: 'last_export_at',
+  backupSnoozedUntil: 'backup_snoozed_until',
 } as const;
 
 export function settingStorageKey(key: keyof AppSettings) {
@@ -61,6 +65,7 @@ const parseNumber = (raw: string | undefined, fallback: number, clamp: (n: numbe
 export function parseSettings(raw: Record<string, string>): AppSettings {
   const swipe = raw[SETTING_KEYS.swipeMode];
   const lastExport = raw[SETTING_KEYS.lastExportAt];
+  const snoozed = raw[SETTING_KEYS.backupSnoozedUntil];
   return {
     keepAwake: parseBoolean(raw[SETTING_KEYS.keepAwake], DEFAULT_SETTINGS.keepAwake),
     defaultFontSize: parseNumber(
@@ -77,6 +82,7 @@ export function parseSettings(raw: Record<string, string>): AppSettings {
       clampAutoScrollSpeed,
     ),
     lastExportAt: lastExport && !Number.isNaN(Date.parse(lastExport)) ? lastExport : null,
+    backupSnoozedUntil: snoozed && !Number.isNaN(Date.parse(snoozed)) ? snoozed : null,
   };
 }
 
@@ -90,9 +96,13 @@ export function serializeSetting<K extends keyof AppSettings>(
 export function needsBackupReminder(
   lastExportAt: string | null,
   hasSetlists: boolean,
+  snoozedUntil: string | null = null,
   now: Date = new Date(),
 ) {
   if (!hasSetlists) {
+    return false;
+  }
+  if (snoozedUntil && now.getTime() < Date.parse(snoozedUntil)) {
     return false;
   }
   if (!lastExportAt) {

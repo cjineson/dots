@@ -36,6 +36,7 @@ import {
   deleteSetlistGroup,
   deleteBreakFromSetlist,
   deleteSongFromSetlist,
+  keepSongUngrouped,
   deleteSetlist,
   getAppSettings,
   getDashboardExpansionState,
@@ -423,6 +424,10 @@ export default function App() {
                 onDeleteSetlist={handleDeleteSetlist}
                 onCopySetlist={handleCopySetlist}
                 onCopySong={handleCopySong}
+                onKeepSongUngrouped={(setlistId, songId) => {
+                  keepSongUngrouped(setlistId, songId);
+                  refreshSetlists();
+                }}
                 onDeleteSong={(setlistId, songId) => {
                   deleteSongFromSetlist(setlistId, songId);
                   refreshSetlists();
@@ -456,7 +461,17 @@ export default function App() {
                 onMoveSetlist={handleMoveSetlist}
                 onReorderItems={handleReorderItems}
                 onOpenSettings={() => navigation.navigate('Settings')}
-                backupReminder={needsBackupReminder(settings.lastExportAt, setlists.length > 0)}
+                backupReminder={needsBackupReminder(
+                  settings.lastExportAt,
+                  setlists.length > 0,
+                  settings.backupSnoozedUntil,
+                )}
+                onSnoozeBackupReminder={(days) =>
+                  handleSettingChange(
+                    'backupSnoozedUntil',
+                    new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+                  )
+                }
               />
             )}
           </Stack.Screen>

@@ -49,8 +49,10 @@ test('serializeSetting stringifies values and keeps null as null', () => {
 
 test('needsBackupReminder only applies when there are setlists and the backup is old', () => {
   const now = new Date('2026-03-01T00:00:00.000Z');
-  assert.equal(needsBackupReminder(null, false, now), false);
-  assert.equal(needsBackupReminder(null, true, now), true);
-  assert.equal(needsBackupReminder('2026-02-20T00:00:00.000Z', true, now), false);
-  assert.equal(needsBackupReminder('2026-01-01T00:00:00.000Z', true, now), true);
+  assert.equal(needsBackupReminder(null, false, null, now), false);
+  assert.equal(needsBackupReminder(null, true, null, now), true);
+  assert.equal(needsBackupReminder('2026-02-20T00:00:00.000Z', true, null, now), false);
+  assert.equal(needsBackupReminder('2026-01-01T00:00:00.000Z', true, null, now), true);
+  assert.equal(needsBackupReminder(null, true, '2026-03-02T00:00:00.000Z', now), false);
+  assert.equal(needsBackupReminder(null, true, '2026-02-28T00:00:00.000Z', now), true);
 });

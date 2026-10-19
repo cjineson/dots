@@ -22,6 +22,8 @@ import {
 
 import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
+import { UNGROUPED_SONGS_SETLIST_NAME } from '../lib/ungrouped';
+import { BACKUP_REMIND_LATER_DAYS, BACKUP_REMINDER_DAYS } from '../lib/settings';
 import type { AppTheme } from '../theme';
 import type {
   DashboardExpansionState,
@@ -44,6 +46,7 @@ type DashboardScreenProps = {
   onCopySetlist: (setlistId: string) => void;
   onCopySong: (songId: string, targetSetlistId: string) => void;
   onDeleteSong: (setlistId: string, songId: string) => void;
+  onKeepSongUngrouped: (setlistId: string, songId: string) => void;
   onDeleteBreak: (setlistId: string, breakId: string) => void;
   onCreateBreak: (setlistId: string, durationMinutes?: number) => void;
   onOpenFlow: (setlist: SetlistWithSongs) => void;
@@ -58,6 +61,7 @@ type DashboardScreenProps = {
   onReorderItems: (setlistId: string, items: SetlistItem[]) => void;
   onOpenSettings: () => void;
   backupReminder?: boolean;
+  onSnoozeBackupReminder?: (days: number) => void;
 };
 
 export default function DashboardScreen({
@@ -73,6 +77,7 @@ export default function DashboardScreen({
   onCopySetlist,
   onCopySong,
   onDeleteSong,
+  onKeepSongUngrouped,
   onDeleteBreak,
   onCreateBreak,
   onOpenFlow,
@@ -83,6 +88,7 @@ export default function DashboardScreen({
   onReorderItems,
   onOpenSettings,
   backupReminder = false,
+  onSnoozeBackupReminder,
 }: DashboardScreenProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -169,26 +175,55 @@ export default function DashboardScreen({
   };
 
   const confirmDeleteSong = (setlistId: string, song: Song) => {
-    Alert.alert(
-      'Delete song from setlist?',
-      `Remove "${song.title}" from this setlist? Songs used in other setlists will be kept.`,
-      [
+    const run = (action: () => void) => () => {
+      try {
+        action();
+      } catch (error) {
+        Alert.alert(
+          'Update failed',
+          error instanceof Error ? error.message : 'An unexpected error occurred.',
+        );
+      }
+    };
+    const usedElsewhere = setlists.some(
+      (setlist) =>
+        setlist.id !== setlistId &&
+        setlist.items.some((item) => item.kind === 'song' && item.song.id === song.id),
+    );
+    const currentSetlist = setlists.find((setlist) => setlist.id === setlistId);
+    const isUngroupedHolder =
+      currentSetlist?.name === UNGROUPED_SONGS_SETLIST_NAME && !currentSetlist.group_id;
+
+    if (usedElsewhere) {
+      Alert.alert('Remove song from setlist?', `"${song.title}" stays in your other setlists.`, [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Remove',
           style: 'destructive',
-          onPress: () => {
-            try {
-              onDeleteSong(setlistId, song.id);
-            } catch (error) {
-              Alert.alert(
-                'Delete failed',
-                error instanceof Error ? error.message : 'An unexpected error occurred.',
-              );
-            }
-          },
+          onPress: run(() => onDeleteSong(setlistId, song.id)),
         },
-      ],
+      ]);
+      return;
+    }
+
+    const buttons: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove permanently',
+        style: 'destructive',
+        onPress: run(() => onDeleteSong(setlistId, song.id)),
+      },
+    ];
+    if (!isUngroupedHolder) {
+      buttons.splice(1, 0, {
+        text: 'Keep ungrouped',
+        onPress: run(() => onKeepSongUngrouped(setlistId, song.id)),
+      });
+    }
+    Alert.alert(
+      'This is the last setlist for this song',
+      `"${song.title}" isn't in any other setlist. Remove it permanently, or keep it ungrouped in "${UNGROUPED_SONGS_SETLIST_NAME}"?`,
+      buttons,
     );
   };
 
@@ -253,6 +288,23 @@ export default function DashboardScreen({
     ]),
   ];
 
+  const chooseSetlistMove = (
+    name: string,
+    siblingIndex: number,
+    siblingCount: number,
+    setlistId: string,
+  ) => {
+    const buttons: Array<{ text: string; style?: 'cancel'; onPress?: () => void }> = [];
+    if (siblingIndex > 0) {
+      buttons.push({ text: 'Move up', onPress: () => onMoveSetlist(setlistId, 'up') });
+    }
+    if (siblingIndex < siblingCount - 1) {
+      buttons.push({ text: 'Move down', onPress: () => onMoveSetlist(setlistId, 'down') });
+    }
+    buttons.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Change order', name, buttons);
+  };
+
   const toggleSetlist = (setlistId: string) => {
     const expandedSetlists = { ...expansionState.expandedSetlists };
     if (expandedSetlists[setlistId]) {
@@ -302,17 +354,37 @@ export default function DashboardScreen({
         </View>
       </View>
       {backupReminder && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back up your library in Settings"
-          onPress={onOpenSettings}
-          style={styles.backupBanner}
-        >
-          <MaterialCommunityIcons name="cloud-upload-outline" size={22} color={theme.colors.accent_highlight} />
-          <Text style={styles.backupBannerText}>
-            Back up your setlists - export a copy from Settings.
-          </Text>
-        </Pressable>
+        <View style={styles.backupBanner}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back up your library in Settings"
+            onPress={onOpenSettings}
+            style={styles.backupBannerMain}
+          >
+            <MaterialCommunityIcons name="cloud-upload-outline" size={22} color={theme.colors.accent_highlight} />
+            <Text style={styles.backupBannerText}>
+              Back up your setlists - export a copy from Settings.
+            </Text>
+          </Pressable>
+          <View style={styles.backupBannerActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Remind me later"
+              onPress={() => onSnoozeBackupReminder?.(BACKUP_REMIND_LATER_DAYS)}
+              hitSlop={8}
+            >
+              <Text style={styles.backupBannerAction}>Remind me later</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss backup reminder"
+              onPress={() => onSnoozeBackupReminder?.(BACKUP_REMINDER_DAYS)}
+              hitSlop={8}
+            >
+              <Text style={styles.backupBannerAction}>Dismiss</Text>
+            </Pressable>
+          </View>
+        </View>
       )}
 
       <NestableScrollContainer style={styles.scroll} contentContainerStyle={styles.list}>
@@ -413,31 +485,15 @@ export default function DashboardScreen({
                 </View>
                 <View style={styles.setlistActions}>
                   {siblings.length > 1 && (
-                    <View style={styles.moveButtons}>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Move ${setlist.name} up`}
-                        disabled={siblingIndex === 0}
-                        onPress={() => onMoveSetlist(setlist.id, 'up')}
-                        hitSlop={4}
-                        style={[styles.moveButton, siblingIndex === 0 && styles.disabledIconButton]}
-                      >
-                        <MaterialCommunityIcons name="chevron-up" size={24} color={theme.colors.accent_highlight} />
-                      </Pressable>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Move ${setlist.name} down`}
-                        disabled={siblingIndex === siblings.length - 1}
-                        onPress={() => onMoveSetlist(setlist.id, 'down')}
-                        hitSlop={4}
-                        style={[
-                          styles.moveButton,
-                          siblingIndex === siblings.length - 1 && styles.disabledIconButton,
-                        ]}
-                      >
-                        <MaterialCommunityIcons name="chevron-down" size={24} color={theme.colors.accent_highlight} />
-                      </Pressable>
-                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Change order of ${setlist.name}`}
+                      onPress={() => chooseSetlistMove(setlist.name, siblingIndex, siblings.length, setlist.id)}
+                      hitSlop={6}
+                      style={styles.setlistOrderHandle}
+                    >
+                      <Text style={styles.setlistOrderHandleText}>☰</Text>
+                    </Pressable>
                   )}
                   <Pressable
                     accessibilityRole="button"
@@ -565,7 +621,7 @@ export default function DashboardScreen({
                               style={styles.songIconButton}
                               onPress={() => confirmDeleteSong(setlist.id, item.song)}
                             >
-                              <MaterialCommunityIcons name="delete" size={21} color="#FF8A80" />
+                              <MaterialCommunityIcons name="minus-circle" size={24} color="#FF8A80" />
                             </Pressable>
                           </View>
                         </View>
@@ -603,7 +659,7 @@ export default function DashboardScreen({
                             style={styles.songIconButton}
                             onPress={() => confirmDeleteBreak(setlist.id, item.id)}
                           >
-                            <MaterialCommunityIcons name="delete" size={21} color="#FF8A80" />
+                            <MaterialCommunityIcons name="minus-circle" size={24} color="#FF8A80" />
                           </Pressable>
                         </View>
                       )}
@@ -729,8 +785,6 @@ export default function DashboardScreen({
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({
   backupBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
     marginHorizontal: 16,
     marginBottom: 8,
@@ -739,6 +793,21 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.accent_highlight,
     backgroundColor: theme.colors.surface,
+  },
+  backupBannerMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  backupBannerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 20,
+  },
+  backupBannerAction: {
+    color: theme.colors.accent_highlight,
+    fontSize: 14,
+    fontWeight: '600',
   },
   backupBannerText: {
     flex: 1,
@@ -891,15 +960,6 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     alignItems: 'center',
     gap: 0,
   },
-  moveButtons: {
-    justifyContent: 'center',
-  },
-  moveButton: {
-    width: 30,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   compactIconButton: {
     width: 34,
     height: 40,
@@ -1007,6 +1067,17 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 6,
+  },
+  setlistOrderHandle: {
+    minWidth: 36,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  setlistOrderHandleText: {
+    color: theme.colors.accent_highlight,
+    fontSize: 22,
+    fontWeight: '900',
   },
   dragHandleText: {
     color: theme.colors.text_secondary,

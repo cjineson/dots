@@ -7,6 +7,7 @@ import {
   settingStorageKey,
 } from './settings';
 import type { AppSettings } from './settings';
+import { UNGROUPED_SONGS_SETLIST_NAME } from './ungrouped';
 import { parseStoredSongTags } from './songTags';
 import { makeId } from './uuid';
 import type {
@@ -538,6 +539,27 @@ export function deleteSongFromSetlist(setlistId: string, songId: string): void {
        )`,
       [songId],
     );
+  });
+}
+
+export function keepSongUngrouped(setlistId: string, songId: string): void {
+  db.withTransactionSync(() => {
+    const existing = db.getFirstSync<{ id: string }>(
+      'SELECT id FROM setlists WHERE name = ? AND group_id IS NULL ORDER BY order_index ASC LIMIT 1',
+      [UNGROUPED_SONGS_SETLIST_NAME],
+    );
+    const holderId = existing?.id ?? createSetlist(UNGROUPED_SONGS_SETLIST_NAME).id;
+    if (holderId === setlistId) {
+      return;
+    }
+    db.runSync(
+      'INSERT OR IGNORE INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+      [holderId, songId, getNextSortOrderForSetlist(holderId)],
+    );
+    db.runSync('DELETE FROM setlist_songs WHERE setlist_id = ? AND song_id = ?', [
+      setlistId,
+      songId,
+    ]);
   });
 }
 
