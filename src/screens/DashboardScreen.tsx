@@ -22,6 +22,7 @@ import {
 
 import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
+import { BACKUP_REMIND_LATER_DAYS, BACKUP_REMINDER_DAYS } from '../lib/settings';
 import type { AppTheme } from '../theme';
 import type {
   DashboardExpansionState,
@@ -58,6 +59,7 @@ type DashboardScreenProps = {
   onReorderItems: (setlistId: string, items: SetlistItem[]) => void;
   onOpenSettings: () => void;
   backupReminder?: boolean;
+  onSnoozeBackupReminder?: (days: number) => void;
 };
 
 export default function DashboardScreen({
@@ -83,6 +85,7 @@ export default function DashboardScreen({
   onReorderItems,
   onOpenSettings,
   backupReminder = false,
+  onSnoozeBackupReminder,
 }: DashboardScreenProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -302,17 +305,37 @@ export default function DashboardScreen({
         </View>
       </View>
       {backupReminder && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back up your library in Settings"
-          onPress={onOpenSettings}
-          style={styles.backupBanner}
-        >
-          <MaterialCommunityIcons name="cloud-upload-outline" size={22} color={theme.colors.accent_highlight} />
-          <Text style={styles.backupBannerText}>
-            Back up your setlists - export a copy from Settings.
-          </Text>
-        </Pressable>
+        <View style={styles.backupBanner}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back up your library in Settings"
+            onPress={onOpenSettings}
+            style={styles.backupBannerMain}
+          >
+            <MaterialCommunityIcons name="cloud-upload-outline" size={22} color={theme.colors.accent_highlight} />
+            <Text style={styles.backupBannerText}>
+              Back up your setlists - export a copy from Settings.
+            </Text>
+          </Pressable>
+          <View style={styles.backupBannerActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Remind me later"
+              onPress={() => onSnoozeBackupReminder?.(BACKUP_REMIND_LATER_DAYS)}
+              hitSlop={8}
+            >
+              <Text style={styles.backupBannerAction}>Remind me later</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss backup reminder"
+              onPress={() => onSnoozeBackupReminder?.(BACKUP_REMINDER_DAYS)}
+              hitSlop={8}
+            >
+              <Text style={styles.backupBannerAction}>Dismiss</Text>
+            </Pressable>
+          </View>
+        </View>
       )}
 
       <NestableScrollContainer style={styles.scroll} contentContainerStyle={styles.list}>
@@ -729,8 +752,6 @@ export default function DashboardScreen({
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({
   backupBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
     marginHorizontal: 16,
     marginBottom: 8,
@@ -739,6 +760,21 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.accent_highlight,
     backgroundColor: theme.colors.surface,
+  },
+  backupBannerMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  backupBannerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 20,
+  },
+  backupBannerAction: {
+    color: theme.colors.accent_highlight,
+    fontSize: 14,
+    fontWeight: '600',
   },
   backupBannerText: {
     flex: 1,

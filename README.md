@@ -25,7 +25,7 @@ Local-first dark-mode live setlist app for musicians.
   - Appearance: Dark / Light / System theme and a high-contrast mode
   - Performance: keep screen awake, show "3 of 12" song position, swipe sensitivity (normal / firm / off), default auto-scroll speed
   - Defaults: text size for new songs and tag size
-  - Library: Export (date-stamped file name, last-exported time) and import of exported files as additional setlists; the dashboard shows a backup reminder when there is no export in the last 30 days
+  - Library: Export (date-stamped file name, last-exported time) and import of exported files as additional setlists; the dashboard shows a backup reminder when there is no export in the last 30 days, with "Remind me later" (3 days) and "Dismiss" (30 days) options
   - Data: reset settings, delete all setlists and songs (double confirmation); About shows the app version
 - Setlist notes with `[ ]` / `[x]` checklist lines, shown at the top of Flow where items can be ticked (saved and included in JSON archives)
 - Flow header: Open in Maps button when the setlist has a location, and an auto-scroll play/pause control with an adjustable speed slider

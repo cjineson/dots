@@ -456,7 +456,17 @@ export default function App() {
                 onMoveSetlist={handleMoveSetlist}
                 onReorderItems={handleReorderItems}
                 onOpenSettings={() => navigation.navigate('Settings')}
-                backupReminder={needsBackupReminder(settings.lastExportAt, setlists.length > 0)}
+                backupReminder={needsBackupReminder(
+                  settings.lastExportAt,
+                  setlists.length > 0,
+                  settings.backupSnoozedUntil,
+                )}
+                onSnoozeBackupReminder={(days) =>
+                  handleSettingChange(
+                    'backupSnoozedUntil',
+                    new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+                  )
+                }
               />
             )}
           </Stack.Screen>
