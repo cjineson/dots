@@ -198,21 +198,21 @@ export default function SettingsScreen({
         <Text style={styles.hint}>Last exported: {formatLastExport(settings.lastExportAt)}</Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Export setlists as JSON"
+          accessibilityLabel="Export setlists"
           style={styles.row}
           onPress={onExportLibrary}
         >
           <MaterialCommunityIcons name="database-export" size={26} color="#4FC3F7" />
-          <Text style={styles.rowText}>Export setlists as JSON</Text>
+          <Text style={styles.rowText}>Export setlists</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Import setlists from JSON"
+          accessibilityLabel="Import setlists"
           style={styles.row}
           onPress={onImportLibrary}
         >
           <MaterialCommunityIcons name="database-import" size={26} color="#FFB74D" />
-          <Text style={styles.rowText}>Import setlists from JSON</Text>
+          <Text style={styles.rowText}>Import setlists</Text>
         </Pressable>
 
         <Text style={styles.sectionTitle}>Data</Text>
