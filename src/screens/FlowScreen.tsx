@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Image,
   Pressable,
@@ -51,6 +52,9 @@ export default function FlowScreen({
   });
   const [fontSizeBySong, setFontSizeBySong] = useState(initialFontSizeBySong);
   const [flowFontSize, setFlowFontSize] = useState(initialFlowFontSize);
+  const [flowZoomOpen, setFlowZoomOpen] = useState(false);
+  const [openSongZoomIds, setOpenSongZoomIds] = useState<Record<string, boolean>>({});
+  const [tagsEnlarged, setTagsEnlarged] = useState(true);
 
   const songFontSize = (song: Song) =>
     fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size;
@@ -147,11 +151,28 @@ export default function FlowScreen({
             </Text>
           )}
         </View>
+        {songs.length > 0 && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={flowZoomOpen ? 'Hide setlist zoom controls' : 'Show setlist zoom controls'}
+            accessibilityState={{ expanded: flowZoomOpen }}
+            onPress={() => setFlowZoomOpen((open) => !open)}
+            hitSlop={8}
+          >
+            <MaterialCommunityIcons
+              name={flowZoomOpen ? 'magnify-close' : 'magnify-plus-outline'}
+              size={28}
+              color={theme.colors.accent_highlight}
+            />
+          </Pressable>
+        )}
       </View>
 
-      {songs.length > 0 && (
+      {songs.length > 0 && flowZoomOpen && (
         <FontSizeZoomControl
           label="Set entire setlist"
+          tagsEnlarged={tagsEnlarged}
+          onTagsEnlargedChange={setTagsEnlarged}
           value={flowFontSize}
           onValueChange={setFlowFontSizeAndPersist}
         />
@@ -185,8 +206,28 @@ export default function FlowScreen({
                 <Text style={styles.songTitleText}>
                   {song.title}
                 </Text>
-                <SongTags tags={song.tags} compact />
+                <SongTags
+                  tags={song.tags}
+                  compact
+                  scale={tagsEnlarged ? Math.max(1, songZoom) : 1}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Toggle zoom controls for ${song.title}`}
+                  accessibilityState={{ expanded: !!openSongZoomIds[song.id] }}
+                  onPress={() =>
+                    setOpenSongZoomIds((current) => ({ ...current, [song.id]: !current[song.id] }))
+                  }
+                  hitSlop={8}
+                >
+                  <MaterialCommunityIcons
+                    name={openSongZoomIds[song.id] ? 'magnify-close' : 'magnify-plus-outline'}
+                    size={26}
+                    color={theme.colors.accent_highlight}
+                  />
+                </Pressable>
               </View>
+              {openSongZoomIds[song.id] && (
               <FontSizeZoomControl
                 label={`${song.title} text size`}
                 value={songFontSize(song)}
@@ -194,6 +235,7 @@ export default function FlowScreen({
                   setSongFontSizeAndPersist(song.id, nextFontSize, persist)
                 }
               />
+              )}
               <View style={styles.cueContent}>
                 {cueBlocks.map((block) =>
                   renderBlock({

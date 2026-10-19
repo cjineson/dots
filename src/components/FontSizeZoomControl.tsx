@@ -17,12 +17,16 @@ type FontSizeZoomControlProps = {
   label: string;
   value: number;
   onValueChange: (value: number, persist: boolean) => void;
+  tagsEnlarged?: boolean;
+  onTagsEnlargedChange?: (enlarged: boolean) => void;
 };
 
 export default function FontSizeZoomControl({
   label,
   value,
   onValueChange,
+  tagsEnlarged,
+  onTagsEnlargedChange,
 }: FontSizeZoomControlProps) {
   const [trackWidth, setTrackWidth] = useState(0);
   const progress = (value - MIN_FONT_SIZE) / (MAX_FONT_SIZE - MIN_FONT_SIZE);
@@ -117,6 +121,22 @@ export default function FontSizeZoomControl({
           />
         </Pressable>
       </View>
+      {onTagsEnlargedChange && (
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityLabel="Enlarge tags with text"
+          accessibilityState={{ checked: !!tagsEnlarged }}
+          onPress={() => onTagsEnlargedChange(!tagsEnlarged)}
+          style={styles.tagToggle}
+        >
+          <MaterialCommunityIcons
+            name={tagsEnlarged ? 'checkbox-marked' : 'checkbox-blank-outline'}
+            size={26}
+            color={theme.colors.accent_highlight}
+          />
+          <Text style={styles.tagToggleText}>Enlarge tags with text</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -184,6 +204,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  tagToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 44,
+    paddingHorizontal: 4,
+  },
+  tagToggleText: {
+    color: theme.colors.text_primary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   disabledButton: {
     opacity: 0.4,

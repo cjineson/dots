@@ -7,12 +7,14 @@ type SongTagsProps = {
   tags?: SongTag[];
   compact?: boolean;
   wrapCompact?: boolean;
+  scale?: number;
 };
 
 export default function SongTags({
   tags = [],
   compact = false,
   wrapCompact = false,
+  scale = 1,
 }: SongTagsProps) {
   if (tags.length === 0) {
     return null;
@@ -26,6 +28,13 @@ export default function SongTags({
         styles.tag,
         compact && styles.compactTag,
         { borderColor: tag.color, color: tag.color },
+        scale !== 1 && {
+          fontSize: 12 * scale,
+          paddingHorizontal: 8 * scale,
+          paddingVertical: 3 * scale,
+          borderRadius: 10 * scale,
+          maxWidth: compact ? 180 * scale : undefined,
+        },
       ]}
     >
       {tag.label}
@@ -37,7 +46,7 @@ export default function SongTags({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.compactTagsScroll}
+        style={[styles.compactTagsScroll, scale !== 1 && { maxWidth: 220 * scale }]}
         contentContainerStyle={[styles.tags, styles.compactTags]}
       >
         {tagLabels}

@@ -62,6 +62,8 @@ export default function LivePerformanceScreen({
   const availableWidth = Math.max(0, boxSize.width - theme.layout.box_padding * 2);
   const availableHeight = Math.max(0, boxSize.height - theme.layout.box_padding * 2);
   const songFontScale = fontSize / theme.typography.box_text_size;
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [tagsEnlarged, setTagsEnlarged] = useState(true);
 
   const baseSizeForBlock = (block: CueBlock) =>
     (block.font_size ?? theme.typography.box_text_size) * songFontScale;
@@ -168,13 +170,35 @@ export default function LivePerformanceScreen({
           </Text>
         </View>
         <View style={styles.performanceTags}>
-          <SongTags tags={song?.tags} compact wrapCompact />
+          <SongTags
+            tags={song?.tags}
+            compact
+            wrapCompact
+            scale={tagsEnlarged ? Math.max(1, songFontScale) : 1}
+          />
         </View>
+        {song && !isEditorPreview && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={zoomOpen ? 'Hide zoom controls' : 'Show zoom controls'}
+            accessibilityState={{ expanded: zoomOpen }}
+            onPress={() => setZoomOpen((open) => !open)}
+            hitSlop={8}
+          >
+            <MaterialCommunityIcons
+              name={zoomOpen ? 'magnify-close' : 'magnify-plus-outline'}
+              size={30}
+              color={theme.colors.accent_highlight}
+            />
+          </Pressable>
+        )}
       </View>
 
-      {song && !isEditorPreview && (
+      {song && !isEditorPreview && zoomOpen && (
         <FontSizeZoomControl
           label="Song text size"
+          tagsEnlarged={tagsEnlarged}
+          onTagsEnlargedChange={setTagsEnlarged}
           value={fontSize}
           onValueChange={(nextFontSize, persist) => {
             const updatedFontSize = clampFontSize(nextFontSize);
