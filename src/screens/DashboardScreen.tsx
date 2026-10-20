@@ -1056,7 +1056,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     marginBottom: 10,
   },
   setlistExpandButton: {
-    width: 24,
+    width: 20,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1205,8 +1205,9 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     backgroundColor: theme.colors.overlay,
   },
   setlistDragHandle: {
-    minWidth: 24,
+    width: 20,
     minHeight: 40,
+    marginRight: -4,
     justifyContent: 'center',
     alignItems: 'center',
   },
