@@ -1,10 +1,12 @@
 # Agent instructions
 
+## Shell commands (read first)
+
+- Check `command -v rtk` once per session. If present, ALWAYS prefix every shell command with `rtk`, including `git`, `npm`, `npx`, `gh` and `python3`, and each command in a chain (e.g. `rtk git add -A && rtk git commit`).
+- Use `rtk bypass <cmd>` only when condensed output is unusable. See `CLAUDE.md`.
+- If `rtk` is missing, run commands normally.
+
 Before editing, read the relevant part of `README.md` and inspect only the files needed for the task.
-
-## Shell commands
-
-- If `rtk` is installed, prefix shell commands with it (e.g. `rtk git status`, `rtk npm test`). Use `rtk bypass <cmd>` only when condensed output is unusable. See `CLAUDE.md`.
 
 ## Preserve
 
