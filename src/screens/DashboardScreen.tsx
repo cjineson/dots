@@ -410,8 +410,8 @@ export default function DashboardScreen({
                 <View style={styles.setlistActions}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`Open ${setlist.name} flow view`}
-                    accessibilityHint="Shows all songs and breaks in this setlist."
+                    accessibilityLabel={`Play ${setlist.name}`}
+                    accessibilityHint="Starts this setlist from the first song."
                     disabled={setlist.items.length === 0}
                     onPress={() => onOpenFlow(setlist)}
                     style={[
@@ -419,7 +419,7 @@ export default function DashboardScreen({
                       setlist.items.length === 0 && styles.disabledIconButton,
                     ]}
                   >
-                    <MaterialCommunityIcons name="playlist-play" size={27} color="#4FC3F7" />
+                    <MaterialCommunityIcons name="play-circle" size={29} color="#4FC3F7" />
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
