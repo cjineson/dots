@@ -573,9 +573,6 @@ export default function App() {
                 setlistName={route.params.setlistName}
                 setlistDetails={route.params.setlistDetails}
                 notes={flowSetlist?.notes}
-                location={flowSetlist?.location}
-                latitude={flowSetlist?.latitude}
-                longitude={flowSetlist?.longitude}
                 onNotesChange={handleToggleSetlistNotes}
                 settings={settings}
                 onSettingChange={handleSettingChange}

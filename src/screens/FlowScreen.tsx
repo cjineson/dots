@@ -26,7 +26,6 @@ import {
 import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
-import { openInMaps, hasMapTarget } from '../lib/maps';
 import { useScreenAwake } from '../lib/keepAwake';
 import { parseNotes, toggleChecklistLine } from '../lib/notes';
 import {
@@ -42,9 +41,6 @@ const AUTO_SCROLL_TICK_MS = 50;
 type FlowScreenProps = {
   setlistId: string;
   notes?: string;
-  location?: string;
-  latitude?: number;
-  longitude?: number;
   onNotesChange: (setlistId: string, notes: string) => void;
   settings: AppSettings;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
@@ -60,9 +56,6 @@ type FlowScreenProps = {
 export default function FlowScreen({
   setlistId,
   notes,
-  location,
-  latitude,
-  longitude,
   onNotesChange,
   settings,
   onSettingChange,
@@ -87,7 +80,6 @@ export default function FlowScreen({
   const [scrollSpeed, setScrollSpeed] = useState(settings.autoScrollSpeed);
   const scrollSpeedRef = useRef(scrollSpeed);
   scrollSpeedRef.current = scrollSpeed;
-  const canOpenMaps = hasMapTarget({ location, latitude, longitude });
   const noteLines = useMemo(() => (notes ? parseNotes(notes) : []), [notes]);
 
   useEffect(() => {
@@ -232,22 +224,6 @@ export default function FlowScreen({
             </Text>
           )}
         </View>
-        {canOpenMaps && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open venue in Maps"
-            onPress={() =>
-              openInMaps({ location, latitude, longitude }).catch(() => undefined)
-            }
-            hitSlop={8}
-          >
-            <MaterialCommunityIcons
-              name="map-marker-outline"
-              size={28}
-              color={theme.colors.accent_highlight}
-            />
-          </Pressable>
-        )}
         {songs.length > 0 && (
           <>
             <Pressable
