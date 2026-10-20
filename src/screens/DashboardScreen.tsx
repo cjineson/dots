@@ -20,6 +20,7 @@ import {
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
 
+import EmptyDashboard from '../components/EmptyDashboard';
 import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
 import { UNGROUPED_SONGS_SETLIST_NAME } from '../lib/ungrouped';
@@ -625,7 +626,7 @@ export default function DashboardScreen({
 
       <NestableScrollContainer style={styles.scroll} contentContainerStyle={styles.list}>
         {!hasAnySetlists ? (
-          <Text style={styles.emptyState}>No setlists yet. Create one to begin.</Text>
+          <EmptyDashboard onCreateSetlist={() => onCreateSetlist(null)} />
         ) : (
           dashboardEntries.map((entry) => {
             if (entry.type === 'group') {
@@ -1167,12 +1168,6 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     flex: 1,
     color: theme.colors.text_primary,
     fontSize: 16,
-  },
-  emptyState: {
-    color: theme.colors.text_secondary,
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 12,
   },
   songHint: {
     color: theme.colors.text_secondary,
