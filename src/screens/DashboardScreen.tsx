@@ -288,22 +288,7 @@ export default function DashboardScreen({
     ]),
   ];
 
-  const chooseSetlistMove = (
-    name: string,
-    siblingIndex: number,
-    siblingCount: number,
-    setlistId: string,
-  ) => {
-    const buttons: Array<{ text: string; style?: 'cancel'; onPress?: () => void }> = [];
-    if (siblingIndex > 0) {
-      buttons.push({ text: 'Move up', onPress: () => onMoveSetlist(setlistId, 'up') });
-    }
-    if (siblingIndex < siblingCount - 1) {
-      buttons.push({ text: 'Move down', onPress: () => onMoveSetlist(setlistId, 'down') });
-    }
-    buttons.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Change order', name, buttons);
-  };
+  const anySetlistExpanded = Object.keys(expansionState.expandedSetlists).length > 0;
 
   const toggleSetlist = (setlistId: string) => {
     const expandedSetlists = { ...expansionState.expandedSetlists };
@@ -462,6 +447,33 @@ export default function DashboardScreen({
               ]}
             >
               <View style={styles.cardHeader}>
+                {!anySetlistExpanded && siblings.length > 1 && (
+                  <View style={styles.setlistOrderButtons}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Move ${setlist.name} up`}
+                      disabled={siblingIndex === 0}
+                      onPress={() => onMoveSetlist(setlist.id, 'up')}
+                      hitSlop={4}
+                      style={[styles.setlistOrderButton, siblingIndex === 0 && styles.disabledIconButton]}
+                    >
+                      <MaterialCommunityIcons name="chevron-up" size={22} color={theme.colors.accent_highlight} />
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Move ${setlist.name} down`}
+                      disabled={siblingIndex === siblings.length - 1}
+                      onPress={() => onMoveSetlist(setlist.id, 'down')}
+                      hitSlop={4}
+                      style={[
+                        styles.setlistOrderButton,
+                        siblingIndex === siblings.length - 1 && styles.disabledIconButton,
+                      ]}
+                    >
+                      <MaterialCommunityIcons name="chevron-down" size={22} color={theme.colors.accent_highlight} />
+                    </Pressable>
+                  </View>
+                )}
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} ${setlist.name}`}
@@ -484,17 +496,6 @@ export default function DashboardScreen({
                   )}
                 </View>
                 <View style={styles.setlistActions}>
-                  {siblings.length > 1 && (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Change order of ${setlist.name}`}
-                      onPress={() => chooseSetlistMove(setlist.name, siblingIndex, siblings.length, setlist.id)}
-                      hitSlop={6}
-                      style={styles.setlistOrderHandle}
-                    >
-                      <Text style={styles.setlistOrderHandleText}>☰</Text>
-                    </Pressable>
-                  )}
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Open ${setlist.name} flow view`}
@@ -681,7 +682,7 @@ export default function DashboardScreen({
           onPress={onOpenSettings}
         >
           <MaterialCommunityIcons name="cog" size={28} color={theme.colors.accent_highlight} />
-          <Text style={styles.settingsLabel}>Settings</Text>
+          <Text numberOfLines={1} style={styles.settingsLabel}>Settings</Text>
         </Pressable>
       </View>
 
@@ -857,7 +858,9 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     gap: 12,
   },
   bottomBarButton: {
-    minWidth: 84,
+    minWidth: 0,
+    flexShrink: 1,
+    paddingHorizontal: 8,
     height: 48,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -866,6 +869,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   },
   settingsLabel: {
     color: theme.colors.accent_highlight,
+    flexShrink: 1,
     fontSize: 13,
     lineHeight: 28,
     fontWeight: theme.typography.font_weight_bold,
@@ -1068,16 +1072,15 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     alignItems: 'center',
     marginRight: 6,
   },
-  setlistOrderHandle: {
-    minWidth: 36,
-    minHeight: 40,
-    justifyContent: 'center',
+  setlistOrderButtons: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  setlistOrderHandleText: {
-    color: theme.colors.accent_highlight,
-    fontSize: 22,
-    fontWeight: '900',
+  setlistOrderButton: {
+    width: 28,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   dragHandleText: {
     color: theme.colors.text_secondary,
