@@ -754,26 +754,20 @@ function getTopSetlistOrderIndex(): number {
   return min?.minIndex === null || min?.minIndex === undefined ? 0 : min.minIndex - 1;
 }
 
-export function moveSetlist(setlistId: string, direction: 'up' | 'down'): void {
+export function reorderSetlistSiblings(orderedIds: string[]): void {
   db.withTransactionSync(() => {
-    const rows = db.getAllSync<{ id: string; group_id: string | null }>(
-      'SELECT id, group_id FROM setlists ORDER BY order_index ASC, name COLLATE NOCASE ASC',
+    const rows = db.getAllSync<{ id: string }>(
+      'SELECT id FROM setlists ORDER BY order_index ASC, name COLLATE NOCASE ASC',
     );
-    const current = rows.find((row) => row.id === setlistId);
-    if (!current) {
-      throw new Error('The setlist to move could not be found.');
+    const ids = new Set(orderedIds);
+    if (ids.size !== orderedIds.length || orderedIds.some((id) => !rows.some((row) => row.id === id))) {
+      throw new Error('The setlists to reorder could not be found.');
     }
-    const siblings = rows.filter((row) => (row.group_id ?? null) === (current.group_id ?? null));
-    const siblingIndex = siblings.findIndex((row) => row.id === setlistId);
-    const target = siblings[siblingIndex + (direction === 'up' ? -1 : 1)];
-    if (!target) {
-      return;
-    }
-    const currentIndex = rows.indexOf(current);
-    const targetIndex = rows.indexOf(target);
-    [rows[currentIndex], rows[targetIndex]] = [rows[targetIndex], rows[currentIndex]];
-    rows.forEach((row, index) => {
-      db.runSync('UPDATE setlists SET order_index = ? WHERE id = ?', [index, row.id]);
+    // Siblings keep the slots they already occupy; only their order among those slots changes.
+    const queue = [...orderedIds];
+    const result = rows.map((row) => (ids.has(row.id) ? queue.shift() as string : row.id));
+    result.forEach((id, index) => {
+      db.runSync('UPDATE setlists SET order_index = ? WHERE id = ?', [index, id]);
     });
   });
 }

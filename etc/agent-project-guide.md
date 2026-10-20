@@ -13,7 +13,7 @@ Read the section relevant to the current task rather than treating this as a sec
 - Settings: `src/lib/settings.ts` (`AppSettings`, parse/serialize, backup reminder rules) persisted in the SQLite `app_settings` key/value table via `getAppSettings`/`saveAppSetting`; `tag_size` and `theme_preference` are separate keys. App-wide state and handlers live in `App.tsx` and are passed to screens as props.
 - Other helpers: `notes.ts` (`[ ]` checklist parsing/toggle), `maps.ts` (Open in Maps), `keepAwake.ts`, `useUnsavedChangesPrompt.ts` (react-navigation `beforeRemove` prompt used by the song, setlist and group editors; wrap save actions in `runSave`), `ungrouped.ts` (name of the holding setlist for songs kept ungrouped).
 - Songs only exist through `setlist_songs`; removing a song from its last setlist prompts to delete permanently or move it to the "Ungrouped songs" setlist (`keepSongUngrouped`).
-- Flow view has mutually exclusive header panels (tag size, zoom, auto-scroll). Setlists are reordered with up/down chevrons shown only while every setlist is collapsed.
+- Flow view has mutually exclusive header panels (tag size, zoom, auto-scroll). Setlists are reordered by dragging a ☰ handle, shown only while every setlist is collapsed (`reorderSetlistSiblings`).
 
 ## Implementation conventions
 

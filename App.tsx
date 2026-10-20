@@ -44,7 +44,7 @@ import {
   getTagSize,
   getThemePreference,
   getSetlistsWithSongs,
-  moveSetlist,
+  reorderSetlistSiblings,
   importSetlists,
   initializeDatabase,
   renameSetlist,
@@ -201,8 +201,8 @@ export default function App() {
     refreshSetlists();
   };
 
-  const handleMoveSetlist = (setlistId: string, direction: 'up' | 'down') => {
-    moveSetlist(setlistId, direction);
+  const handleReorderSetlists = (orderedIds: string[]) => {
+    reorderSetlistSiblings(orderedIds);
     refreshSetlists();
   };
 
@@ -458,7 +458,7 @@ export default function App() {
                   })
                 }
                 onOpenNewSong={(setlistId) => navigation.navigate('Editor', { setlistId })}
-                onMoveSetlist={handleMoveSetlist}
+                onReorderSetlists={handleReorderSetlists}
                 onReorderItems={handleReorderItems}
                 onOpenSettings={() => navigation.navigate('Settings')}
                 backupReminder={needsBackupReminder(
