@@ -288,7 +288,10 @@ export default function DashboardScreen({
     ]),
   ];
 
-  const anySetlistExpanded = Object.keys(expansionState.expandedSetlists).length > 0;
+  const anySetlistExpanded = dashboardEntries.some(
+    (entry) =>
+      entry.type === 'setlist' && Boolean(expansionState.expandedSetlists[entry.setlist.id]),
+  );
 
   const toggleSetlist = (setlistId: string) => {
     const expandedSetlists = { ...expansionState.expandedSetlists };
