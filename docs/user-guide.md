@@ -2,7 +2,7 @@
 
 ## Dashboard
 - Setlists can sit at the top level or inside a one-level **group**. New and copied setlists appear at the top.
-- The bold **☰** handle on a setlist card opens "Move up / Move down" to reorder it within its group (or the top level). Songs and breaks inside a setlist are reordered by long-pressing and dragging their ☰ handles.
+- When all setlists are collapsed, up/down chevrons appear to the left of each setlist's expand arrow to reorder it within its group (or the top level). Songs and breaks inside a setlist are reordered by long-pressing and dragging their ☰ handles.
 - Expand a setlist to see its songs and breaks. Per-setlist buttons: Flow view, edit details, copy, add song (+), add break, delete (−).
 - Song rows: play (Performance), edit, copy to another setlist, and remove (−).
 - A **backup banner** appears when you have setlists and have not exported for 30 days (or ever). **Remind me later** hides it for 3 days, **Dismiss** for 30.

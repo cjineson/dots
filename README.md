@@ -7,7 +7,7 @@ Local-first dark-mode live setlist app for musicians.
 - expo-sqlite for local storage
 
 ## Features
-- Dashboard with collapsible setlists, groups, drag-to-reorder songs, a bold ☰ handle to reorder setlists, copy between setlists and a backup reminder
+- Dashboard with collapsible setlists, groups, drag-to-reorder songs, up/down arrows to reorder setlists (when all are collapsed), copy between setlists and a backup reminder
 - Setlist details with date/time pickers, location (with map position and Open in Maps) and a notes/checklist
 - Song editor with cue sections, styled blocks, tables and coloured tags
 - Flow view (whole setlist) and Performance view (one song at a time) with zoom, tag size, auto-scroll and swipe navigation
