@@ -381,7 +381,7 @@ export default function DashboardScreen({
                     accessibilityLabel={`Reorder ${setlist.name}`}
                     onLongPress={drag}
                     delayLongPress={180}
-                    style={styles.dragHandle}
+                    style={styles.setlistDragHandle}
                   >
                     <Text style={styles.dragHandleText}>☰</Text>
                   </Pressable>
@@ -814,7 +814,7 @@ export default function DashboardScreen({
         </KeyboardAvoidingView>
       </Modal>
       <Modal visible={menu !== null} transparent animationType="fade" onRequestClose={() => setMenu(null)}>
-        <View style={styles.modalBackdrop}>
+        <View style={styles.centeredBackdrop}>
           <View style={styles.renameDialog}>
             <Text style={styles.dialogTitle}>{menu?.title}</Text>
             {menu?.options.map((option) => (
@@ -842,7 +842,7 @@ export default function DashboardScreen({
       </Modal>
 
       <Modal visible={picker !== null} transparent animationType="fade" onRequestClose={() => setPicker(null)}>
-        <View style={styles.modalBackdrop}>
+        <View style={styles.centeredBackdrop}>
           <View style={styles.renameDialog}>
             <Text style={styles.dialogTitle}>
               {picker?.kind === 'copy-setlist'
@@ -1053,11 +1053,11 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
     marginBottom: 10,
   },
   setlistExpandButton: {
-    width: 24,
+    width: 20,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1192,6 +1192,19 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 6,
+  },
+  centeredBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: theme.colors.overlay,
+  },
+  setlistDragHandle: {
+    width: 20,
+    minHeight: 40,
+    marginRight: -4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   setlistReorderList: {
     gap: 14,
