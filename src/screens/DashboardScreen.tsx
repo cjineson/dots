@@ -23,6 +23,7 @@ import {
 import EmptyDashboard from '../components/EmptyDashboard';
 import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
+import { hasMapTarget, openInMaps } from '../lib/maps';
 import { UNGROUPED_SONGS_SETLIST_NAME } from '../lib/ungrouped';
 import { BACKUP_REMIND_LATER_DAYS, BACKUP_REMINDER_DAYS } from '../lib/settings';
 import type { AppTheme } from '../theme';
@@ -402,9 +403,25 @@ export default function DashboardScreen({
                 <View style={styles.setlistHeading}>
                   <Text numberOfLines={1} style={styles.setlistName}>{setlist.name}</Text>
                   {(setlist.location || setlist.date || setlist.time) && (
-                    <Text numberOfLines={1} style={styles.setlistDetails}>
-                      {[setlist.location, setlist.date, setlist.time].filter(Boolean).join(' · ')}
-                    </Text>
+                    <View style={styles.setlistDetailsRow}>
+                      {hasMapTarget(setlist) && (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Open ${setlist.name} location in Maps`}
+                          onPress={() => openInMaps(setlist).catch(() => undefined)}
+                          hitSlop={10}
+                        >
+                          <MaterialCommunityIcons
+                            name="map-marker-outline"
+                            size={13}
+                            color={theme.colors.accent_highlight}
+                          />
+                        </Pressable>
+                      )}
+                      <Text numberOfLines={1} style={styles.setlistDetails}>
+                        {[setlist.location, setlist.date, setlist.time].filter(Boolean).join(' · ')}
+                      </Text>
+                    </View>
                   )}
                 </View>
                 <View style={styles.setlistActions}>
@@ -1072,10 +1089,16 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  setlistDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
   setlistDetails: {
+    flexShrink: 1,
     color: theme.colors.text_secondary,
     fontSize: 12,
-    marginTop: 2,
   },
   iconButton: {
     width: 40,
