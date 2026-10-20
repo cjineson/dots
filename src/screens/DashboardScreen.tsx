@@ -404,23 +404,30 @@ export default function DashboardScreen({
                   <Text numberOfLines={1} style={styles.setlistName}>{setlist.name}</Text>
                   {(setlist.location || setlist.date || setlist.time) && (
                     <View style={styles.setlistDetailsRow}>
+                      <View style={styles.setlistDetailsText}>
+                        {!!setlist.location && (
+                          <Text numberOfLines={1} style={styles.setlistDetails}>{setlist.location}</Text>
+                        )}
+                        {!!(setlist.date || setlist.time) && (
+                          <Text numberOfLines={1} style={styles.setlistDetails}>
+                            {[setlist.date, setlist.time].filter(Boolean).join(' · ')}
+                          </Text>
+                        )}
+                      </View>
                       {hasMapTarget(setlist) && (
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel={`Open ${setlist.name} location in Maps`}
                           onPress={() => openInMaps(setlist).catch(() => undefined)}
-                          hitSlop={10}
+                          style={styles.mapPinButton}
                         >
                           <MaterialCommunityIcons
                             name="map-marker-outline"
-                            size={13}
+                            size={18}
                             color={theme.colors.accent_highlight}
                           />
                         </Pressable>
                       )}
-                      <Text numberOfLines={1} style={styles.setlistDetails}>
-                        {[setlist.location, setlist.date, setlist.time].filter(Boolean).join(' · ')}
-                      </Text>
                     </View>
                   )}
                 </View>
@@ -1092,8 +1099,20 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   setlistDetailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    marginTop: 5,
+  },
+  setlistDetailsText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  mapPinButton: {
+    width: 32,
+    height: 32,
+    marginLeft: 8,
+    marginRight: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   setlistDetails: {
     flexShrink: 1,
