@@ -13,6 +13,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import {
   NestableDraggableFlatList,
@@ -93,7 +94,8 @@ export default function DashboardScreen({
   onSnoozeBackupReminder,
 }: DashboardScreenProps) {
   const theme = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { width: screenWidth } = useWindowDimensions();
+  const styles = useMemo(() => createStyles(theme, screenWidth), [theme, screenWidth]);
   const [addingBreakTo, setAddingBreakTo] = React.useState<string | null>(null);
   const [breakDuration, setBreakDuration] = React.useState('');
   const [menu, setMenu] = React.useState<{
@@ -921,7 +923,13 @@ export default function DashboardScreen({
   );
 }
 
-const createStyles = (theme: AppTheme) => StyleSheet.create({
+// Interpolates between narrow (<=320pt) and roomy (>=430pt) screens so small phones keep title space.
+const scaleByWidth = (screenWidth: number, narrow: number, roomy: number) => {
+  const t = Math.max(0, Math.min(1, (screenWidth - 320) / 110));
+  return Math.round(narrow + (roomy - narrow) * t);
+};
+
+const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create({
   backupBanner: {
     gap: 10,
     marginHorizontal: 16,
@@ -1068,7 +1076,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   },
   setlistExpandButton: {
     width: 20,
-    marginRight: 10,
+    marginRight: scaleByWidth(screenWidth, 6, 12),
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1107,7 +1115,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     fontSize: 12,
   },
   iconButton: {
-    width: 32,
+    width: scaleByWidth(screenWidth, 30, 40),
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1121,7 +1129,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     gap: 0,
   },
   compactIconButton: {
-    width: 30,
+    width: scaleByWidth(screenWidth, 28, 34),
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
