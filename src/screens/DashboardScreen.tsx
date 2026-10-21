@@ -1102,15 +1102,14 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     marginTop: 5,
   },
   setlistDetailsText: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
     gap: 2,
   },
   mapPinButton: {
     width: 32,
     height: 32,
-    marginLeft: 8,
-    marginRight: 14,
+    marginLeft: 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
