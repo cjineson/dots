@@ -25,6 +25,7 @@ type FontSizeZoomControlProps = {
   increaseIcon?: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   decreaseLabel?: string;
   increaseLabel?: string;
+  curve?: number;
 };
 
 export default function FontSizeZoomControl({
@@ -38,20 +39,22 @@ export default function FontSizeZoomControl({
   increaseIcon = 'magnify-plus-outline',
   decreaseLabel = 'Zoom out',
   increaseLabel = 'Zoom in',
+  curve = 1,
 }: FontSizeZoomControlProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [trackWidth, setTrackWidth] = useState(0);
   const hitAreaRef = useRef<View>(null);
   const hitAreaLeft = useRef<number | null>(null);
-  const progress = (value - min) / (max - min);
+  // curve > 1 gives the low end of the range more of the slider travel.
+  const progress = Math.pow(Math.max(0, Math.min(1, (value - min) / (max - min))), 1 / curve);
 
   const setValueFromX = (x: number, persist: boolean) => {
     if (trackWidth <= 0 || !Number.isFinite(x)) {
       return;
     }
     const position = Math.max(0, Math.min(1, (x - SLIDER_HORIZONTAL_INSET) / trackWidth));
-    const steps = Math.round(position * ((max - min) / step));
+    const steps = Math.round(Math.pow(position, curve) * ((max - min) / step));
     onValueChange(min + steps * step, persist);
   };
 

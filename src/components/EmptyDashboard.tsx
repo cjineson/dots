@@ -8,16 +8,17 @@ type Props = {
 };
 
 const NOTES = [
-  { icon: 'music-note', color: '#4FC3F7', left: '8%', size: 26, delay: 0 },
-  { icon: 'music-note-eighth', color: '#B39DDB', left: '28%', size: 22, delay: 700 },
-  { icon: 'music-clef-treble', color: '#4DD0B6', left: '52%', size: 28, delay: 1400 },
-  { icon: 'music-note-eighth', color: '#FFB74D', left: '72%', size: 22, delay: 2100 },
-  { icon: 'music-note', color: '#4FC3F7', left: '88%', size: 24, delay: 2800 },
+  { icon: 'music-note', color: 'action_primary', left: '8%', size: 26, delay: 0 },
+  { icon: 'music-note-eighth', color: 'action_copy', left: '28%', size: 22, delay: 700 },
+  { icon: 'music-clef-treble', color: 'action_extra', left: '52%', size: 28, delay: 1400 },
+  { icon: 'music-note-eighth', color: 'action_edit', left: '72%', size: 22, delay: 2100 },
+  { icon: 'music-note', color: 'action_primary', left: '88%', size: 24, delay: 2800 },
 ] as const;
 
 const RISE_MS = 4200;
 
 function FloatingNote({ note, animate }: { note: (typeof NOTES)[number]; animate: boolean }) {
+  const theme = useTheme();
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -56,7 +57,7 @@ function FloatingNote({ note, animate }: { note: (typeof NOTES)[number]; animate
         ],
       }}
     >
-      <MaterialCommunityIcons name={note.icon} size={note.size} color={note.color} />
+      <MaterialCommunityIcons name={note.icon} size={note.size} color={theme.colors[note.color]} />
     </Animated.View>
   );
 }
@@ -136,7 +137,7 @@ export default function EmptyDashboard({ onCreateSetlist }: Props) {
           onPress={onCreateSetlist}
           style={styles.cta}
         >
-          <MaterialCommunityIcons name="playlist-plus" size={22} color="#0B1020" />
+          <MaterialCommunityIcons name="playlist-plus" size={22} color={theme.colors.on_accent} />
           <Text style={styles.ctaText}>Create your first setlist</Text>
         </Pressable>
       </Animated.View>
@@ -190,7 +191,7 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleShe
     backgroundColor: colors.accent_highlight,
   },
   ctaText: {
-    color: '#0B1020',
+    color: colors.on_accent,
     fontSize: 16,
     fontWeight: '700',
   },

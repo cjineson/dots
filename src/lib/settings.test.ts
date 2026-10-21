@@ -29,7 +29,8 @@ test('parseSettings reads and clamps stored values', () => {
     show_position: 'false',
     swipe_mode: 'firm',
     high_contrast: 'true',
-    auto_scroll_speed: '1',
+    palette: 'goth',
+    auto_scroll_speed: '0',
     last_export_at: '2026-01-02T03:04:05.000Z',
   });
   assert.equal(parsed.keepAwake, false);
@@ -37,7 +38,9 @@ test('parseSettings reads and clamps stored values', () => {
   assert.equal(parsed.showPosition, false);
   assert.equal(parsed.swipeMode, 'firm');
   assert.equal(parsed.highContrast, true);
-  assert.equal(parsed.autoScrollSpeed, 10);
+  assert.equal(parsed.palette, 'goth');
+  assert.equal(parseSettings({ palette: 'neon' }).palette, 'stage');
+  assert.equal(parsed.autoScrollSpeed, 1);
   assert.equal(parsed.lastExportAt, '2026-01-02T03:04:05.000Z');
 });
 

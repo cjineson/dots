@@ -17,7 +17,7 @@ Expo SDK 57 / React Native 0.86 / TypeScript. Local-first: everything lives in S
 - Pure logic tests are colocated as `src/lib/*.test.ts` and run with `npm test`.
 
 ## Theming
-`darkTheme`, `lightTheme` and `withHighContrast` are defined in `theme.ts`. `resolveTheme(preference, systemScheme, highContrast)` picks one and `ThemeProvider` supplies it. Screens call `useTheme()` and build styles with `createStyles(theme)` inside `useMemo`; avoid hard-coded text/background colours. Fixed accent icon colours (`#4FC3F7`, `#FFB74D`, `#FF8A80`, `#B39DDB`) and custom cue colours have not been checked for light-mode contrast. A cue text colour of `#FFFFFF` is treated as "theme text colour".
+`darkTheme`, `lightTheme`, the extra `palettes` (girlie, chill, beige, goth, each with a dark and a light variant) and `withHighContrast` are defined in `theme.ts`. The `palette` app setting defaults to `stage` (dark/light per the theme preference); other palettes pick their dark or light variant from the same preference. `resolveTheme(preference, systemScheme, highContrast, palette)` picks one and `ThemeProvider` supplies it. Screens call `useTheme()` and build styles with `createStyles(theme)` inside `useMemo`; avoid hard-coded text/background colours. Button/icon colours come from `action_primary`, `action_edit`, `action_danger`, `action_copy`, `action_extra` and `on_accent` in the theme; only custom cue colours are fixed. A cue text colour of `#FFFFFF` is treated as "theme text colour".
 
 ## Conventions
 - Keep business/data logic in `src/lib/`, not screens.

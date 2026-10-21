@@ -13,6 +13,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import {
   NestableDraggableFlatList,
@@ -93,7 +94,8 @@ export default function DashboardScreen({
   onSnoozeBackupReminder,
 }: DashboardScreenProps) {
   const theme = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { width: screenWidth } = useWindowDimensions();
+  const styles = useMemo(() => createStyles(theme, screenWidth), [theme, screenWidth]);
   const [addingBreakTo, setAddingBreakTo] = React.useState<string | null>(null);
   const [breakDuration, setBreakDuration] = React.useState('');
   const [menu, setMenu] = React.useState<{
@@ -406,7 +408,21 @@ export default function DashboardScreen({
                     <View style={styles.setlistDetailsRow}>
                       <View style={styles.setlistDetailsText}>
                         {!!setlist.location && (
-                          <Text numberOfLines={1} style={styles.setlistDetails}>{setlist.location}</Text>
+                          hasMapTarget(setlist) ? (
+                            <Pressable
+                              accessibilityRole="link"
+                              accessibilityLabel={`Open ${setlist.name} location in Maps`}
+                              onPress={() => openInMaps(setlist).catch(() => undefined)}
+                              hitSlop={{ top: 6, bottom: 6 }}
+                              style={styles.setlistLocationLink}
+                            >
+                              <Text numberOfLines={1} style={[styles.setlistDetails, styles.setlistLocationText]}>
+                                {setlist.location}
+                              </Text>
+                            </Pressable>
+                          ) : (
+                            <Text numberOfLines={1} style={styles.setlistDetails}>{setlist.location}</Text>
+                          )
                         )}
                         {!!(setlist.date || setlist.time) && (
                           <Text numberOfLines={1} style={styles.setlistDetails}>
@@ -414,20 +430,6 @@ export default function DashboardScreen({
                           </Text>
                         )}
                       </View>
-                      {hasMapTarget(setlist) && (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={`Open ${setlist.name} location in Maps`}
-                          onPress={() => openInMaps(setlist).catch(() => undefined)}
-                          style={styles.mapPinButton}
-                        >
-                          <MaterialCommunityIcons
-                            name="map-marker-outline"
-                            size={18}
-                            color={theme.colors.accent_highlight}
-                          />
-                        </Pressable>
-                      )}
                     </View>
                   )}
                 </View>
@@ -443,7 +445,7 @@ export default function DashboardScreen({
                       setlist.items.length === 0 && styles.disabledIconButton,
                     ]}
                   >
-                    <MaterialCommunityIcons name="play-circle" size={29} color="#4FC3F7" />
+                    <MaterialCommunityIcons name="play-circle" size={29} color={theme.colors.action_primary} />
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
@@ -451,7 +453,7 @@ export default function DashboardScreen({
                     onPress={() => onOpenSetlistEditor(setlist)}
                     style={styles.iconButton}
                   >
-                    <MaterialCommunityIcons name="pencil" size={23} color="#FFB74D" />
+                    <MaterialCommunityIcons name="pencil" size={23} color={theme.colors.action_edit} />
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
@@ -460,7 +462,7 @@ export default function DashboardScreen({
                     onPress={() => openAddMenu(setlist)}
                     style={styles.compactIconButton}
                   >
-                    <MaterialCommunityIcons name="plus-circle" size={24} color="#4FC3F7" />
+                    <MaterialCommunityIcons name="plus-circle" size={24} color={theme.colors.action_primary} />
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
@@ -468,7 +470,7 @@ export default function DashboardScreen({
                     onPress={() => confirmDeleteSetlist(setlist)}
                     style={styles.iconButton}
                   >
-                    <MaterialCommunityIcons name="minus-circle" size={27} color="#FF8A80" />
+                    <MaterialCommunityIcons name="minus-circle" size={27} color={theme.colors.action_danger} />
                   </Pressable>
                 </View>
               </View>
@@ -516,7 +518,7 @@ export default function DashboardScreen({
                               style={styles.songIconButton}
                               onPress={() => onOpenSongForEdit(setlist.id, item.song)}
                             >
-                              <MaterialCommunityIcons name="pencil" size={21} color="#FFB74D" />
+                              <MaterialCommunityIcons name="pencil" size={21} color={theme.colors.action_edit} />
                             </Pressable>
                             <Pressable
                               accessibilityRole="button"
@@ -527,7 +529,7 @@ export default function DashboardScreen({
                                 sourceSetlistId: setlist.id,
                               })}
                             >
-                              <MaterialCommunityIcons name="content-copy" size={20} color="#B39DDB" />
+                              <MaterialCommunityIcons name="content-copy" size={20} color={theme.colors.action_copy} />
                             </Pressable>
                             <Pressable
                               accessibilityRole="button"
@@ -535,7 +537,7 @@ export default function DashboardScreen({
                               style={styles.songIconButton}
                               onPress={() => confirmDeleteSong(setlist.id, item.song)}
                             >
-                              <MaterialCommunityIcons name="minus-circle" size={24} color="#FF8A80" />
+                              <MaterialCommunityIcons name="minus-circle" size={24} color={theme.colors.action_danger} />
                             </Pressable>
                           </View>
                         </View>
@@ -555,25 +557,11 @@ export default function DashboardScreen({
                           </Text>
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel={`Show break${item.duration_minutes ? `, ${item.duration_minutes} minutes` : ''} in performance`}
-                            style={styles.songIconButton}
-                            onPress={() => onOpenPerformance(
-                              setlist,
-                              setlist.items,
-                              setlist.items.findIndex(
-                                (entry) => entry.kind === 'break' && entry.id === item.id,
-                              ),
-                            )}
-                          >
-                            <MaterialCommunityIcons name="play-circle" size={24} color="#4FC3F7" />
-                          </Pressable>
-                          <Pressable
-                            accessibilityRole="button"
                             accessibilityLabel={`Delete break from ${setlist.name}`}
                             style={styles.songIconButton}
                             onPress={() => confirmDeleteBreak(setlist.id, item.id)}
                           >
-                            <MaterialCommunityIcons name="minus-circle" size={24} color="#FF8A80" />
+                            <MaterialCommunityIcons name="minus-circle" size={24} color={theme.colors.action_danger} />
                           </Pressable>
                         </View>
                       )}
@@ -601,7 +589,7 @@ export default function DashboardScreen({
             onPress={() => onOpenGroupEditor()}
             style={styles.headerActionButton}
           >
-            <MaterialCommunityIcons name="folder-plus" size={22} color="#FFB74D" />
+            <MaterialCommunityIcons name="folder-plus" size={22} color={theme.colors.action_edit} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -610,7 +598,7 @@ export default function DashboardScreen({
             onPress={openNewSetlistMenu}
             style={styles.headerActionButton}
           >
-            <MaterialCommunityIcons name="plus-circle" size={22} color="#4FC3F7" />
+            <MaterialCommunityIcons name="plus-circle" size={22} color={theme.colors.action_primary} />
           </Pressable>
         </View>
       </View>
@@ -686,7 +674,7 @@ export default function DashboardScreen({
                       onPress={() => onCreateSetlist(group.id)}
                       style={styles.groupAction}
                     >
-                      <MaterialCommunityIcons name="playlist-plus" size={22} color="#4FC3F7" />
+                      <MaterialCommunityIcons name="playlist-plus" size={22} color={theme.colors.action_primary} />
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
@@ -694,7 +682,7 @@ export default function DashboardScreen({
                       onPress={() => onOpenGroupEditor(group)}
                       style={styles.groupAction}
                     >
-                      <MaterialCommunityIcons name="pencil" size={19} color="#FFB74D" />
+                      <MaterialCommunityIcons name="pencil" size={19} color={theme.colors.action_edit} />
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
@@ -702,7 +690,7 @@ export default function DashboardScreen({
                       onPress={() => confirmDeleteGroup(group)}
                       style={styles.groupAction}
                     >
-                      <MaterialCommunityIcons name="folder-remove" size={20} color="#FF8A80" />
+                      <MaterialCommunityIcons name="folder-remove" size={20} color={theme.colors.action_danger} />
                     </Pressable>
                   </View>
                 </View>
@@ -819,7 +807,7 @@ export default function DashboardScreen({
                     <MaterialCommunityIcons
                       name="playlist-plus"
                       size={22}
-                      color="#4FC3F7"
+                      color={theme.colors.action_primary}
                     />
                     <Text numberOfLines={1} style={styles.destinationText}>
                       {setlist.name}
@@ -852,7 +840,7 @@ export default function DashboardScreen({
                 }}
                 style={styles.destinationButton}
               >
-                <MaterialCommunityIcons name={option.icon} size={22} color="#4FC3F7" />
+                <MaterialCommunityIcons name={option.icon} size={22} color={theme.colors.action_primary} />
                 <Text numberOfLines={1} style={styles.destinationText}>{option.label}</Text>
               </Pressable>
             ))}
@@ -893,7 +881,7 @@ export default function DashboardScreen({
                       }}
                       style={styles.destinationButton}
                     >
-                      <MaterialCommunityIcons name="music-note" size={22} color="#4FC3F7" />
+                      <MaterialCommunityIcons name="music-note" size={22} color={theme.colors.action_primary} />
                       <Text numberOfLines={1} style={styles.destinationText}>{song.title}</Text>
                     </Pressable>
                   ))
@@ -918,7 +906,7 @@ export default function DashboardScreen({
                         }}
                         style={styles.destinationButton}
                       >
-                        <MaterialCommunityIcons name="playlist-music" size={22} color="#4FC3F7" />
+                        <MaterialCommunityIcons name="playlist-music" size={22} color={theme.colors.action_primary} />
                         <Text numberOfLines={1} style={styles.destinationText}>{setlist.name}</Text>
                       </Pressable>
                     ))}
@@ -935,7 +923,13 @@ export default function DashboardScreen({
   );
 }
 
-const createStyles = (theme: AppTheme) => StyleSheet.create({
+// Interpolates between narrow (<=320pt) and roomy (>=430pt) screens so small phones keep title space.
+const scaleByWidth = (screenWidth: number, narrow: number, roomy: number) => {
+  const t = Math.max(0, Math.min(1, (screenWidth - 320) / 110));
+  return Math.round(narrow + (roomy - narrow) * t);
+};
+
+const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create({
   backupBanner: {
     gap: 10,
     marginHorizontal: 16,
@@ -1082,6 +1076,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   },
   setlistExpandButton: {
     width: 20,
+    marginRight: scaleByWidth(screenWidth, 6, 12),
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1102,17 +1097,17 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     marginTop: 5,
   },
   setlistDetailsText: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
     gap: 2,
   },
-  mapPinButton: {
-    width: 32,
-    height: 32,
-    marginLeft: 8,
-    marginRight: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
+  setlistLocationLink: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+  },
+  setlistLocationText: {
+    color: theme.colors.accent_highlight,
+    textDecorationLine: 'underline',
   },
   setlistDetails: {
     flexShrink: 1,
@@ -1120,7 +1115,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     fontSize: 12,
   },
   iconButton: {
-    width: 40,
+    width: scaleByWidth(screenWidth, 30, 40),
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1134,7 +1129,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     gap: 0,
   },
   compactIconButton: {
-    width: 34,
+    width: scaleByWidth(screenWidth, 28, 34),
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1184,7 +1179,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.text_secondary,
   },
   saveText: {
-    color: '#4FC3F7',
+    color: theme.colors.action_primary,
     fontWeight: theme.typography.font_weight_bold,
   },
   disabledAction: {

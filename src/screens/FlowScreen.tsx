@@ -29,6 +29,7 @@ import type { AppTheme } from '../theme';
 import { useScreenAwake } from '../lib/keepAwake';
 import { parseNotes, toggleChecklistLine } from '../lib/notes';
 import {
+  AUTO_SCROLL_SLIDER_CURVE,
   AUTO_SCROLL_SPEED_STEP,
   MAX_AUTO_SCROLL_SPEED,
   MIN_AUTO_SCROLL_SPEED,
@@ -318,7 +319,8 @@ export default function FlowScreen({
               min={MIN_AUTO_SCROLL_SPEED}
               max={MAX_AUTO_SCROLL_SPEED}
               step={AUTO_SCROLL_SPEED_STEP}
-              decreaseIcon="tortoise"
+              curve={AUTO_SCROLL_SLIDER_CURVE}
+              decreaseIcon="snail"
               increaseIcon="rabbit"
               decreaseLabel="Slower"
               increaseLabel="Faster"

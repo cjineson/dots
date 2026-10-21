@@ -5,6 +5,7 @@ import {
   parseSettings,
   serializeSetting,
   settingStorageKey,
+  INITIAL_BACKUP_REMINDER_DELAY_DAYS,
 } from './settings';
 import type { AppSettings } from './settings';
 import { UNGROUPED_SONGS_SETLIST_NAME } from './ungrouped';
@@ -109,7 +110,21 @@ export function getSetlistGroups(): SetlistGroup[] {
   );
 }
 
+// Never-exported libraries get a first reminder a week after first launch rather than immediately.
+function seedBackupReminderDelay(): void {
+  const row = db.getFirstSync<{ key: string }>(
+    "SELECT key FROM app_settings WHERE key IN ('last_export_at', 'backup_snoozed_until') LIMIT 1",
+  );
+  if (!row) {
+    saveAppSetting(
+      'backupSnoozedUntil',
+      new Date(Date.now() + INITIAL_BACKUP_REMINDER_DELAY_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+    );
+  }
+}
+
 export function getAppSettings(): AppSettings {
+  seedBackupReminderDelay();
   const rows = db.getAllSync<{ key: string; value: string }>('SELECT key, value FROM app_settings');
   return parseSettings(Object.fromEntries(rows.map((row) => [row.key, row.value])));
 }
@@ -130,6 +145,7 @@ export function saveAppSetting<K extends keyof AppSettings>(key: K, value: AppSe
 
 export function resetAppSettings(): void {
   db.runSync('DELETE FROM app_settings');
+  seedBackupReminderDelay();
 }
 
 export function clearAllLibraryData(): void {
