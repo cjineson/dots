@@ -82,7 +82,7 @@ type RootStackParamList = {
   Dashboard: undefined;
   Settings: undefined;
   Editor: { setlistId: string; song?: Song };
-  SetlistDetails: { setlistId: string };
+  SetlistDetails: { setlistId: string; isNew?: boolean };
   GroupEditor: { groupId?: string };
   Performance: {
     items: SetlistItem[];
@@ -411,8 +411,9 @@ export default function App() {
                 expansionState={dashboardExpansion}
                 onExpansionStateChange={handleDashboardExpansionChange}
                 onCreateSetlist={(groupId) => {
-                  createSetlist('New Setlist', groupId);
+                  const created = createSetlist('New Setlist', groupId);
                   refreshSetlists();
+                  navigation.navigate('SetlistDetails', { setlistId: created.id, isNew: true });
                 }}
                 onOpenGroupEditor={(group) =>
                   navigation.navigate('GroupEditor', { groupId: group?.id })
@@ -511,6 +512,7 @@ export default function App() {
               return (
                 <SetlistDetailsScreen
                   setlist={setlist}
+                  isNew={route.params.isNew}
                   groups={groups}
                   onCreateGroup={handleCreateSetlistGroup}
                   onCancel={() => navigation.goBack()}
