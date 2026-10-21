@@ -21,6 +21,7 @@ export const AUTO_SCROLL_SPEED_STEP = 1;
 export const AUTO_SCROLL_SLIDER_CURVE = 3;
 export const BACKUP_REMINDER_DAYS = 30;
 export const BACKUP_REMIND_LATER_DAYS = 3;
+export const INITIAL_BACKUP_REMINDER_DELAY_DAYS = 7;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   keepAwake: true,

@@ -13,7 +13,7 @@ All settings are saved on-device in the SQLite `app_settings` key/value table. R
 | Text size for new songs | `default_font_size` | 18 | 10–128 |
 | Tag size | `tag_size` | 12 | 12–48, step 2; shared by Performance and Flow |
 | Last exported | `last_export_at` | none | Set after a successful export share |
-| Backup reminder snooze | `backup_snoozed_until` | none | Set by Remind me later / Dismiss |
+| Backup reminder snooze | `backup_snoozed_until` | 7 days after first launch | Seeded on first launch (and after a settings reset) so the reminder is not immediate; also set by Remind me later / Dismiss |
 
 Settings also contains Export / Import, **Reset settings**, **Delete all setlists and songs** (double confirmation) and the app version.
 
