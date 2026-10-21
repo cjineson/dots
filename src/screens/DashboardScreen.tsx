@@ -1107,7 +1107,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     fontSize: 12,
   },
   iconButton: {
-    width: 40,
+    width: 32,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1121,7 +1121,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     gap: 0,
   },
   compactIconButton: {
-    width: 34,
+    width: 30,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
