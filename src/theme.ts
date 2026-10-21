@@ -82,11 +82,12 @@ export const lightTheme: AppTheme = {
   },
 };
 
-export type PaletteId = 'stage' | 'girlie' | 'chill' | 'beige' | 'goth';
+export type PaletteId = 'stage' | 'pretty' | 'aqua' | 'chill' | 'beige' | 'goth';
 
 export const PALETTE_OPTIONS: Array<{ value: PaletteId; label: string }> = [
   { value: 'stage', label: 'Stage' },
-  { value: 'girlie', label: 'Girlie' },
+  { value: 'pretty', label: 'Pretty' },
+  { value: 'aqua', label: 'Aqua' },
   { value: 'chill', label: 'Chill' },
   { value: 'beige', label: 'Beige' },
   { value: 'goth', label: 'Goth' },
@@ -103,8 +104,8 @@ const makePalette = (name: string, mode: 'dark' | 'light', colors: PaletteColors
 
 // 'stage' is handled by darkTheme/lightTheme. Every other palette has both a dark and a light variant.
 export const palettes: Record<Exclude<PaletteId, 'stage'>, { dark: AppTheme; light: AppTheme }> = {
-  girlie: {
-    light: makePalette('Girlie', 'light', {
+  pretty: {
+    light: makePalette('Pretty', 'light', {
       background: '#FFF0F6',
       surface: '#FFE0EC',
       surface_card: '#FFD0E2',
@@ -120,7 +121,7 @@ export const palettes: Record<Exclude<PaletteId, 'stage'>, { dark: AppTheme; lig
       action_extra: '#EC407A',
       on_accent: '#FFFFFF',
     }),
-    dark: makePalette('Girlie Night', 'dark', {
+    dark: makePalette('Pretty Night', 'dark', {
       background: '#1C0A14',
       surface: '#2B1220',
       surface_card: '#3A1A2D',
@@ -137,8 +138,8 @@ export const palettes: Record<Exclude<PaletteId, 'stage'>, { dark: AppTheme; lig
       on_accent: '#2B0A1A',
     }),
   },
-  chill: {
-    dark: makePalette('Chill', 'dark', {
+  aqua: {
+    dark: makePalette('Aqua', 'dark', {
       background: '#0B1F26',
       surface: '#12303A',
       surface_card: '#183D49',
@@ -154,7 +155,7 @@ export const palettes: Record<Exclude<PaletteId, 'stage'>, { dark: AppTheme; lig
       action_extra: '#86EFAC',
       on_accent: '#062A30',
     }),
-    light: makePalette('Chill Day', 'light', {
+    light: makePalette('Aqua Day', 'light', {
       background: '#EAF7F6',
       surface: '#D6EEEC',
       surface_card: '#C3E5E2',
@@ -169,6 +170,40 @@ export const palettes: Record<Exclude<PaletteId, 'stage'>, { dark: AppTheme; lig
       action_copy: '#4527A0',
       action_extra: '#2E7D32',
       on_accent: '#FFFFFF',
+    }),
+  },
+  chill: {
+    light: makePalette('Chill', 'light', {
+      background: '#F4F1F8',
+      surface: '#E9E5F2',
+      surface_card: '#DFE8F0',
+      text_primary: '#3A3F55',
+      text_secondary: '#7A809A',
+      accent_highlight: '#7C8FD0',
+      box_active_state: '#D3DCEB',
+      border_contrast: '#C7CFE0',
+      action_primary: '#7FA7D9',
+      action_edit: '#E0A98F',
+      action_danger: '#D98A98',
+      action_copy: '#A99BD6',
+      action_extra: '#8CC3A9',
+      on_accent: '#FFFFFF',
+    }),
+    dark: makePalette('Chill Dusk', 'dark', {
+      background: '#1D2030',
+      surface: '#262A3E',
+      surface_card: '#2F344B',
+      text_primary: '#E8E8F4',
+      text_secondary: '#A5A9C4',
+      accent_highlight: '#A9B8F0',
+      box_active_state: '#3A4060',
+      border_contrast: '#474D70',
+      action_primary: '#9CC3EB',
+      action_edit: '#EBC3A9',
+      action_danger: '#EBA5B2',
+      action_copy: '#C3B5EB',
+      action_extra: '#A5D8C0',
+      on_accent: '#1D2030',
     }),
   },
   beige: {
@@ -207,35 +242,35 @@ export const palettes: Record<Exclude<PaletteId, 'stage'>, { dark: AppTheme; lig
   },
   goth: {
     dark: makePalette('Goth', 'dark', {
-      background: '#050008',
-      surface: '#12091A',
-      surface_card: '#1C0F28',
+      background: '#030004',
+      surface: '#0D0514',
+      surface_card: '#150A20',
       text_primary: '#EDE3F7',
-      text_secondary: '#A794BD',
-      accent_highlight: '#B388FF',
-      box_active_state: '#2B1740',
-      border_contrast: '#3F2760',
-      action_primary: '#B388FF',
-      action_edit: '#E040FB',
+      text_secondary: '#9784B0',
+      accent_highlight: '#8E4DEB',
+      box_active_state: '#241236',
+      border_contrast: '#36204F',
+      action_primary: '#9D5CF0',
+      action_edit: '#C03AE0',
       action_danger: '#FF5C8A',
-      action_copy: '#9FA8FF',
-      action_extra: '#7C4DFF',
+      action_copy: '#8590F0',
+      action_extra: '#6B3FE0',
       on_accent: '#0B0010',
     }),
     light: makePalette('Goth Day', 'light', {
-      background: '#EFE8F7',
-      surface: '#E0D4F0',
-      surface_card: '#D2C2E8',
+      background: '#E8DFF2',
+      surface: '#D8CAEA',
+      surface_card: '#C9B7E0',
       text_primary: '#1E0F33',
       text_secondary: '#5A4676',
-      accent_highlight: '#5E2CA5',
+      accent_highlight: '#4A1D8A',
       box_active_state: '#C4B0E0',
       border_contrast: '#AE96D2',
-      action_primary: '#5E2CA5',
+      action_primary: '#4A1D8A',
       action_edit: '#8E24AA',
       action_danger: '#B0003A',
       action_copy: '#3949AB',
-      action_extra: '#6A1B9A',
+      action_extra: '#58168A',
       on_accent: '#FFFFFF',
     }),
   },

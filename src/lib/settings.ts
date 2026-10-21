@@ -35,7 +35,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   backupSnoozedUntil: null,
 };
 
-const PALETTE_IDS: string[] = ['stage', 'girlie', 'chill', 'beige', 'goth'];
+const PALETTE_IDS: string[] = ['stage', 'pretty', 'aqua', 'chill', 'beige', 'goth'];
+
+// 'girlie' was renamed to 'pretty'.
+function parsePalette(raw: string | undefined): PaletteId {
+  const id = raw === 'girlie' ? 'pretty' : raw;
+  return PALETTE_IDS.includes(id as string) ? (id as PaletteId) : DEFAULT_SETTINGS.palette;
+}
 
 export const SWIPE_DISTANCE: Record<Exclude<SwipeMode, 'off'>, number> = {
   normal: 60,
@@ -84,9 +90,7 @@ export function parseSettings(raw: Record<string, string>): AppSettings {
     showPosition: parseBoolean(raw[SETTING_KEYS.showPosition], DEFAULT_SETTINGS.showPosition),
     swipeMode: swipe === 'firm' || swipe === 'off' || swipe === 'normal' ? swipe : 'normal',
     highContrast: parseBoolean(raw[SETTING_KEYS.highContrast], DEFAULT_SETTINGS.highContrast),
-    palette: PALETTE_IDS.includes(raw[SETTING_KEYS.palette] as PaletteId)
-      ? (raw[SETTING_KEYS.palette] as PaletteId)
-      : DEFAULT_SETTINGS.palette,
+    palette: parsePalette(raw[SETTING_KEYS.palette]),
     autoScrollSpeed: parseNumber(
       raw[SETTING_KEYS.autoScrollSpeed],
       DEFAULT_SETTINGS.autoScrollSpeed,
