@@ -1068,6 +1068,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   },
   setlistExpandButton: {
     width: 20,
+    marginRight: 10,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
