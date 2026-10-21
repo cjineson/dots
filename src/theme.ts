@@ -64,6 +64,66 @@ export const lightTheme: AppTheme = {
   },
 };
 
+export type PaletteId = 'stage' | 'girlie' | 'chill' | 'beige' | 'goth';
+
+export const PALETTE_OPTIONS: Array<{ value: PaletteId; label: string }> = [
+  { value: 'stage', label: 'Stage' },
+  { value: 'girlie', label: 'Girlie' },
+  { value: 'chill', label: 'Chill' },
+  { value: 'beige', label: 'Beige' },
+  { value: 'goth', label: 'Goth' },
+];
+
+const makePalette = (
+  name: string,
+  mode: 'dark' | 'light',
+  colors: Omit<ThemeColors, 'overlay'>,
+): AppTheme => ({ ...shared, theme: name, mode, colors: { ...colors, overlay: '#000000AA' } });
+
+// 'stage' is handled by darkTheme/lightTheme so it follows the Dark/Light/System choice.
+export const palettes: Record<Exclude<PaletteId, 'stage'>, AppTheme> = {
+  girlie: makePalette('Girlie', 'light', {
+    background: '#FFF0F6',
+    surface: '#FFE0EC',
+    surface_card: '#FFD0E2',
+    text_primary: '#4A1230',
+    text_secondary: '#8A4A68',
+    accent_highlight: '#C2185B',
+    box_active_state: '#F8BBD5',
+    border_contrast: '#F0A0C0',
+  }),
+  chill: makePalette('Chill', 'dark', {
+    background: '#0B1F26',
+    surface: '#12303A',
+    surface_card: '#183D49',
+    text_primary: '#E6F6F5',
+    text_secondary: '#9CC3C6',
+    accent_highlight: '#5EEAD4',
+    box_active_state: '#1F4D5B',
+    border_contrast: '#2A5F6E',
+  }),
+  beige: makePalette('Beige', 'light', {
+    background: '#F5EFE3',
+    surface: '#EBE2D0',
+    surface_card: '#E0D5BF',
+    text_primary: '#3B3224',
+    text_secondary: '#6F6450',
+    accent_highlight: '#8C5A2B',
+    box_active_state: '#D3C6AB',
+    border_contrast: '#C4B697',
+  }),
+  goth: makePalette('Goth', 'dark', {
+    background: '#050008',
+    surface: '#12091A',
+    surface_card: '#1C0F28',
+    text_primary: '#EDE3F7',
+    text_secondary: '#A794BD',
+    accent_highlight: '#B388FF',
+    box_active_state: '#2B1740',
+    border_contrast: '#3F2760',
+  }),
+};
+
 export function withHighContrast(base: AppTheme): AppTheme {
   const dark = base.mode === 'dark';
   return {

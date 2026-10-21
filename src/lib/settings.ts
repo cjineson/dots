@@ -1,4 +1,5 @@
 import { clampFontSize } from './fontSize';
+import type { PaletteId } from '../theme';
 
 export type SwipeMode = 'normal' | 'firm' | 'off';
 
@@ -8,14 +9,16 @@ export type AppSettings = {
   showPosition: boolean;
   swipeMode: SwipeMode;
   highContrast: boolean;
+  palette: PaletteId;
   autoScrollSpeed: number;
   lastExportAt: string | null;
   backupSnoozedUntil: string | null;
 };
 
-export const MIN_AUTO_SCROLL_SPEED = 10;
+export const MIN_AUTO_SCROLL_SPEED = 1;
 export const MAX_AUTO_SCROLL_SPEED = 200;
-export const AUTO_SCROLL_SPEED_STEP = 10;
+export const AUTO_SCROLL_SPEED_STEP = 1;
+export const AUTO_SCROLL_SLIDER_CURVE = 3;
 export const BACKUP_REMINDER_DAYS = 30;
 export const BACKUP_REMIND_LATER_DAYS = 3;
 
@@ -25,10 +28,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showPosition: true,
   swipeMode: 'normal',
   highContrast: false,
+  palette: 'stage',
   autoScrollSpeed: 40,
   lastExportAt: null,
   backupSnoozedUntil: null,
 };
+
+const PALETTE_IDS: string[] = ['stage', 'girlie', 'chill', 'beige', 'goth'];
 
 export const SWIPE_DISTANCE: Record<Exclude<SwipeMode, 'off'>, number> = {
   normal: 60,
@@ -41,6 +47,7 @@ const SETTING_KEYS = {
   showPosition: 'show_position',
   swipeMode: 'swipe_mode',
   highContrast: 'high_contrast',
+  palette: 'palette',
   autoScrollSpeed: 'auto_scroll_speed',
   lastExportAt: 'last_export_at',
   backupSnoozedUntil: 'backup_snoozed_until',
@@ -76,6 +83,9 @@ export function parseSettings(raw: Record<string, string>): AppSettings {
     showPosition: parseBoolean(raw[SETTING_KEYS.showPosition], DEFAULT_SETTINGS.showPosition),
     swipeMode: swipe === 'firm' || swipe === 'off' || swipe === 'normal' ? swipe : 'normal',
     highContrast: parseBoolean(raw[SETTING_KEYS.highContrast], DEFAULT_SETTINGS.highContrast),
+    palette: PALETTE_IDS.includes(raw[SETTING_KEYS.palette] as PaletteId)
+      ? (raw[SETTING_KEYS.palette] as PaletteId)
+      : DEFAULT_SETTINGS.palette,
     autoScrollSpeed: parseNumber(
       raw[SETTING_KEYS.autoScrollSpeed],
       DEFAULT_SETTINGS.autoScrollSpeed,

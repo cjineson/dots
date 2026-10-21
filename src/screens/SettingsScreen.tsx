@@ -15,6 +15,7 @@ import {
 import FontSizeZoomControl from '../components/FontSizeZoomControl';
 import { MAX_TAG_SIZE, MIN_TAG_SIZE, TAG_SIZE_STEP } from '../lib/fontSize';
 import {
+  AUTO_SCROLL_SLIDER_CURVE,
   AUTO_SCROLL_SPEED_STEP,
   MAX_AUTO_SCROLL_SPEED,
   MIN_AUTO_SCROLL_SPEED,
@@ -22,6 +23,7 @@ import {
 import type { AppSettings, SwipeMode } from '../lib/settings';
 import { useTheme } from '../themeContext';
 import type { ThemePreference } from '../themeContext';
+import { PALETTE_OPTIONS } from '../theme';
 import type { AppTheme } from '../theme';
 
 type SettingsScreenProps = {
@@ -144,6 +146,14 @@ export default function SettingsScreen({
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>Appearance</Text>
         {renderSegments(THEME_OPTIONS, themePreference, onThemePreferenceChange, 'theme')}
+        <Text style={styles.label}>Colour palette</Text>
+        {renderSegments(
+          PALETTE_OPTIONS,
+          settings.palette,
+          (value) => onSettingChange('palette', value),
+          'palette',
+        )}
+        <Text style={styles.hint}>Stage follows the Dark/Light/System choice above; other palettes set their own colours.</Text>
         {renderSwitch('High contrast', 'Stronger text and borders for dim or bright stages.', 'highContrast')}
 
         <Text style={styles.sectionTitle}>Performance</Text>
@@ -162,7 +172,8 @@ export default function SettingsScreen({
           min={MIN_AUTO_SCROLL_SPEED}
           max={MAX_AUTO_SCROLL_SPEED}
           step={AUTO_SCROLL_SPEED_STEP}
-          decreaseIcon="tortoise"
+          curve={AUTO_SCROLL_SLIDER_CURVE}
+              decreaseIcon="snail"
           increaseIcon="rabbit"
           decreaseLabel="Slower"
           increaseLabel="Faster"

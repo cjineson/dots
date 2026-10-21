@@ -1,7 +1,7 @@
 import React, { createContext, useContext } from 'react';
 
-import { darkTheme, lightTheme, withHighContrast } from './theme';
-import type { AppTheme } from './theme';
+import { darkTheme, lightTheme, palettes, withHighContrast } from './theme';
+import type { AppTheme, PaletteId } from './theme';
 
 export type ThemePreference = 'system' | 'dark' | 'light';
 
@@ -11,9 +11,10 @@ export function resolveTheme(
   preference: ThemePreference,
   systemScheme: string | null | undefined,
   highContrast = false,
+  palette: PaletteId = 'stage',
 ): AppTheme {
   const mode = preference === 'system' ? systemScheme : preference;
-  const base = mode === 'light' ? lightTheme : darkTheme;
+  const base = palette !== 'stage' ? palettes[palette] : mode === 'light' ? lightTheme : darkTheme;
   return highContrast ? withHighContrast(base) : base;
 }
 

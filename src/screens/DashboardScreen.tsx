@@ -405,8 +405,26 @@ export default function DashboardScreen({
                   {(setlist.location || setlist.date || setlist.time) && (
                     <View style={styles.setlistDetailsRow}>
                       <View style={styles.setlistDetailsText}>
-                        {!!setlist.location && (
-                          <Text numberOfLines={1} style={styles.setlistDetails}>{setlist.location}</Text>
+                        {(!!setlist.location || hasMapTarget(setlist)) && (
+                          <View style={styles.setlistLocationLine}>
+                            {!!setlist.location && (
+                              <Text numberOfLines={1} style={styles.setlistDetails}>{setlist.location}</Text>
+                            )}
+                            {hasMapTarget(setlist) && (
+                              <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={`Open ${setlist.name} location in Maps`}
+                                onPress={() => openInMaps(setlist).catch(() => undefined)}
+                                style={styles.mapPinButton}
+                              >
+                                <MaterialCommunityIcons
+                                  name="map-marker-outline"
+                                  size={18}
+                                  color={theme.colors.accent_highlight}
+                                />
+                              </Pressable>
+                            )}
+                          </View>
                         )}
                         {!!(setlist.date || setlist.time) && (
                           <Text numberOfLines={1} style={styles.setlistDetails}>
@@ -414,20 +432,6 @@ export default function DashboardScreen({
                           </Text>
                         )}
                       </View>
-                      {hasMapTarget(setlist) && (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={`Open ${setlist.name} location in Maps`}
-                          onPress={() => openInMaps(setlist).catch(() => undefined)}
-                          style={styles.mapPinButton}
-                        >
-                          <MaterialCommunityIcons
-                            name="map-marker-outline"
-                            size={18}
-                            color={theme.colors.accent_highlight}
-                          />
-                        </Pressable>
-                      )}
                     </View>
                   )}
                 </View>
@@ -553,20 +557,6 @@ export default function DashboardScreen({
                           <Text style={[styles.songTitle, styles.breakTitle]}>
                             Break{item.duration_minutes ? ` · ${item.duration_minutes} min` : ''}
                           </Text>
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={`Show break${item.duration_minutes ? `, ${item.duration_minutes} minutes` : ''} in performance`}
-                            style={styles.songIconButton}
-                            onPress={() => onOpenPerformance(
-                              setlist,
-                              setlist.items,
-                              setlist.items.findIndex(
-                                (entry) => entry.kind === 'break' && entry.id === item.id,
-                              ),
-                            )}
-                          >
-                            <MaterialCommunityIcons name="play-circle" size={24} color="#4FC3F7" />
-                          </Pressable>
                           <Pressable
                             accessibilityRole="button"
                             accessibilityLabel={`Delete break from ${setlist.name}`}
@@ -1106,10 +1096,16 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     minWidth: 0,
     gap: 2,
   },
+  setlistLocationLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+  },
   mapPinButton: {
-    width: 32,
-    height: 32,
-    marginLeft: 6,
+    width: 28,
+    height: 28,
+    marginLeft: 4,
     justifyContent: 'center',
     alignItems: 'center',
   },

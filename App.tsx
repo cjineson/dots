@@ -108,7 +108,7 @@ export default function App() {
   const systemScheme = useColorScheme();
   const [themePreference, setThemePreference] = useState<ThemePreference>('dark');
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const theme = resolveTheme(themePreference, systemScheme, settings.highContrast);
+  const theme = resolveTheme(themePreference, systemScheme, settings.highContrast, settings.palette);
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [setlists, setSetlists] = useState<SetlistWithSongs[]>([]);
   const [groups, setGroups] = useState<SetlistGroup[]>([]);
@@ -624,6 +624,7 @@ export default function App() {
                 index={route.params.index}
                 isEditorPreview={route.params.isEditorPreview}
                 settings={settings}
+                onSettingChange={handleSettingChange}
                 onGoToDashboard={() => navigation.popToTop()}
                 onExitEditorPreview={() => navigation.goBack()}
                 onIndexChange={(index) => navigation.setParams({ index })}
