@@ -14,7 +14,9 @@ export function resolveTheme(
   palette: PaletteId = 'stage',
 ): AppTheme {
   const mode = preference === 'system' ? systemScheme : preference;
-  const base = palette !== 'stage' ? palettes[palette] : mode === 'light' ? lightTheme : darkTheme;
+  const base = palette !== 'stage'
+    ? palettes[palette][mode === 'light' ? 'light' : 'dark']
+    : mode === 'light' ? lightTheme : darkTheme;
   return highContrast ? withHighContrast(base) : base;
 }
 

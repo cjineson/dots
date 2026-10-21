@@ -153,7 +153,7 @@ export default function SettingsScreen({
           (value) => onSettingChange('palette', value),
           'palette',
         )}
-        <Text style={styles.hint}>Stage follows the Dark/Light/System choice above; other palettes set their own colours.</Text>
+        <Text style={styles.hint}>Every palette follows the Dark/Light/System choice above.</Text>
         {renderSwitch('High contrast', 'Stronger text and borders for dim or bright stages.', 'highContrast')}
 
         <Text style={styles.sectionTitle}>Performance</Text>
@@ -213,7 +213,7 @@ export default function SettingsScreen({
           style={styles.row}
           onPress={onExportLibrary}
         >
-          <MaterialCommunityIcons name="database-export" size={26} color="#4FC3F7" />
+          <MaterialCommunityIcons name="database-export" size={26} color={theme.colors.action_primary} />
           <Text style={styles.rowText}>Export setlists</Text>
         </Pressable>
         <Pressable
@@ -222,7 +222,7 @@ export default function SettingsScreen({
           style={styles.row}
           onPress={onImportLibrary}
         >
-          <MaterialCommunityIcons name="database-import" size={26} color="#FFB74D" />
+          <MaterialCommunityIcons name="database-import" size={26} color={theme.colors.action_edit} />
           <Text style={styles.rowText}>Import setlists</Text>
         </Pressable>
 
@@ -244,8 +244,8 @@ export default function SettingsScreen({
           style={[styles.row, !hasData && styles.disabledRow]}
           onPress={confirmClear}
         >
-          <MaterialCommunityIcons name="delete-forever-outline" size={26} color="#FF8A80" />
-          <Text style={[styles.rowText, { color: '#FF8A80' }]}>Delete all setlists and songs</Text>
+          <MaterialCommunityIcons name="delete-forever-outline" size={26} color={theme.colors.action_danger} />
+          <Text style={[styles.rowText, { color: theme.colors.action_danger }]}>Delete all setlists and songs</Text>
         </Pressable>
 
         <Text style={styles.sectionTitle}>About</Text>
@@ -305,7 +305,7 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '600',
     },
     segmentTextSelected: {
-      color: theme.mode === 'light' ? '#FFFFFF' : '#000000',
+      color: theme.colors.on_accent,
     },
     row: {
       flexDirection: 'row',

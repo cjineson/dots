@@ -447,7 +447,7 @@ export default function DashboardScreen({
                       setlist.items.length === 0 && styles.disabledIconButton,
                     ]}
                   >
-                    <MaterialCommunityIcons name="play-circle" size={29} color="#4FC3F7" />
+                    <MaterialCommunityIcons name="play-circle" size={29} color={theme.colors.action_primary} />
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
@@ -455,7 +455,7 @@ export default function DashboardScreen({
                     onPress={() => onOpenSetlistEditor(setlist)}
                     style={styles.iconButton}
                   >
-                    <MaterialCommunityIcons name="pencil" size={23} color="#FFB74D" />
+                    <MaterialCommunityIcons name="pencil" size={23} color={theme.colors.action_edit} />
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
@@ -464,7 +464,7 @@ export default function DashboardScreen({
                     onPress={() => openAddMenu(setlist)}
                     style={styles.compactIconButton}
                   >
-                    <MaterialCommunityIcons name="plus-circle" size={24} color="#4FC3F7" />
+                    <MaterialCommunityIcons name="plus-circle" size={24} color={theme.colors.action_primary} />
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
@@ -472,7 +472,7 @@ export default function DashboardScreen({
                     onPress={() => confirmDeleteSetlist(setlist)}
                     style={styles.iconButton}
                   >
-                    <MaterialCommunityIcons name="minus-circle" size={27} color="#FF8A80" />
+                    <MaterialCommunityIcons name="minus-circle" size={27} color={theme.colors.action_danger} />
                   </Pressable>
                 </View>
               </View>
@@ -520,7 +520,7 @@ export default function DashboardScreen({
                               style={styles.songIconButton}
                               onPress={() => onOpenSongForEdit(setlist.id, item.song)}
                             >
-                              <MaterialCommunityIcons name="pencil" size={21} color="#FFB74D" />
+                              <MaterialCommunityIcons name="pencil" size={21} color={theme.colors.action_edit} />
                             </Pressable>
                             <Pressable
                               accessibilityRole="button"
@@ -531,7 +531,7 @@ export default function DashboardScreen({
                                 sourceSetlistId: setlist.id,
                               })}
                             >
-                              <MaterialCommunityIcons name="content-copy" size={20} color="#B39DDB" />
+                              <MaterialCommunityIcons name="content-copy" size={20} color={theme.colors.action_copy} />
                             </Pressable>
                             <Pressable
                               accessibilityRole="button"
@@ -539,7 +539,7 @@ export default function DashboardScreen({
                               style={styles.songIconButton}
                               onPress={() => confirmDeleteSong(setlist.id, item.song)}
                             >
-                              <MaterialCommunityIcons name="minus-circle" size={24} color="#FF8A80" />
+                              <MaterialCommunityIcons name="minus-circle" size={24} color={theme.colors.action_danger} />
                             </Pressable>
                           </View>
                         </View>
@@ -563,7 +563,7 @@ export default function DashboardScreen({
                             style={styles.songIconButton}
                             onPress={() => confirmDeleteBreak(setlist.id, item.id)}
                           >
-                            <MaterialCommunityIcons name="minus-circle" size={24} color="#FF8A80" />
+                            <MaterialCommunityIcons name="minus-circle" size={24} color={theme.colors.action_danger} />
                           </Pressable>
                         </View>
                       )}
@@ -591,7 +591,7 @@ export default function DashboardScreen({
             onPress={() => onOpenGroupEditor()}
             style={styles.headerActionButton}
           >
-            <MaterialCommunityIcons name="folder-plus" size={22} color="#FFB74D" />
+            <MaterialCommunityIcons name="folder-plus" size={22} color={theme.colors.action_edit} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -600,7 +600,7 @@ export default function DashboardScreen({
             onPress={openNewSetlistMenu}
             style={styles.headerActionButton}
           >
-            <MaterialCommunityIcons name="plus-circle" size={22} color="#4FC3F7" />
+            <MaterialCommunityIcons name="plus-circle" size={22} color={theme.colors.action_primary} />
           </Pressable>
         </View>
       </View>
@@ -676,7 +676,7 @@ export default function DashboardScreen({
                       onPress={() => onCreateSetlist(group.id)}
                       style={styles.groupAction}
                     >
-                      <MaterialCommunityIcons name="playlist-plus" size={22} color="#4FC3F7" />
+                      <MaterialCommunityIcons name="playlist-plus" size={22} color={theme.colors.action_primary} />
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
@@ -684,7 +684,7 @@ export default function DashboardScreen({
                       onPress={() => onOpenGroupEditor(group)}
                       style={styles.groupAction}
                     >
-                      <MaterialCommunityIcons name="pencil" size={19} color="#FFB74D" />
+                      <MaterialCommunityIcons name="pencil" size={19} color={theme.colors.action_edit} />
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
@@ -692,7 +692,7 @@ export default function DashboardScreen({
                       onPress={() => confirmDeleteGroup(group)}
                       style={styles.groupAction}
                     >
-                      <MaterialCommunityIcons name="folder-remove" size={20} color="#FF8A80" />
+                      <MaterialCommunityIcons name="folder-remove" size={20} color={theme.colors.action_danger} />
                     </Pressable>
                   </View>
                 </View>
@@ -809,7 +809,7 @@ export default function DashboardScreen({
                     <MaterialCommunityIcons
                       name="playlist-plus"
                       size={22}
-                      color="#4FC3F7"
+                      color={theme.colors.action_primary}
                     />
                     <Text numberOfLines={1} style={styles.destinationText}>
                       {setlist.name}
@@ -842,7 +842,7 @@ export default function DashboardScreen({
                 }}
                 style={styles.destinationButton}
               >
-                <MaterialCommunityIcons name={option.icon} size={22} color="#4FC3F7" />
+                <MaterialCommunityIcons name={option.icon} size={22} color={theme.colors.action_primary} />
                 <Text numberOfLines={1} style={styles.destinationText}>{option.label}</Text>
               </Pressable>
             ))}
@@ -883,7 +883,7 @@ export default function DashboardScreen({
                       }}
                       style={styles.destinationButton}
                     >
-                      <MaterialCommunityIcons name="music-note" size={22} color="#4FC3F7" />
+                      <MaterialCommunityIcons name="music-note" size={22} color={theme.colors.action_primary} />
                       <Text numberOfLines={1} style={styles.destinationText}>{song.title}</Text>
                     </Pressable>
                   ))
@@ -908,7 +908,7 @@ export default function DashboardScreen({
                         }}
                         style={styles.destinationButton}
                       >
-                        <MaterialCommunityIcons name="playlist-music" size={22} color="#4FC3F7" />
+                        <MaterialCommunityIcons name="playlist-music" size={22} color={theme.colors.action_primary} />
                         <Text numberOfLines={1} style={styles.destinationText}>{setlist.name}</Text>
                       </Pressable>
                     ))}
@@ -1179,7 +1179,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.text_secondary,
   },
   saveText: {
-    color: '#4FC3F7',
+    color: theme.colors.action_primary,
     fontWeight: theme.typography.font_weight_bold,
   },
   disabledAction: {
