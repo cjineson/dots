@@ -405,26 +405,22 @@ export default function DashboardScreen({
                   {(setlist.location || setlist.date || setlist.time) && (
                     <View style={styles.setlistDetailsRow}>
                       <View style={styles.setlistDetailsText}>
-                        {(!!setlist.location || hasMapTarget(setlist)) && (
-                          <View style={styles.setlistLocationLine}>
-                            {!!setlist.location && (
-                              <Text numberOfLines={1} style={styles.setlistDetails}>{setlist.location}</Text>
-                            )}
-                            {hasMapTarget(setlist) && (
-                              <Pressable
-                                accessibilityRole="button"
-                                accessibilityLabel={`Open ${setlist.name} location in Maps`}
-                                onPress={() => openInMaps(setlist).catch(() => undefined)}
-                                style={styles.mapPinButton}
-                              >
-                                <MaterialCommunityIcons
-                                  name="map-marker-outline"
-                                  size={18}
-                                  color={theme.colors.accent_highlight}
-                                />
-                              </Pressable>
-                            )}
-                          </View>
+                        {!!setlist.location && (
+                          hasMapTarget(setlist) ? (
+                            <Pressable
+                              accessibilityRole="link"
+                              accessibilityLabel={`Open ${setlist.name} location in Maps`}
+                              onPress={() => openInMaps(setlist).catch(() => undefined)}
+                              hitSlop={{ top: 6, bottom: 6 }}
+                              style={styles.setlistLocationLink}
+                            >
+                              <Text numberOfLines={1} style={[styles.setlistDetails, styles.setlistLocationText]}>
+                                {setlist.location}
+                              </Text>
+                            </Pressable>
+                          ) : (
+                            <Text numberOfLines={1} style={styles.setlistDetails}>{setlist.location}</Text>
+                          )
                         )}
                         {!!(setlist.date || setlist.time) && (
                           <Text numberOfLines={1} style={styles.setlistDetails}>
@@ -1096,18 +1092,13 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     minWidth: 0,
     gap: 2,
   },
-  setlistLocationLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  setlistLocationLink: {
     alignSelf: 'flex-start',
     maxWidth: '100%',
   },
-  mapPinButton: {
-    width: 28,
-    height: 28,
-    marginLeft: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
+  setlistLocationText: {
+    color: theme.colors.accent_highlight,
+    textDecorationLine: 'underline',
   },
   setlistDetails: {
     flexShrink: 1,
