@@ -89,6 +89,7 @@ export type SetlistArchive = {
     notes?: string;
     date?: string;
     time?: string;
+    partial?: true;
     items: Array<
       | {
           type: 'song';
@@ -112,6 +113,7 @@ export type ImportedSetlist = {
   notes?: string;
   date?: string;
   time?: string;
+  partial?: boolean;
   items: Array<
     | {
         type: 'song';

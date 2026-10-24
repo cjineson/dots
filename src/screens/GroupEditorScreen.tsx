@@ -42,14 +42,14 @@ export default function GroupEditorScreen({
     if (!name.trim()) {
       return;
     }
-    try {
-      runSave(() => onSave(name));
-    } catch (error) {
-      Alert.alert(
-        group ? 'Rename failed' : 'Create failed',
-        error instanceof Error ? error.message : 'An unexpected error occurred.',
-      );
-    }
+    runSave(
+      () => onSave(name),
+      (error) =>
+        Alert.alert(
+          group ? 'Rename failed' : 'Create failed',
+          error instanceof Error ? error.message : 'An unexpected error occurred.',
+        ),
+    );
   };
 
   return (

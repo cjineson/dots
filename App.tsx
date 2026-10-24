@@ -61,12 +61,15 @@ import {
 } from './src/lib/db';
 import { DEFAULT_SETTINGS, needsBackupReminder } from './src/lib/settings';
 import type { AppSettings } from './src/lib/settings';
+import { findImportConflicts, selectArchiveContent } from './src/lib/archiveSelection';
+import type { ExportSelection } from './src/lib/archiveSelection';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
 import { getCommonSongTags } from './src/lib/songTags';
 import { decodeTextFile } from './src/lib/textEncoding';
 import { clampTagSize, DEFAULT_TAG_SIZE } from './src/lib/fontSize';
 import { resolveTheme, ThemeProvider } from './src/themeContext';
 import type { ThemePreference } from './src/themeContext';
+import ExportScreen from './src/screens/ExportScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import type { AppTheme } from './src/theme';
 import type {
@@ -81,6 +84,7 @@ import type {
 type RootStackParamList = {
   Dashboard: undefined;
   Settings: undefined;
+  Export: undefined;
   Editor: { setlistId: string; song?: Song };
   SetlistDetails: { setlistId: string; isNew?: boolean };
   GroupEditor: { groupId?: string };
@@ -283,10 +287,11 @@ export default function App() {
     refreshSetlists();
   };
 
-  const handleExportLibrary = async () => {
+  const handleExportSelection = async (selection: ExportSelection, onDone: () => void) => {
     try {
-      if (setlists.length === 0) {
-        Alert.alert('Nothing to export', 'Create a setlist before exporting your library.');
+      const content = selectArchiveContent(setlists, groups, selection);
+      if (content.setlists.length === 0 && content.groups.length === 0) {
+        Alert.alert('Nothing to export', 'Select at least one group, setlist or song.');
         return;
       }
       if (!(await Sharing.isAvailableAsync())) {
@@ -300,14 +305,23 @@ export default function App() {
       const pad = (value: number) => String(value).padStart(2, '0');
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
       const fileUri = `${FileSystem.cacheDirectory}gigbox-library-${timestamp}.json`;
-      const archive = createSetlistArchive(setlists, groups);
+      const archive = createSetlistArchive(content.setlists, content.groups);
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(archive, null, 2));
       await Sharing.shareAsync(fileUri, {
         mimeType: 'application/json',
-        dialogTitle: 'Export GigBox setlists',
+        dialogTitle: 'Export GigBox library',
         UTI: 'public.json',
       });
-      handleSettingChange('lastExportAt', new Date().toISOString());
+      // Only a full export counts as a backup for the reminder.
+      const exportedEverything =
+        content.groups.length === groups.length &&
+        content.setlists.length === setlists.length &&
+        !content.setlists.some((setlist) => setlist.partial) &&
+        setlists.every((setlist) => content.setlists.some((item) => item.id === setlist.id));
+      if (exportedEverything) {
+        handleSettingChange('lastExportAt', new Date().toISOString());
+      }
+      onDone();
     } catch (error) {
       Alert.alert(
         'Export failed',
@@ -328,9 +342,32 @@ export default function App() {
 
       const json = decodeTextFile(await new File(result.assets[0].uri).bytes());
       const importedLibrary = parseSetlistArchive(json);
-      importSetlists(importedLibrary);
-      refreshSetlists();
-      Alert.alert('Import complete', `Added ${importedLibrary.setlists.length} setlist(s).`);
+      const conflicts = findImportConflicts(importedLibrary, setlists);
+      const finishImport = (mode: 'copy' | 'replace') => {
+        try {
+          importSetlists(importedLibrary, mode);
+          refreshSetlists();
+          Alert.alert('Import complete', `Imported ${importedLibrary.setlists.length} setlist(s).`);
+        } catch (error) {
+          setImportError(error instanceof Error ? error.message : String(error));
+        }
+      };
+      if (conflicts.setlists.length === 0 && conflicts.songs.length === 0) {
+        finishImport('copy');
+        return;
+      }
+      const names = [...conflicts.setlists, ...conflicts.songs];
+      const listed = names.slice(0, 5).map((name) => `• ${name}`).join('\n');
+      const more = names.length > 5 ? `\n…and ${names.length - 5} more` : '';
+      Alert.alert(
+        'Import will overwrite changes',
+        `These items already exist and would be replaced, losing any edits made here since they were exported:\n${listed}${more}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Add as copies', onPress: () => finishImport('copy') },
+          { text: 'Replace', style: 'destructive', onPress: () => finishImport('replace') },
+        ],
+      );
     } catch (error) {
       setImportError(error instanceof Error ? error.message : String(error));
     }
@@ -477,11 +514,11 @@ export default function App() {
             )}
           </Stack.Screen>
           <Stack.Screen name="Settings" options={{ title: 'Settings' }}>
-            {() => (
+            {({ navigation }) => (
               <SettingsScreen
                 themePreference={themePreference}
                 onThemePreferenceChange={handleThemePreferenceChange}
-                onExportLibrary={handleExportLibrary}
+                onExportLibrary={() => navigation.navigate('Export')}
                 onImportLibrary={handleImportLibrary}
                 settings={settings}
                 onSettingChange={handleSettingChange}
@@ -490,6 +527,17 @@ export default function App() {
                 onResetSettings={handleResetSettings}
                 onClearAllData={handleClearAllData}
                 hasData={setlists.length > 0}
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Export" options={{ title: 'Export' }}>
+            {({ navigation }) => (
+              <ExportScreen
+                setlists={setlists}
+                groups={groups}
+                onExport={(selection) =>
+                  void handleExportSelection(selection, () => navigation.goBack())
+                }
               />
             )}
           </Stack.Screen>

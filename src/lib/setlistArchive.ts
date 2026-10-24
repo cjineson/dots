@@ -29,7 +29,7 @@ function exportSong(song: SetlistItem & { kind: 'song' }) {
 }
 
 export function createSetlistArchive(
-  setlists: SetlistWithSongs[],
+  setlists: Array<SetlistWithSongs & { partial?: boolean }>,
   groups: SetlistGroup[] = [],
 ): SetlistArchive {
   return {
@@ -37,8 +37,9 @@ export function createSetlistArchive(
     version: 5,
     exportedAt: new Date().toISOString(),
     groups: groups.map(({ name }) => name),
-    setlists: setlists.map(({ name, group_name, location, latitude, longitude, notes, date, time, items }) => ({
+    setlists: setlists.map(({ name, group_name, location, latitude, longitude, notes, date, time, items, partial }) => ({
       name,
+      ...(partial ? { partial: true as const } : {}),
       group: group_name ?? null,
       ...(location ? { location } : {}),
       ...(latitude !== undefined && longitude !== undefined ? { latitude, longitude } : {}),
@@ -238,6 +239,7 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
         ...(typeof setlist.time === 'string' && setlist.time.trim()
           ? { time: setlist.time.trim() }
           : {}),
+        ...(value.version === 5 && setlist.partial === true ? { partial: true } : {}),
         items: setlist.items.map((item, itemIndex) =>
           parseItem(item, setlist.name as string, itemIndex),
         ),
@@ -256,7 +258,7 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
     };
   });
 
-  if (setlists.length === 0) {
+  if (setlists.length === 0 && groups.length === 0) {
     throw new Error('This export does not contain any setlists.');
   }
 

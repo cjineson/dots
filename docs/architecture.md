@@ -24,7 +24,7 @@ Expo SDK 57 / React Native 0.86 / TypeScript. Local-first: everything lives in S
 - Surface errors with `Alert` like existing code; do not swallow them silently.
 - Prefer focused edits and existing dependencies.
 - Preserve existing songs and every archive version when changing storage.
-- Editors use `useUnsavedChangesPrompt` (react-navigation `beforeRemove`); wrap explicit saves in `runSave` so they are not intercepted.
+- Editors use `useUnsavedChangesPrompt` (react-navigation `usePreventRemove`, so native-stack blocks the iOS swipe and back button); wrap explicit saves in `runSave` so they are not intercepted.
 
 ## Notable behaviours
 - Auto-scroll in Flow uses a 50 ms interval with a virtual Y position (avoids Android rounding stalls); it stops at the end and on drag.
