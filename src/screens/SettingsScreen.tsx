@@ -225,12 +225,12 @@ export default function SettingsScreen({
         <Text style={styles.hint}>Last exported: {formatLastExport(settings.lastExportAt)}</Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Export setlists"
+          accessibilityLabel="Export library"
           style={styles.row}
           onPress={onExportLibrary}
         >
           <MaterialCommunityIcons name="database-export" size={26} color={theme.colors.action_primary} />
-          <Text style={styles.rowText}>Export setlists</Text>
+          <Text style={styles.rowText}>Export library</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"

@@ -14,6 +14,7 @@ import { makeId } from './uuid';
 import type {
   DashboardExpansionState,
   ImportedLibrary,
+  ImportedSetlist,
   Setlist,
   SetlistGroup,
   SetlistItem,
@@ -680,7 +681,92 @@ export function reorderItemsForSetlist(setlistId: string, items: SetlistItem[]):
   });
 }
 
-export function importSetlists(library: ImportedLibrary): void {
+export type ImportMode = 'copy' | 'replace';
+
+type ImportedItem = ImportedSetlist['items'][number];
+
+function insertImportedItem(setlistId: string, item: ImportedItem, sortOrder: number): void {
+  if (item.type === 'song') {
+    const songId = makeId();
+    db.runSync(
+      'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        songId,
+        item.title.trim() || 'Untitled Song',
+        item.notes_raw_text,
+        item.font_size ?? 18,
+        item.cue_document ? JSON.stringify(item.cue_document) : null,
+        JSON.stringify(item.tags ?? []),
+      ],
+    );
+    db.runSync(
+      'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+      [setlistId, songId, sortOrder],
+    );
+  } else {
+    db.runSync(
+      'INSERT INTO setlist_breaks (id, setlist_id, sort_order, duration_minutes) VALUES (?, ?, ?, ?)',
+      [makeId(), setlistId, sortOrder, item.duration_minutes ?? null],
+    );
+  }
+}
+
+function setlistHeaderValues(setlist: ImportedSetlist) {
+  return [
+    setlist.name.trim(),
+    setlist.location?.trim() || null,
+    setlist.latitude ?? null,
+    setlist.longitude ?? null,
+    setlist.notes?.trim() ? setlist.notes : null,
+    setlist.date?.trim() || null,
+    setlist.time?.trim() || null,
+  ];
+}
+
+// Updates the songs whose titles match and appends the rest, leaving other songs untouched.
+function mergePartialSetlist(setlistId: string, setlist: ImportedSetlist): void {
+  const existing = db.getAllSync<{ id: string; title: string }>(
+    `SELECT songs.id, songs.title FROM songs
+     JOIN setlist_songs ON setlist_songs.song_id = songs.id
+     WHERE setlist_songs.setlist_id = ?`,
+    [setlistId],
+  );
+  const claimed = new Set<string>();
+  let nextSort = (db.getFirstSync<{ maxSort: number | null }>(
+    `SELECT MAX(sort_order) AS maxSort FROM (
+       SELECT sort_order FROM setlist_songs WHERE setlist_id = ?
+       UNION ALL SELECT sort_order FROM setlist_breaks WHERE setlist_id = ?
+     )`,
+    [setlistId, setlistId],
+  )?.maxSort ?? -1) + 1;
+  for (const item of setlist.items) {
+    if (item.type !== 'song') {
+      continue;
+    }
+    const title = item.title.trim().toLocaleLowerCase();
+    const match = existing.find(
+      (song) => !claimed.has(song.id) && (song.title ?? '').trim().toLocaleLowerCase() === title,
+    );
+    if (!match) {
+      insertImportedItem(setlistId, item, nextSort++);
+      continue;
+    }
+    claimed.add(match.id);
+    db.runSync(
+      'UPDATE songs SET title = ?, notes_raw_text = ?, font_size = ?, cue_document = ?, tags = ? WHERE id = ?',
+      [
+        item.title.trim() || 'Untitled Song',
+        item.notes_raw_text,
+        item.font_size ?? 18,
+        item.cue_document ? JSON.stringify(item.cue_document) : null,
+        JSON.stringify(item.tags ?? []),
+        match.id,
+      ],
+    );
+  }
+}
+
+export function importSetlists(library: ImportedLibrary, mode: ImportMode = 'copy'): void {
   db.withTransactionSync(() => {
     let nextSetlistOrderIndex = getNextSetlistOrderIndex();
     const knownGroups = new Map(
@@ -703,7 +789,6 @@ export function importSetlists(library: ImportedLibrary): void {
     }
 
     for (const setlist of library.setlists) {
-      const setlistId = makeId();
       const groupId =
         setlist.group === null
           ? null
@@ -711,47 +796,42 @@ export function importSetlists(library: ImportedLibrary): void {
       if (setlist.group !== null && !groupId) {
         throw new Error(`Group "${setlist.group}" for setlist "${setlist.name}" is missing.`);
       }
-      db.runSync(
-        'INSERT INTO setlists (id, name, order_index, location, latitude, longitude, notes, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [
-          setlistId,
-          setlist.name.trim(),
-          nextSetlistOrderIndex++,
-          setlist.location?.trim() || null,
-          setlist.latitude ?? null,
-          setlist.longitude ?? null,
-          setlist.notes?.trim() ? setlist.notes : null,
-          setlist.date?.trim() || null,
-          setlist.time?.trim() || null,
-          groupId ?? null,
-        ],
-      );
 
-      setlist.items.forEach((item, index) => {
-        if (item.type === 'song') {
-          const songId = makeId();
-          db.runSync(
-            'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags) VALUES (?, ?, ?, ?, ?, ?)',
-            [
-              songId,
-              item.title.trim() || 'Untitled Song',
-              item.notes_raw_text,
-              item.font_size ?? 18,
-              item.cue_document ? JSON.stringify(item.cue_document) : null,
-              JSON.stringify(item.tags ?? []),
-            ],
-          );
-          db.runSync(
-            'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
-            [setlistId, songId, index],
-          );
-        } else {
-          db.runSync(
-            'INSERT INTO setlist_breaks (id, setlist_id, sort_order, duration_minutes) VALUES (?, ?, ?, ?)',
-            [makeId(), setlistId, index, item.duration_minutes ?? null],
-          );
-        }
-      });
+      const existingId = mode === 'replace'
+        ? db.getFirstSync<{ id: string }>(
+            `SELECT id FROM setlists
+             WHERE LOWER(TRIM(name)) = ? AND COALESCE(group_id, '') = ?
+             ORDER BY order_index LIMIT 1`,
+            [setlist.name.trim().toLocaleLowerCase(), groupId ?? ''],
+          )?.id
+        : undefined;
+
+      if (existingId && setlist.partial) {
+        mergePartialSetlist(existingId, setlist);
+        continue;
+      }
+
+      let setlistId = existingId;
+      if (existingId) {
+        db.runSync(
+          'UPDATE setlists SET name = ?, location = ?, latitude = ?, longitude = ?, notes = ?, date = ?, time = ? WHERE id = ?',
+          [...setlistHeaderValues(setlist), existingId],
+        );
+        db.runSync(
+          'DELETE FROM songs WHERE id IN (SELECT song_id FROM setlist_songs WHERE setlist_id = ?)',
+          [existingId],
+        );
+        db.runSync('DELETE FROM setlist_songs WHERE setlist_id = ?', [existingId]);
+        db.runSync('DELETE FROM setlist_breaks WHERE setlist_id = ?', [existingId]);
+      } else {
+        setlistId = makeId();
+        db.runSync(
+          'INSERT INTO setlists (name, location, latitude, longitude, notes, date, time, id, order_index, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [...setlistHeaderValues(setlist), setlistId, nextSetlistOrderIndex++, groupId ?? null],
+        );
+      }
+
+      setlist.items.forEach((item, index) => insertImportedItem(setlistId as string, item, index));
     }
   });
 }

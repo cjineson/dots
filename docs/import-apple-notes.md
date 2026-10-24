@@ -29,7 +29,7 @@ You can also drag the ZIP file from Finder into the Terminal window after typing
   ```
 
 - The converter will not overwrite an existing output file. Rename or move the existing output, or choose a different destination before running it again.
-- In GigBox, open **Settings** from the dashboard's bottom bar and tap **Import setlists** and select the generated `.gigbox.json` file. Imported setlists are added to your library; they do not replace existing setlists.
+- In GigBox, open **Settings** from the dashboard's bottom bar and tap **Import setlists** and select the generated `.gigbox.json` file. Imported setlists are added to your library; if a setlist with the same name already exists, GigBox asks whether to replace it or add a copy.
 
 ## Supported Notes formatting
 
