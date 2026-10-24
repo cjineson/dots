@@ -5,6 +5,9 @@ export type Setlist = {
   group_id?: string | null;
   group_name?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
+  notes?: string;
   date?: string;
   time?: string;
 };
@@ -81,6 +84,9 @@ export type SetlistArchive = {
     name: string;
     group: string | null;
     location?: string;
+    latitude?: number;
+    longitude?: number;
+    notes?: string;
     date?: string;
     time?: string;
     items: Array<
@@ -101,6 +107,9 @@ export type ImportedSetlist = {
   name: string;
   group: string | null;
   location?: string;
+  latitude?: number;
+  longitude?: number;
+  notes?: string;
   date?: string;
   time?: string;
   items: Array<

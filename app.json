@@ -27,7 +27,9 @@
     },
     "plugins": [
       "expo-sharing",
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker",
+      ["expo-location", { "locationWhenInUsePermission": "GigBox uses your location to fill in a setlist venue." }]
     ]
   }
 }

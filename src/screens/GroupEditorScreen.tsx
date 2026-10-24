@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -12,7 +12,9 @@ import {
   View,
 } from 'react-native';
 
-import { theme } from '../theme';
+import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
+import { useTheme } from '../themeContext';
+import type { AppTheme } from '../theme';
 import type { SetlistGroup } from '../types';
 
 type GroupEditorScreenProps = {
@@ -26,14 +28,22 @@ export default function GroupEditorScreen({
   onCancel,
   onSave,
 }: GroupEditorScreenProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState(group?.name ?? '');
+
+  const { runSave } = useUnsavedChangesPrompt({
+    snapshot: name,
+    canSave: () => name.trim().length > 0,
+    save: () => save(),
+  });
 
   const save = () => {
     if (!name.trim()) {
       return;
     }
     try {
-      onSave(name);
+      runSave(() => onSave(name));
     } catch (error) {
       Alert.alert(
         group ? 'Rename failed' : 'Create failed',
@@ -88,7 +98,7 @@ export default function GroupEditorScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,

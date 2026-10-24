@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Image,
@@ -24,10 +24,30 @@ import {
   TAG_SIZE_STEP,
 } from '../lib/fontSize';
 import SongTags from '../components/SongTags';
-import { theme } from '../theme';
+import { useTheme } from '../themeContext';
+import type { AppTheme } from '../theme';
+import { openInMaps, hasMapTarget } from '../lib/maps';
+import { useScreenAwake } from '../lib/keepAwake';
+import { parseNotes, toggleChecklistLine } from '../lib/notes';
+import {
+  AUTO_SCROLL_SPEED_STEP,
+  MAX_AUTO_SCROLL_SPEED,
+  MIN_AUTO_SCROLL_SPEED,
+} from '../lib/settings';
+import type { AppSettings } from '../lib/settings';
 import type { CueBlock, SetlistItem, Song } from '../types';
 
+const AUTO_SCROLL_TICK_MS = 50;
+
 type FlowScreenProps = {
+  setlistId: string;
+  notes?: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  onNotesChange: (setlistId: string, notes: string) => void;
+  settings: AppSettings;
+  onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   setlistName: string;
   setlistDetails?: string;
   items: SetlistItem[];
@@ -38,6 +58,14 @@ type FlowScreenProps = {
 };
 
 export default function FlowScreen({
+  setlistId,
+  notes,
+  location,
+  latitude,
+  longitude,
+  onNotesChange,
+  settings,
+  onSettingChange,
   setlistName,
   setlistDetails,
   items,
@@ -46,6 +74,41 @@ export default function FlowScreen({
   tagSize,
   onTagSizeChange,
 }: FlowScreenProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  useScreenAwake(settings.keepAwake);
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const virtualY = useRef(0);
+  const contentHeight = useRef(0);
+  const viewportHeight = useRef(0);
+  const [scrollOpen, setScrollOpen] = useState(false);
+  const [autoScrolling, setAutoScrolling] = useState(false);
+  const [scrollSpeed, setScrollSpeed] = useState(settings.autoScrollSpeed);
+  const scrollSpeedRef = useRef(scrollSpeed);
+  scrollSpeedRef.current = scrollSpeed;
+  const canOpenMaps = hasMapTarget({ location, latitude, longitude });
+  const noteLines = useMemo(() => (notes ? parseNotes(notes) : []), [notes]);
+
+  useEffect(() => {
+    if (!autoScrolling) {
+      return undefined;
+    }
+    virtualY.current = scrollY.current;
+    const timer = setInterval(() => {
+      const maxY = Math.max(0, contentHeight.current - viewportHeight.current);
+      virtualY.current = Math.min(
+        maxY,
+        virtualY.current + (scrollSpeedRef.current * AUTO_SCROLL_TICK_MS) / 1000,
+      );
+      scrollRef.current?.scrollTo({ y: virtualY.current, animated: false });
+      if (virtualY.current >= maxY) {
+        setAutoScrolling(false);
+      }
+    }, AUTO_SCROLL_TICK_MS);
+    return () => clearInterval(timer);
+  }, [autoScrolling]);
+
   const [initialFontSizeBySong] = useState<Record<string, number>>(() =>
     Object.fromEntries(
       items.flatMap((item) => item.kind === 'song' ? [[
@@ -67,6 +130,7 @@ export default function FlowScreen({
   const [openSongZoomIds, setOpenSongZoomIds] = useState<Record<string, boolean>>({});
 
   const toggleTags = () => {
+    setScrollOpen(false);
     setFlowZoomOpen(false);
     setOpenSongZoomIds({});
     setTagsOpen((open) => !open);
@@ -106,7 +170,8 @@ export default function FlowScreen({
 
   const renderBlock = (block: CueBlock) => {
     const fontSize = block.font_size ?? theme.typography.box_text_size;
-    const color = block.color ?? theme.colors.text_primary;
+    const color =
+      !block.color || block.color === '#FFFFFF' ? theme.colors.text_primary : block.color;
     if (block.type === 'table') {
       return (
         <View key={block.id} style={styles.table}>
@@ -167,8 +232,42 @@ export default function FlowScreen({
             </Text>
           )}
         </View>
+        {canOpenMaps && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open venue in Maps"
+            onPress={() =>
+              openInMaps({ location, latitude, longitude }).catch(() => undefined)
+            }
+            hitSlop={8}
+          >
+            <MaterialCommunityIcons
+              name="map-marker-outline"
+              size={28}
+              color={theme.colors.accent_highlight}
+            />
+          </Pressable>
+        )}
         {songs.length > 0 && (
           <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={scrollOpen ? 'Hide auto-scroll control' : 'Show auto-scroll control'}
+              accessibilityState={{ expanded: scrollOpen }}
+              onPress={() => {
+                setTagsOpen(false);
+                setFlowZoomOpen(false);
+                setOpenSongZoomIds({});
+                setScrollOpen((open) => !open);
+              }}
+              hitSlop={8}
+            >
+              <MaterialCommunityIcons
+                name={autoScrolling ? 'pause-circle-outline' : 'arrow-expand-down'}
+                size={28}
+                color={theme.colors.accent_highlight}
+              />
+            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={tagsOpen ? 'Hide tag size control' : 'Show tag size control'}
@@ -188,6 +287,7 @@ export default function FlowScreen({
               accessibilityState={{ expanded: flowZoomOpen }}
               onPress={() => {
                 setTagsOpen(false);
+                setScrollOpen(false);
                 setFlowZoomOpen((open) => !open);
               }}
               hitSlop={8}
@@ -221,7 +321,88 @@ export default function FlowScreen({
         />
       )}
 
-      <ScrollView contentContainerStyle={styles.content}>
+      {songs.length > 0 && scrollOpen && (
+        <View style={styles.scrollPanel}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={autoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
+            onPress={() => setAutoScrolling((current) => !current)}
+            style={styles.scrollPlayButton}
+          >
+            <MaterialCommunityIcons
+              name={autoScrolling ? 'pause' : 'play'}
+              size={30}
+              color={theme.colors.accent_highlight}
+            />
+          </Pressable>
+          <View style={styles.scrollSlider}>
+            <FontSizeZoomControl
+              label="Auto-scroll speed (pts/sec)"
+              value={scrollSpeed}
+              min={MIN_AUTO_SCROLL_SPEED}
+              max={MAX_AUTO_SCROLL_SPEED}
+              step={AUTO_SCROLL_SPEED_STEP}
+              decreaseIcon="tortoise"
+              increaseIcon="rabbit"
+              decreaseLabel="Slower"
+              increaseLabel="Faster"
+              onValueChange={(next, persist) => {
+                setScrollSpeed(next);
+                if (persist) {
+                  onSettingChange('autoScrollSpeed', next);
+                }
+              }}
+            />
+          </View>
+        </View>
+      )}
+
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.content}
+        scrollEventThrottle={32}
+        onScroll={(event) => {
+          scrollY.current = event.nativeEvent.contentOffset.y;
+        }}
+        onScrollBeginDrag={() => setAutoScrolling(false)}
+        onContentSizeChange={(_, height) => {
+          contentHeight.current = height;
+        }}
+        onLayout={(event) => {
+          viewportHeight.current = event.nativeEvent.layout.height;
+        }}
+      >
+        {noteLines.length > 0 && (
+          <View style={styles.notesCard}>
+            <Text style={styles.notesTitle}>Notes</Text>
+            {noteLines.map((line, lineIndex) =>
+              line.kind === 'check' ? (
+                <Pressable
+                  key={lineIndex}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: line.checked }}
+                  onPress={() =>
+                    onNotesChange(setlistId, toggleChecklistLine(notes ?? '', line.lineIndex))
+                  }
+                  style={styles.checkRow}
+                >
+                  <MaterialCommunityIcons
+                    name={line.checked ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                    size={26}
+                    color={theme.colors.accent_highlight}
+                  />
+                  <Text style={[styles.notesText, line.checked && styles.notesDone]}>
+                    {line.text}
+                  </Text>
+                </Pressable>
+              ) : (
+                <Text key={lineIndex} style={styles.notesText}>
+                  {line.text}
+                </Text>
+              ),
+            )}
+          </View>
+        )}
         {items.map((item) => {
           if (item.kind === 'break') {
             return (
@@ -297,7 +478,7 @@ export default function FlowScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: AppTheme) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -311,14 +492,59 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 6,
   },
+  scrollPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  scrollPlayButton: {
+    minWidth: 48,
+    minHeight: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollSlider: {
+    flex: 1,
+  },
+  notesCard: {
+    marginBottom: 16,
+    padding: 12,
+    gap: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    backgroundColor: theme.colors.surface,
+  },
+  notesTitle: {
+    color: theme.colors.text_secondary,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 36,
+  },
+  notesText: {
+    flexShrink: 1,
+    color: theme.colors.text_primary,
+    fontSize: 16,
+  },
+  notesDone: {
+    color: theme.colors.text_secondary,
+    textDecorationLine: 'line-through',
+  },
   dashboardButton: {
-    width: 66,
-    minHeight: 40,
+    alignSelf: 'stretch',
+    minHeight: 52,
+    maxWidth: 160,
     justifyContent: 'center',
   },
   logo: {
-    width: 64,
-    height: 22,
+    height: '100%',
+    aspectRatio: 580 / 164,
   },
   setlistTitle: {
     flexShrink: 1,
@@ -378,7 +604,7 @@ const styles = StyleSheet.create({
   },
   songTitle: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.border_contrast,

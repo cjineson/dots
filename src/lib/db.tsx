@@ -1,6 +1,13 @@
 import * as SQLite from 'expo-sqlite';
 
 import { DEFAULT_TAG_SIZE, clampTagSize } from './fontSize';
+import {
+  parseSettings,
+  serializeSetting,
+  settingStorageKey,
+} from './settings';
+import type { AppSettings } from './settings';
+import { UNGROUPED_SONGS_SETLIST_NAME } from './ungrouped';
 import { parseStoredSongTags } from './songTags';
 import { makeId } from './uuid';
 import type {
@@ -86,11 +93,78 @@ export function initializeDatabase(): void {
       db.execSync(`ALTER TABLE setlists ADD COLUMN ${column} TEXT`);
     }
   }
+  if (!setlistColumns.some((existing) => existing.name === 'notes')) {
+    db.execSync('ALTER TABLE setlists ADD COLUMN notes TEXT');
+  }
+  for (const column of ['latitude', 'longitude']) {
+    if (!setlistColumns.some((existing) => existing.name === column)) {
+      db.execSync(`ALTER TABLE setlists ADD COLUMN ${column} REAL`);
+    }
+  }
 }
 
 export function getSetlistGroups(): SetlistGroup[] {
   return db.getAllSync<SetlistGroup>(
     'SELECT id, name, order_index FROM setlist_groups ORDER BY order_index ASC, name COLLATE NOCASE ASC',
+  );
+}
+
+export function getAppSettings(): AppSettings {
+  const rows = db.getAllSync<{ key: string; value: string }>('SELECT key, value FROM app_settings');
+  return parseSettings(Object.fromEntries(rows.map((row) => [row.key, row.value])));
+}
+
+export function saveAppSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]): void {
+  const stored = serializeSetting(key, value);
+  const storageKey = settingStorageKey(key);
+  if (stored === null) {
+    db.runSync('DELETE FROM app_settings WHERE key = ?', [storageKey]);
+    return;
+  }
+  db.runSync(
+    `INSERT INTO app_settings (key, value) VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [storageKey, stored],
+  );
+}
+
+export function resetAppSettings(): void {
+  db.runSync('DELETE FROM app_settings');
+}
+
+export function clearAllLibraryData(): void {
+  db.withTransactionSync(() => {
+    for (const table of [
+      'setlist_songs',
+      'setlist_breaks',
+      'setlists',
+      'setlist_groups',
+      'songs',
+      'dashboard_preferences',
+    ]) {
+      db.runSync(`DELETE FROM ${table}`);
+    }
+  });
+}
+
+export function updateSetlistNotes(setlistId: string, notes: string): void {
+  db.runSync('UPDATE setlists SET notes = ? WHERE id = ?', [notes.trim() ? notes : null, setlistId]);
+}
+
+export function getThemePreference(): 'system' | 'dark' | 'light' {
+  const row = db.getFirstSync<{ value: string }>(
+    "SELECT value FROM app_settings WHERE key = 'theme_preference'",
+  );
+  return row?.value === 'light' || row?.value === 'dark' || row?.value === 'system'
+    ? row.value
+    : 'dark';
+}
+
+export function saveThemePreference(preference: 'system' | 'dark' | 'light'): void {
+  db.runSync(
+    `INSERT INTO app_settings (key, value) VALUES ('theme_preference', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [preference],
   );
 }
 
@@ -197,7 +271,7 @@ export function deleteSetlistGroup(groupId: string): void {
 export function createSetlist(name: string, groupId?: string | null): Setlist {
   const cleanedName = name.trim() || 'New Setlist';
   const id = makeId();
-  const orderIndex = getNextSetlistOrderIndex();
+  const orderIndex = getTopSetlistOrderIndex();
   const resolvedGroupId = groupId ?? null;
   if (resolvedGroupId) {
     const group = db.getFirstSync('SELECT id FROM setlist_groups WHERE id = ?', [resolvedGroupId]);
@@ -224,6 +298,9 @@ export function renameSetlist(
   name: string,
   details: {
     location?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    notes?: string;
     date?: string;
     time?: string;
     groupId?: string | null;
@@ -241,10 +318,13 @@ export function renameSetlist(
   }
 
   db.runSync(
-    'UPDATE setlists SET name = ?, location = ?, date = ?, time = ?, group_id = ? WHERE id = ?',
+    'UPDATE setlists SET name = ?, location = ?, latitude = ?, longitude = ?, notes = ?, date = ?, time = ?, group_id = ? WHERE id = ?',
     [
       cleanedName,
       details.location?.trim() || null,
+      details.latitude ?? null,
+      details.longitude ?? null,
+      details.notes?.trim() ? details.notes : null,
       details.date?.trim() || null,
       details.time?.trim() || null,
       details.groupId ?? null,
@@ -281,8 +361,11 @@ export function copySetlist(setlistId: string): Setlist {
   const copy: Setlist = {
     id: makeId(),
     name: `Copy of ${source.name}`,
-    order_index: getNextSetlistOrderIndex(),
+    order_index: getTopSetlistOrderIndex(),
     location: source.location,
+    latitude: source.latitude ?? undefined,
+    longitude: source.longitude ?? undefined,
+    notes: source.notes ?? undefined,
     date: source.date,
     time: source.time,
     group_id: source.group_id,
@@ -290,12 +373,15 @@ export function copySetlist(setlistId: string): Setlist {
 
   db.withTransactionSync(() => {
     db.runSync(
-      'INSERT INTO setlists (id, name, order_index, location, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO setlists (id, name, order_index, location, latitude, longitude, notes, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         copy.id,
         copy.name,
         copy.order_index,
         copy.location ?? null,
+        copy.latitude ?? null,
+        copy.longitude ?? null,
+        copy.notes ?? null,
         copy.date ?? null,
         copy.time ?? null,
         copy.group_id ?? null,
@@ -401,6 +487,9 @@ export function getSetlistsWithSongs(): SetlistWithSongs[] {
     return {
       ...setlist,
       location: setlist.location ?? undefined,
+      latitude: setlist.latitude ?? undefined,
+      longitude: setlist.longitude ?? undefined,
+      notes: setlist.notes ?? undefined,
       date: setlist.date ?? undefined,
       time: setlist.time ?? undefined,
       group_id: setlist.group_id ?? undefined,
@@ -453,6 +542,27 @@ export function deleteSongFromSetlist(setlistId: string, songId: string): void {
   });
 }
 
+export function keepSongUngrouped(setlistId: string, songId: string): void {
+  db.withTransactionSync(() => {
+    const existing = db.getFirstSync<{ id: string }>(
+      'SELECT id FROM setlists WHERE name = ? AND group_id IS NULL ORDER BY order_index ASC LIMIT 1',
+      [UNGROUPED_SONGS_SETLIST_NAME],
+    );
+    const holderId = existing?.id ?? createSetlist(UNGROUPED_SONGS_SETLIST_NAME).id;
+    if (holderId === setlistId) {
+      return;
+    }
+    db.runSync(
+      'INSERT OR IGNORE INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+      [holderId, songId, getNextSortOrderForSetlist(holderId)],
+    );
+    db.runSync('DELETE FROM setlist_songs WHERE setlist_id = ? AND song_id = ?', [
+      setlistId,
+      songId,
+    ]);
+  });
+}
+
 export function deleteBreakFromSetlist(setlistId: string, breakId: string): void {
   db.runSync('DELETE FROM setlist_breaks WHERE setlist_id = ? AND id = ?', [
     setlistId,
@@ -488,9 +598,11 @@ export function saveSongForSetlist({
   notes_raw_text,
   cue_document,
   tags,
+  font_size,
 }: {
   setlistId: string;
   songId?: string;
+  font_size?: number;
   title: string;
   notes_raw_text: string;
   cue_document: string;
@@ -510,12 +622,13 @@ export function saveSongForSetlist({
       id,
     ]);
   } else {
-    db.runSync('INSERT INTO songs (id, title, notes_raw_text, cue_document, tags) VALUES (?, ?, ?, ?, ?)', [
+    db.runSync('INSERT INTO songs (id, title, notes_raw_text, cue_document, tags, font_size) VALUES (?, ?, ?, ?, ?, ?)', [
       id,
       cleanedTitle,
       notes_raw_text,
       cue_document,
       JSON.stringify(tags ?? []),
+      font_size ?? 18,
     ]);
   }
 
@@ -583,12 +696,15 @@ export function importSetlists(library: ImportedLibrary): void {
         throw new Error(`Group "${setlist.group}" for setlist "${setlist.name}" is missing.`);
       }
       db.runSync(
-        'INSERT INTO setlists (id, name, order_index, location, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO setlists (id, name, order_index, location, latitude, longitude, notes, date, time, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           setlistId,
           setlist.name.trim(),
           nextSetlistOrderIndex++,
           setlist.location?.trim() || null,
+          setlist.latitude ?? null,
+          setlist.longitude ?? null,
+          setlist.notes?.trim() ? setlist.notes : null,
           setlist.date?.trim() || null,
           setlist.time?.trim() || null,
           groupId ?? null,
@@ -631,6 +747,35 @@ export function updateSongFontSize(songId: string, fontSize: number): void {
 function getNextSetlistOrderIndex(): number {
   const max = db.getFirstSync('SELECT MAX(order_index) as maxIndex FROM setlists') as { maxIndex: number | null } | null;
   return (max?.maxIndex ?? -1) + 1;
+}
+
+function getTopSetlistOrderIndex(): number {
+  const min = db.getFirstSync('SELECT MIN(order_index) as minIndex FROM setlists') as { minIndex: number | null } | null;
+  return min?.minIndex === null || min?.minIndex === undefined ? 0 : min.minIndex - 1;
+}
+
+export function moveSetlist(setlistId: string, direction: 'up' | 'down'): void {
+  db.withTransactionSync(() => {
+    const rows = db.getAllSync<{ id: string; group_id: string | null }>(
+      'SELECT id, group_id FROM setlists ORDER BY order_index ASC, name COLLATE NOCASE ASC',
+    );
+    const current = rows.find((row) => row.id === setlistId);
+    if (!current) {
+      throw new Error('The setlist to move could not be found.');
+    }
+    const siblings = rows.filter((row) => (row.group_id ?? null) === (current.group_id ?? null));
+    const siblingIndex = siblings.findIndex((row) => row.id === setlistId);
+    const target = siblings[siblingIndex + (direction === 'up' ? -1 : 1)];
+    if (!target) {
+      return;
+    }
+    const currentIndex = rows.indexOf(current);
+    const targetIndex = rows.indexOf(target);
+    [rows[currentIndex], rows[targetIndex]] = [rows[targetIndex], rows[currentIndex]];
+    rows.forEach((row, index) => {
+      db.runSync('UPDATE setlists SET order_index = ? WHERE id = ?', [index, row.id]);
+    });
+  });
 }
 
 function getNextSortOrderForSetlist(setlistId: string): number {
