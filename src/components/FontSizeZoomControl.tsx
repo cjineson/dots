@@ -44,7 +44,7 @@ export default function FontSizeZoomControl({
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [trackWidth, setTrackWidth] = useState(0);
-  const hitAreaRef = useRef<View>(null);
+  const hitAreaRef = useRef<React.ComponentRef<typeof View>>(null);
   const hitAreaLeft = useRef<number | null>(null);
   // curve > 1 gives the low end of the range more of the slider travel.
   const progress = Math.pow(Math.max(0, Math.min(1, (value - min) / (max - min))), 1 / curve);

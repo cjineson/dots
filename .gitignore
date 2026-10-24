@@ -3,6 +3,7 @@ node_modules/
 web-build/
 .DS_Store
 npm-debug.log*
+dist/
 web-dist/
 test-results/
 playwright-report/

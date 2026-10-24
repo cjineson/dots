@@ -95,7 +95,7 @@ export default function LivePerformanceScreen({
   const [crawlSpeed, setCrawlSpeed] = useState(settings.autoScrollSpeed);
   const crawlSpeedRef = useRef(crawlSpeed);
   crawlSpeedRef.current = crawlSpeed;
-  const cueScrollRef = useRef<ScrollView>(null);
+  const cueScrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const cueScrollY = useRef(0);
   const cueContentHeight = useRef(0);
   const cueViewportHeight = useRef(0);

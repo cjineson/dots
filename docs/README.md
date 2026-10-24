@@ -9,5 +9,6 @@
 | [Importing Apple Notes](import-apple-notes.md) | Converting an Apple Notes export into a GigBox archive |
 | [Development](development.md) | Setup, validation, branching/PR workflow and gotchas |
 | [CI and releases](ci-and-releases.md) | GitHub Actions and EAS builds |
+| [Publishing](publishing.md) | App Store prerequisites and checklist |
 
 Agent-oriented material lives in [`../AGENTS.md`](../AGENTS.md) and [`../etc/`](../etc/).
