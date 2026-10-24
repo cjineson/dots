@@ -106,7 +106,7 @@ export function parseSettings(raw: Record<string, string>): AppSettings {
       DEFAULT_SETTINGS.autoScrollSpeed,
       clampAutoScrollSpeed,
     ),
-    barSize: BAR_SIZES.find((size) => size === bar) ?? (bar && LEGACY_BAR_SIZES[bar]) ?? 'm',
+    barSize: BAR_SIZES.find((size) => size === bar) ?? LEGACY_BAR_SIZES[bar ?? ''] ?? 'm',
     lastExportAt: lastExport && !Number.isNaN(Date.parse(lastExport)) ? lastExport : null,
     backupSnoozedUntil: snoozed && !Number.isNaN(Date.parse(snoozed)) ? snoozed : null,
   };
