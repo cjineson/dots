@@ -47,9 +47,12 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
 ];
 
 const BAR_SIZE_OPTIONS: Array<{ value: BarSize; label: string }> = [
-  { value: 'normal', label: 'Normal' },
-  { value: 'large', label: 'Large' },
-  { value: 'huge', label: 'Huge' },
+  { value: 'xxs', label: 'XXS' },
+  { value: 'xs', label: 'XS' },
+  { value: 's', label: 'S' },
+  { value: 'm', label: 'M' },
+  { value: 'l', label: 'L' },
+  { value: 'xl', label: 'XL' },
 ];
 
 const SWIPE_OPTIONS: Array<{ value: SwipeMode; label: string }> = [

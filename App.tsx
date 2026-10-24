@@ -78,6 +78,7 @@ import type {
   SetlistHeaderDetails,
   SetlistItem,
   Song,
+  SongTag,
   SetlistWithSongs,
 } from './src/types';
 
@@ -277,8 +278,8 @@ export default function App() {
     refreshSetlists();
   };
 
-  const handleCopySong = (songId: string, targetSetlistId: string) => {
-    copySongToSetlist(songId, targetSetlistId);
+  const handleCopySong = (songId: string, targetSetlistId: string, variantTag?: SongTag) => {
+    copySongToSetlist(songId, targetSetlistId, variantTag);
     refreshSetlists();
   };
 

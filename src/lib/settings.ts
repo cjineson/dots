@@ -2,7 +2,12 @@ import { clampFontSize } from './fontSize';
 import type { PaletteId } from '../theme';
 
 export type SwipeMode = 'normal' | 'firm' | 'off';
-export type BarSize = 'normal' | 'large' | 'huge';
+export type BarSize = 'xxs' | 'xs' | 's' | 'm' | 'l' | 'xl';
+
+export const BAR_SIZES: BarSize[] = ['xxs', 'xs', 's', 'm', 'l', 'xl'];
+
+// Earlier versions stored normal/large/huge.
+const LEGACY_BAR_SIZES: Record<string, BarSize> = { normal: 'm', large: 'l', huge: 'xl' };
 
 export type AppSettings = {
   keepAwake: boolean;
@@ -33,7 +38,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   highContrast: false,
   palette: 'stage',
   autoScrollSpeed: 40,
-  barSize: 'normal',
+  barSize: 'm',
   lastExportAt: null,
   backupSnoozedUntil: null,
 };
@@ -101,7 +106,7 @@ export function parseSettings(raw: Record<string, string>): AppSettings {
       DEFAULT_SETTINGS.autoScrollSpeed,
       clampAutoScrollSpeed,
     ),
-    barSize: bar === 'large' || bar === 'huge' || bar === 'normal' ? bar : 'normal',
+    barSize: BAR_SIZES.find((size) => size === bar) ?? (bar && LEGACY_BAR_SIZES[bar]) ?? 'm',
     lastExportAt: lastExport && !Number.isNaN(Date.parse(lastExport)) ? lastExport : null,
     backupSnoozedUntil: snoozed && !Number.isNaN(Date.parse(snoozed)) ? snoozed : null,
   };
