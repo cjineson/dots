@@ -5,7 +5,5 @@ web-build/
 npm-debug.log*
 dist/
 web-dist/
-site/
-store/
 test-results/
 playwright-report/
