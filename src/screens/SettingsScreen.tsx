@@ -107,8 +107,9 @@ export default function SettingsScreen({
     selectedValue: T,
     onSelect: (value: T) => void,
     labelSuffix: string,
+    wrap = false,
   ) => (
-    <View style={styles.segmented}>
+    <View style={wrap ? styles.segmentedWrap : styles.segmented}>
       {options.map((option) => {
         const selected = selectedValue === option.value;
         return (
@@ -118,7 +119,7 @@ export default function SettingsScreen({
             accessibilityLabel={`${option.label} ${labelSuffix}`}
             accessibilityState={{ selected }}
             onPress={() => onSelect(option.value)}
-            style={[styles.segment, selected && styles.segmentSelected]}
+            style={[styles.segment, wrap && styles.segmentChip, selected && styles.segmentSelected]}
           >
             <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>
               {option.label}
@@ -158,6 +159,7 @@ export default function SettingsScreen({
           settings.palette,
           (value) => onSettingChange('palette', value),
           'palette',
+          true,
         )}
         <Text style={styles.hint}>Every palette follows the Dark/Light/System choice above.</Text>
         {renderSwitch('High contrast', 'Stronger text and borders for dim or bright stages.', 'highContrast')}
@@ -225,21 +227,21 @@ export default function SettingsScreen({
         <Text style={styles.hint}>Last exported: {formatLastExport(settings.lastExportAt)}</Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Export library"
+          accessibilityLabel="Export"
           style={styles.row}
           onPress={onExportLibrary}
         >
           <MaterialCommunityIcons name="database-export" size={26} color={theme.colors.action_primary} />
-          <Text style={styles.rowText}>Export library</Text>
+          <Text style={styles.rowText}>Export</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Import setlists"
+          accessibilityLabel="Import"
           style={styles.row}
           onPress={onImportLibrary}
         >
           <MaterialCommunityIcons name="database-import" size={26} color={theme.colors.action_edit} />
-          <Text style={styles.rowText}>Import setlists</Text>
+          <Text style={styles.rowText}>Import</Text>
         </Pressable>
 
         <Text style={styles.sectionTitle}>Data</Text>
@@ -305,6 +307,18 @@ const createStyles = (theme: AppTheme) =>
       borderColor: theme.colors.border_contrast,
       borderRadius: 12,
       overflow: 'hidden',
+    },
+    segmentedWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    segmentChip: {
+      flexGrow: 1,
+      flexBasis: '22%',
+      borderWidth: 1,
+      borderColor: theme.colors.border_contrast,
+      borderRadius: 10,
     },
     segment: {
       flex: 1,

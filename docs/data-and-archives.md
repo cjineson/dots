@@ -14,7 +14,7 @@
 Migrations are additive `ALTER TABLE` checks in `initializeDatabase`. Never drop or rewrite existing columns; existing songs must keep working.
 
 ## JSON archives
-Export (Settings → Export library) opens a checklist where you tick groups, setlists and individual songs, then writes `gigbox-library-YYYY-MM-DD_HHmm.json` and opens the share sheet. Ticking only some songs of a setlist exports a setlist marked `partial`. The current format is **version 5**; imports accept versions **1–5**.
+Export (Settings → Export) opens a checklist where you tick groups, setlists and individual songs, then writes `gigbox-library-YYYY-MM-DD_HHmm.json` and opens the share sheet. Ticking only some songs of a setlist exports a setlist marked `partial`. The current format is **version 5**; imports accept versions **1–5**.
 
 Import matches existing setlists by name and group (and songs in `partial` setlists by title). If anything would be overwritten, GigBox warns first and lets you **Replace** the matches, **Add as copies**, or **Cancel**. Replacing a full setlist overwrites its details and songs; replacing a `partial` setlist only updates the songs it contains and adds new ones. Only a full export resets the backup reminder.
 

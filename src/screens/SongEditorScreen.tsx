@@ -13,6 +13,7 @@ import {
 import {
   createCueDocumentFromText,
   CUE_COLORS,
+  TAG_COLORS,
   flattenCueDocument,
   getVisibleCueBlocks,
   parseCueDocument,
@@ -24,7 +25,7 @@ import { makeId } from '../lib/uuid';
 import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
-import type { CueBlock, CueDocument, CueTextColor, Song, SongTag } from '../types';
+import type { CueBlock, CueDocument, CueTextColor, Song, SongTag, TagColor } from '../types';
 
 type SongEditorScreenProps = {
   setlistId: string;
@@ -65,7 +66,7 @@ export default function SongEditorScreen({
   );
   const [tags, setTags] = useState<SongTag[]>(() => initialSong?.tags ?? []);
   const [tagName, setTagName] = useState('');
-  const [tagColor, setTagColor] = useState<CueTextColor>(CUE_COLORS[1]);
+  const [tagColor, setTagColor] = useState<TagColor>(TAG_COLORS[1]);
 
   const currentSong = useMemo(
     () => ({
@@ -345,7 +346,7 @@ export default function SongEditorScreen({
             </Pressable>
           </View>
           <View style={styles.tagColorOptions}>
-            {CUE_COLORS.map((color) => (
+            {TAG_COLORS.map((color) => (
               <Pressable
                 key={color}
                 accessibilityRole="button"
@@ -515,6 +516,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   },
   tagColorOptions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginVertical: 8,
   },

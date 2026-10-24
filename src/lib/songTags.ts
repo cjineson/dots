@@ -1,8 +1,8 @@
-import { CUE_COLORS } from './cueDocument';
-import type { CueTextColor, SetlistWithSongs, SongTag } from '../types';
+import { TAG_COLORS } from './cueDocument';
+import type { TagColor, SetlistWithSongs, SongTag } from '../types';
 
-function isCueTextColor(value: unknown): value is CueTextColor {
-  return CUE_COLORS.some((color) => color === value);
+function isTagColor(value: unknown): value is TagColor {
+  return TAG_COLORS.some((color) => color === value);
 }
 
 export function validateSongTags(value: unknown): SongTag[] {
@@ -16,7 +16,7 @@ export function validateSongTags(value: unknown): SongTag[] {
       tag === null ||
       typeof tag.label !== 'string' ||
       !tag.label.trim() ||
-      !isCueTextColor(tag.color)
+      !isTagColor(tag.color)
     ) {
       throw new Error('Each song tag must have a label and a supported color.');
     }

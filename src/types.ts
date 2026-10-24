@@ -31,7 +31,7 @@ export type Song = {
 
 export type SongTag = {
   label: string;
-  color: CueTextColor;
+  color: TagColor;
 };
 
 export type SetlistItem =
@@ -44,6 +44,18 @@ export type CueBlockStyle = {
 };
 
 export type CueTextColor = '#FFFFFF' | '#FFCC00' | '#4FC3F7' | '#FF8A80';
+
+export type TagColor =
+  | CueTextColor
+  | '#FFB74D'
+  | '#C5E1A5'
+  | '#81C784'
+  | '#4DB6AC'
+  | '#90CAF9'
+  | '#B39DDB'
+  | '#F48FB1'
+  | '#D7B98E'
+  | '#B0BEC5';
 
 export type CueTextBlock = CueBlockStyle & {
   id: string;

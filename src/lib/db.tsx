@@ -10,6 +10,7 @@ import {
 import type { AppSettings } from './settings';
 import { UNGROUPED_SONGS_SETLIST_NAME } from './ungrouped';
 import { parseStoredSongTags } from './songTags';
+import { nextCopyTitle } from './songCopy';
 import { makeId } from './uuid';
 import type {
   DashboardExpansionState,
@@ -436,11 +437,64 @@ export function copySongToSetlist(songId: string, targetSetlistId: string): Song
     throw new Error('The destination setlist could not be found.');
   }
 
+  const link = db.getFirstSync<{ sort_order: number }>(
+    'SELECT sort_order FROM setlist_songs WHERE setlist_id = ? AND song_id = ?',
+    [targetSetlistId, source.id],
+  );
+  if (link) {
+    return duplicateSongInSetlist(source, targetSetlistId, link.sort_order);
+  }
+
   db.runSync(
-    'INSERT OR IGNORE INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+    'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
     [targetSetlistId, source.id, getNextSortOrderForSetlist(targetSetlistId)],
   );
   return source;
+}
+
+// A song already in the setlist is duplicated as an independent "Title Copy N" right after the original.
+function duplicateSongInSetlist(source: Song, setlistId: string, afterSortOrder: number): Song {
+  const copy: Song = {
+    ...source,
+    id: makeId(),
+    title: nextCopyTitle(
+      source.title,
+      db
+        .getAllSync<{ title: string }>(
+          `SELECT songs.title FROM songs
+           JOIN setlist_songs ON setlist_songs.song_id = songs.id
+           WHERE setlist_songs.setlist_id = ?`,
+          [setlistId],
+        )
+        .map((row) => row.title ?? ''),
+    ),
+  };
+  db.withTransactionSync(() => {
+    db.runSync(
+      'UPDATE setlist_songs SET sort_order = sort_order + 1 WHERE setlist_id = ? AND sort_order > ?',
+      [setlistId, afterSortOrder],
+    );
+    db.runSync(
+      'UPDATE setlist_breaks SET sort_order = sort_order + 1 WHERE setlist_id = ? AND sort_order > ?',
+      [setlistId, afterSortOrder],
+    );
+    db.runSync(
+      'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        copy.id,
+        copy.title,
+        copy.notes_raw_text,
+        copy.font_size ?? 18,
+        copy.cue_document ?? null,
+        JSON.stringify(copy.tags ?? []),
+      ],
+    );
+    db.runSync(
+      'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+      [setlistId, copy.id, afterSortOrder + 1],
+    );
+  });
+  return copy;
 }
 
 export function getSetlistsWithSongs(): SetlistWithSongs[] {

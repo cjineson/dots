@@ -347,7 +347,7 @@ export default function App() {
         try {
           importSetlists(importedLibrary, mode);
           refreshSetlists();
-          Alert.alert('Import complete', `Imported ${importedLibrary.setlists.length} setlist(s).`);
+          Alert.alert('Import', 'Import complete.');
         } catch (error) {
           setImportError(error instanceof Error ? error.message : String(error));
         }

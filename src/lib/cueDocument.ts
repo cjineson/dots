@@ -1,6 +1,20 @@
-import type { CueBlock, CueBlockStyle, CueDocument, CueTextColor } from '../types';
+import type { CueBlock, CueBlockStyle, CueDocument, CueTextColor, TagColor } from '../types';
 
 export const CUE_COLORS: CueTextColor[] = ['#FFFFFF', '#FFCC00', '#4FC3F7', '#FF8A80'];
+
+// Tags get a wider, softer range than cue text; the first four match CUE_COLORS.
+export const TAG_COLORS: TagColor[] = [
+  ...CUE_COLORS,
+  '#FFB74D',
+  '#C5E1A5',
+  '#81C784',
+  '#4DB6AC',
+  '#90CAF9',
+  '#B39DDB',
+  '#F48FB1',
+  '#D7B98E',
+  '#B0BEC5',
+];
 
 const GENERATED_SECTION_LABELS = new Set([
   'additional notes',
