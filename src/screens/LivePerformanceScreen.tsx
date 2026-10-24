@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Image,
@@ -30,7 +30,13 @@ import {
   TAG_SIZE_STEP,
 } from '../lib/fontSize';
 import { useScreenAwake } from '../lib/keepAwake';
-import { SWIPE_DISTANCE } from '../lib/settings';
+import {
+  AUTO_SCROLL_SLIDER_CURVE,
+  AUTO_SCROLL_SPEED_STEP,
+  MAX_AUTO_SCROLL_SPEED,
+  MIN_AUTO_SCROLL_SPEED,
+  SWIPE_DISTANCE,
+} from '../lib/settings';
 import type { AppSettings } from '../lib/settings';
 import type { CueBlock, SetlistItem, Song } from '../types';
 
@@ -45,6 +51,7 @@ type LivePerformanceScreenProps = {
   tagSize: number;
   onTagSizeChange: (tagSize: number, persist: boolean) => void;
   settings: AppSettings;
+  onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 };
 
 export default function LivePerformanceScreen({
@@ -58,6 +65,7 @@ export default function LivePerformanceScreen({
   tagSize,
   onTagSizeChange,
   settings,
+  onSettingChange,
 }: LivePerformanceScreenProps) {
   useScreenAwake(settings.keepAwake);
   const theme = useTheme();
@@ -81,7 +89,39 @@ export default function LivePerformanceScreen({
   const availableWidth = Math.max(0, boxSize.width - theme.layout.box_padding * 2);
   const availableHeight = Math.max(0, boxSize.height - theme.layout.box_padding * 2);
   const songFontScale = fontSize / theme.typography.box_text_size;
-  const [panel, setPanel] = useState<'zoom' | 'tags' | null>(null);
+  const [panel, setPanel] = useState<'zoom' | 'tags' | 'crawl' | null>(null);
+  const crawlOpen = panel === 'crawl';
+  const [crawling, setCrawling] = useState(false);
+  const [crawlSpeed, setCrawlSpeed] = useState(settings.autoScrollSpeed);
+  const crawlSpeedRef = useRef(crawlSpeed);
+  crawlSpeedRef.current = crawlSpeed;
+  const cueScrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const cueScrollY = useRef(0);
+  const cueContentHeight = useRef(0);
+  const cueViewportHeight = useRef(0);
+  const crawlY = useRef(0);
+
+  useEffect(() => {
+    setCrawling(false);
+    cueScrollY.current = 0;
+  }, [index]);
+
+  useEffect(() => {
+    if (!crawling) {
+      return undefined;
+    }
+    crawlY.current = cueScrollY.current;
+    const timer = setInterval(() => {
+      const maxY = Math.max(0, cueContentHeight.current - cueViewportHeight.current);
+      crawlY.current = Math.min(maxY, crawlY.current + (crawlSpeedRef.current * 50) / 1000);
+      cueScrollRef.current?.scrollTo({ y: crawlY.current, animated: false });
+      if (crawlY.current >= maxY) {
+        setCrawling(false);
+      }
+    }, 50);
+    return () => clearInterval(timer);
+  }, [crawling]);
+
   const zoomOpen = panel === 'zoom';
   const tagsOpen = panel === 'tags';
 
@@ -224,6 +264,19 @@ export default function LivePerformanceScreen({
             </Pressable>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel={crawlOpen ? 'Hide crawl controls' : 'Show crawl controls'}
+              accessibilityState={{ expanded: crawlOpen }}
+              onPress={() => setPanel(crawlOpen ? null : 'crawl')}
+              hitSlop={8}
+            >
+              <MaterialCommunityIcons
+                name="snail"
+                size={30}
+                color={theme.colors.accent_highlight}
+              />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
               accessibilityLabel={zoomOpen ? 'Hide zoom controls' : 'Show zoom controls'}
               accessibilityState={{ expanded: zoomOpen }}
               onPress={() => setPanel(zoomOpen ? null : 'zoom')}
@@ -248,6 +301,43 @@ export default function LivePerformanceScreen({
           step={TAG_SIZE_STEP}
           onValueChange={onTagSizeChange}
         />
+      )}
+
+      {song && !isEditorPreview && crawlOpen && (
+        <View style={styles.crawlPanel}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={crawling ? 'Pause crawl' : 'Start crawl'}
+            onPress={() => setCrawling((current) => !current)}
+            style={styles.crawlPlayButton}
+          >
+            <MaterialCommunityIcons
+              name={crawling ? 'pause' : 'play'}
+              size={30}
+              color={theme.colors.accent_highlight}
+            />
+          </Pressable>
+          <View style={styles.crawlSlider}>
+            <FontSizeZoomControl
+              label="Crawl speed (pts/sec)"
+              value={crawlSpeed}
+              min={MIN_AUTO_SCROLL_SPEED}
+              max={MAX_AUTO_SCROLL_SPEED}
+              step={AUTO_SCROLL_SPEED_STEP}
+              curve={AUTO_SCROLL_SLIDER_CURVE}
+              decreaseIcon="snail"
+              increaseIcon="rabbit"
+              decreaseLabel="Slower"
+              increaseLabel="Faster"
+              onValueChange={(next, persist) => {
+                setCrawlSpeed(next);
+                if (persist) {
+                  onSettingChange('autoScrollSpeed', next);
+                }
+              }}
+            />
+          </View>
+        </View>
       )}
 
       {song && !isEditorPreview && zoomOpen && (
@@ -282,7 +372,21 @@ export default function LivePerformanceScreen({
               )}
             </View>
           ) : (
-          <ScrollView contentContainerStyle={styles.cueBlocks}>
+          <ScrollView
+            ref={cueScrollRef}
+            contentContainerStyle={styles.cueBlocks}
+            scrollEventThrottle={32}
+            onScroll={(event) => {
+              cueScrollY.current = event.nativeEvent.contentOffset.y;
+            }}
+            onScrollBeginDrag={() => setCrawling(false)}
+            onContentSizeChange={(_, height) => {
+              cueContentHeight.current = height;
+            }}
+            onLayout={(event) => {
+              cueViewportHeight.current = event.nativeEvent.layout.height;
+            }}
+          >
             <PerformanceCueContent
               blocks={cueBlocks}
               fontScale={songFontScale * lowScale}
@@ -296,6 +400,20 @@ export default function LivePerformanceScreen({
 }
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({
+  crawlPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  crawlPlayButton: {
+    minWidth: 48,
+    minHeight: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  crawlSlider: {
+    flex: 1,
+  },
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -315,9 +433,8 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     fontWeight: '600',
   },
   dashboardButton: {
-    alignSelf: 'stretch',
-    minHeight: 56,
-    maxWidth: 170,
+    width: 112,
+    minHeight: 52,
     justifyContent: 'center',
   },
   backToEditButton: {
@@ -332,8 +449,8 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     fontWeight: '700',
   },
   logo: {
-    height: '100%',
-    aspectRatio: 580 / 164,
+    width: 108,
+    height: 31,
   },
   songTitle: {
     color: theme.colors.text_primary,

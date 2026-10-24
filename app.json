@@ -11,7 +11,8 @@
     "userInterfaceStyle": "dark",
     "platforms": [
       "ios",
-      "android"
+      "android",
+      "web"
     ],
     "assetBundlePatterns": [
       "**/*"

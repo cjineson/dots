@@ -15,6 +15,7 @@ import {
 import FontSizeZoomControl from '../components/FontSizeZoomControl';
 import { MAX_TAG_SIZE, MIN_TAG_SIZE, TAG_SIZE_STEP } from '../lib/fontSize';
 import {
+  AUTO_SCROLL_SLIDER_CURVE,
   AUTO_SCROLL_SPEED_STEP,
   MAX_AUTO_SCROLL_SPEED,
   MIN_AUTO_SCROLL_SPEED,
@@ -22,6 +23,7 @@ import {
 import type { AppSettings, SwipeMode } from '../lib/settings';
 import { useTheme } from '../themeContext';
 import type { ThemePreference } from '../themeContext';
+import { PALETTE_OPTIONS } from '../theme';
 import type { AppTheme } from '../theme';
 
 type SettingsScreenProps = {
@@ -144,6 +146,14 @@ export default function SettingsScreen({
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>Appearance</Text>
         {renderSegments(THEME_OPTIONS, themePreference, onThemePreferenceChange, 'theme')}
+        <Text style={styles.label}>Colour palette</Text>
+        {renderSegments(
+          PALETTE_OPTIONS,
+          settings.palette,
+          (value) => onSettingChange('palette', value),
+          'palette',
+        )}
+        <Text style={styles.hint}>Every palette follows the Dark/Light/System choice above.</Text>
         {renderSwitch('High contrast', 'Stronger text and borders for dim or bright stages.', 'highContrast')}
 
         <Text style={styles.sectionTitle}>Performance</Text>
@@ -162,7 +172,8 @@ export default function SettingsScreen({
           min={MIN_AUTO_SCROLL_SPEED}
           max={MAX_AUTO_SCROLL_SPEED}
           step={AUTO_SCROLL_SPEED_STEP}
-          decreaseIcon="tortoise"
+          curve={AUTO_SCROLL_SLIDER_CURVE}
+              decreaseIcon="snail"
           increaseIcon="rabbit"
           decreaseLabel="Slower"
           increaseLabel="Faster"
@@ -202,7 +213,7 @@ export default function SettingsScreen({
           style={styles.row}
           onPress={onExportLibrary}
         >
-          <MaterialCommunityIcons name="database-export" size={26} color="#4FC3F7" />
+          <MaterialCommunityIcons name="database-export" size={26} color={theme.colors.action_primary} />
           <Text style={styles.rowText}>Export setlists</Text>
         </Pressable>
         <Pressable
@@ -211,7 +222,7 @@ export default function SettingsScreen({
           style={styles.row}
           onPress={onImportLibrary}
         >
-          <MaterialCommunityIcons name="database-import" size={26} color="#FFB74D" />
+          <MaterialCommunityIcons name="database-import" size={26} color={theme.colors.action_edit} />
           <Text style={styles.rowText}>Import setlists</Text>
         </Pressable>
 
@@ -233,8 +244,8 @@ export default function SettingsScreen({
           style={[styles.row, !hasData && styles.disabledRow]}
           onPress={confirmClear}
         >
-          <MaterialCommunityIcons name="delete-forever-outline" size={26} color="#FF8A80" />
-          <Text style={[styles.rowText, { color: '#FF8A80' }]}>Delete all setlists and songs</Text>
+          <MaterialCommunityIcons name="delete-forever-outline" size={26} color={theme.colors.action_danger} />
+          <Text style={[styles.rowText, { color: theme.colors.action_danger }]}>Delete all setlists and songs</Text>
         </Pressable>
 
         <Text style={styles.sectionTitle}>About</Text>
@@ -294,7 +305,7 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '600',
     },
     segmentTextSelected: {
-      color: theme.mode === 'light' ? '#FFFFFF' : '#000000',
+      color: theme.colors.on_accent,
     },
     row: {
       flexDirection: 'row',

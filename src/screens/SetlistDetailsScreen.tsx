@@ -22,6 +22,7 @@ import type { SetlistGroup, SetlistWithSongs } from '../types';
 
 type SetlistDetailsScreenProps = {
   setlist: SetlistWithSongs;
+  isNew?: boolean;
   groups: SetlistGroup[];
   onCreateGroup: (name: string) => SetlistGroup;
   onCancel: () => void;
@@ -41,6 +42,7 @@ type SetlistDetailsScreenProps = {
 
 export default function SetlistDetailsScreen({
   setlist,
+  isNew = false,
   groups,
   onCreateGroup,
   onCancel,
@@ -154,6 +156,7 @@ export default function SetlistDetailsScreen({
           <Text style={styles.label}>Name</Text>
           <TextInput
             autoFocus
+            selectTextOnFocus={isNew}
             value={name}
             onChangeText={setName}
             returnKeyType="next"

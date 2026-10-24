@@ -5,6 +5,7 @@ import {
   parseSettings,
   serializeSetting,
   settingStorageKey,
+  INITIAL_BACKUP_REMINDER_DELAY_DAYS,
 } from './settings';
 import type { AppSettings } from './settings';
 import { UNGROUPED_SONGS_SETLIST_NAME } from './ungrouped';
@@ -109,7 +110,21 @@ export function getSetlistGroups(): SetlistGroup[] {
   );
 }
 
+// Never-exported libraries get a first reminder a week after first launch rather than immediately.
+function seedBackupReminderDelay(): void {
+  const row = db.getFirstSync<{ key: string }>(
+    "SELECT key FROM app_settings WHERE key IN ('last_export_at', 'backup_snoozed_until') LIMIT 1",
+  );
+  if (!row) {
+    saveAppSetting(
+      'backupSnoozedUntil',
+      new Date(Date.now() + INITIAL_BACKUP_REMINDER_DELAY_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+    );
+  }
+}
+
 export function getAppSettings(): AppSettings {
+  seedBackupReminderDelay();
   const rows = db.getAllSync<{ key: string; value: string }>('SELECT key, value FROM app_settings');
   return parseSettings(Object.fromEntries(rows.map((row) => [row.key, row.value])));
 }
@@ -130,6 +145,7 @@ export function saveAppSetting<K extends keyof AppSettings>(key: K, value: AppSe
 
 export function resetAppSettings(): void {
   db.runSync('DELETE FROM app_settings');
+  seedBackupReminderDelay();
 }
 
 export function clearAllLibraryData(): void {
@@ -754,26 +770,20 @@ function getTopSetlistOrderIndex(): number {
   return min?.minIndex === null || min?.minIndex === undefined ? 0 : min.minIndex - 1;
 }
 
-export function moveSetlist(setlistId: string, direction: 'up' | 'down'): void {
+export function reorderSetlistSiblings(orderedIds: string[]): void {
   db.withTransactionSync(() => {
-    const rows = db.getAllSync<{ id: string; group_id: string | null }>(
-      'SELECT id, group_id FROM setlists ORDER BY order_index ASC, name COLLATE NOCASE ASC',
+    const rows = db.getAllSync<{ id: string }>(
+      'SELECT id FROM setlists ORDER BY order_index ASC, name COLLATE NOCASE ASC',
     );
-    const current = rows.find((row) => row.id === setlistId);
-    if (!current) {
-      throw new Error('The setlist to move could not be found.');
+    const ids = new Set(orderedIds);
+    if (ids.size !== orderedIds.length || orderedIds.some((id) => !rows.some((row) => row.id === id))) {
+      throw new Error('The setlists to reorder could not be found.');
     }
-    const siblings = rows.filter((row) => (row.group_id ?? null) === (current.group_id ?? null));
-    const siblingIndex = siblings.findIndex((row) => row.id === setlistId);
-    const target = siblings[siblingIndex + (direction === 'up' ? -1 : 1)];
-    if (!target) {
-      return;
-    }
-    const currentIndex = rows.indexOf(current);
-    const targetIndex = rows.indexOf(target);
-    [rows[currentIndex], rows[targetIndex]] = [rows[targetIndex], rows[currentIndex]];
-    rows.forEach((row, index) => {
-      db.runSync('UPDATE setlists SET order_index = ? WHERE id = ?', [index, row.id]);
+    // Siblings keep the slots they already occupy; only their order among those slots changes.
+    const queue = [...orderedIds];
+    const result = rows.map((row) => (ids.has(row.id) ? queue.shift() as string : row.id));
+    result.forEach((id, index) => {
+      db.runSync('UPDATE setlists SET order_index = ? WHERE id = ?', [index, id]);
     });
   });
 }

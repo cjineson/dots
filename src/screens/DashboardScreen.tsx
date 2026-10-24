@@ -13,6 +13,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import {
   NestableDraggableFlatList,
@@ -20,8 +21,10 @@ import {
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
 
+import EmptyDashboard from '../components/EmptyDashboard';
 import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
+import { hasMapTarget, openInMaps } from '../lib/maps';
 import { UNGROUPED_SONGS_SETLIST_NAME } from '../lib/ungrouped';
 import { BACKUP_REMIND_LATER_DAYS, BACKUP_REMINDER_DAYS } from '../lib/settings';
 import type { AppTheme } from '../theme';
@@ -57,7 +60,7 @@ type DashboardScreenProps = {
     index: number,
   ) => void;
   onOpenNewSong: (setlistId: string) => void;
-  onMoveSetlist: (setlistId: string, direction: 'up' | 'down') => void;
+  onReorderSetlists: (orderedIds: string[]) => void;
   onReorderItems: (setlistId: string, items: SetlistItem[]) => void;
   onOpenSettings: () => void;
   backupReminder?: boolean;
@@ -84,16 +87,26 @@ export default function DashboardScreen({
   onOpenSongForEdit,
   onOpenPerformance,
   onOpenNewSong,
-  onMoveSetlist,
+  onReorderSetlists,
   onReorderItems,
   onOpenSettings,
   backupReminder = false,
   onSnoozeBackupReminder,
 }: DashboardScreenProps) {
   const theme = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { width: screenWidth } = useWindowDimensions();
+  const styles = useMemo(() => createStyles(theme, screenWidth), [theme, screenWidth]);
   const [addingBreakTo, setAddingBreakTo] = React.useState<string | null>(null);
   const [breakDuration, setBreakDuration] = React.useState('');
+  const [menu, setMenu] = React.useState<{
+    title: string;
+    options: Array<{ label: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>['name']; onPress: () => void }>;
+  } | null>(null);
+  const [picker, setPicker] = React.useState<
+    | { kind: 'copy-setlist' }
+    | { kind: 'copy-song'; targetSetlistId: string; sourceSetlistId: string | null }
+    | null
+  >(null);
   const [copyingSong, setCopyingSong] = React.useState<{
     song: Song;
     sourceSetlistId: string;
@@ -158,6 +171,42 @@ export default function DashboardScreen({
       );
     }
   };
+
+  const openAddMenu = (setlist: SetlistWithSongs) => {
+    setMenu({
+      title: `Add to ${setlist.name}`,
+      options: [
+        { label: 'Add new song', icon: 'music-note-plus', onPress: () => onOpenNewSong(setlist.id) },
+        {
+          label: 'Copy song from another setlist',
+          icon: 'content-copy',
+          onPress: () => setPicker({ kind: 'copy-song', targetSetlistId: setlist.id, sourceSetlistId: null }),
+        },
+        {
+          label: 'Add break',
+          icon: 'coffee',
+          onPress: () => {
+            setBreakDuration('');
+            setAddingBreakTo(setlist.id);
+          },
+        },
+      ],
+    });
+  };
+
+  const openNewSetlistMenu = () => {
+    setMenu({
+      title: 'Add setlist',
+      options: [
+        { label: 'Add new setlist', icon: 'playlist-plus', onPress: () => onCreateSetlist(null) },
+        { label: 'Add new setlist from existing', icon: 'content-copy', onPress: () => setPicker({ kind: 'copy-setlist' }) },
+      ],
+    });
+  };
+
+  const pickerSource = picker?.kind === 'copy-song'
+    ? setlists.find((setlist) => setlist.id === picker.sourceSetlistId)
+    : undefined;
 
   const copySongTo = (targetSetlistId: string) => {
     if (!copyingSong) {
@@ -275,35 +324,22 @@ export default function DashboardScreen({
     Number.isSafeInteger(Number(breakDuration)) && Number(breakDuration) > 0;
 
   const dashboardEntries = [
-    ...setlists
-      .filter((setlist) => !setlist.group_id)
-      .map((setlist) => ({ type: 'setlist' as const, setlist, indented: false })),
+    { type: 'setlists' as const, key: 'ungrouped', setlists: setlists.filter((setlist) => !setlist.group_id), indented: false },
     ...groups.flatMap((group) => [
-      { type: 'group' as const, group },
+      { type: 'group' as const, key: `group-${group.id}`, group },
       ...(!expansionState.collapsedGroups[group.id]
-        ? setlists
-            .filter((setlist) => setlist.group_id === group.id)
-            .map((setlist) => ({ type: 'setlist' as const, setlist, indented: true }))
+        ? [{
+            type: 'setlists' as const,
+            key: `setlists-${group.id}`,
+            setlists: setlists.filter((setlist) => setlist.group_id === group.id),
+            indented: true,
+          }]
         : []),
     ]),
   ];
+  const hasAnySetlists = setlists.length > 0 || groups.length > 0;
 
-  const chooseSetlistMove = (
-    name: string,
-    siblingIndex: number,
-    siblingCount: number,
-    setlistId: string,
-  ) => {
-    const buttons: Array<{ text: string; style?: 'cancel'; onPress?: () => void }> = [];
-    if (siblingIndex > 0) {
-      buttons.push({ text: 'Move up', onPress: () => onMoveSetlist(setlistId, 'up') });
-    }
-    if (siblingIndex < siblingCount - 1) {
-      buttons.push({ text: 'Move down', onPress: () => onMoveSetlist(setlistId, 'down') });
-    }
-    buttons.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Change order', name, buttons);
-  };
+  const reorderEnabled = !setlists.some((setlist) => expansionState.expandedSetlists[setlist.id]);
 
   const toggleSetlist = (setlistId: string) => {
     const expandedSetlists = { ...expansionState.expandedSetlists };
@@ -325,6 +361,218 @@ export default function DashboardScreen({
     onExpansionStateChange({ ...expansionState, collapsedGroups });
   };
 
+  const renderSetlistCard = (
+    setlist: SetlistWithSongs,
+    indented: boolean,
+    siblingCount: number,
+    drag: () => void,
+    isDragging: boolean,
+  ) => {
+    const expanded = Boolean(expansionState.expandedSetlists[setlist.id]);
+            return (
+            <View
+              style={[
+                styles.card,
+                indented && styles.indentedCard,
+                isDragging && styles.songRowDragging,
+              ]}
+            >
+              <View style={styles.cardHeader}>
+                {reorderEnabled && siblingCount > 1 && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Reorder ${setlist.name}`}
+                    onLongPress={drag}
+                    delayLongPress={180}
+                    style={styles.setlistDragHandle}
+                  >
+                    <Text style={styles.dragHandleText}>☰</Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} ${setlist.name}`}
+                  accessibilityState={{ expanded }}
+                  onPress={() => toggleSetlist(setlist.id)}
+                  style={styles.setlistExpandButton}
+                >
+                  <MaterialCommunityIcons
+                    name={expanded ? 'chevron-down' : 'chevron-right'}
+                    size={23}
+                    color={theme.colors.text_secondary}
+                  />
+                </Pressable>
+                <View style={styles.setlistHeading}>
+                  <Text numberOfLines={1} style={styles.setlistName}>{setlist.name}</Text>
+                  {(setlist.location || setlist.date || setlist.time) && (
+                    <View style={styles.setlistDetailsRow}>
+                      <View style={styles.setlistDetailsText}>
+                        {!!setlist.location && (
+                          hasMapTarget(setlist) ? (
+                            <Pressable
+                              accessibilityRole="link"
+                              accessibilityLabel={`Open ${setlist.name} location in Maps`}
+                              onPress={() => openInMaps(setlist).catch(() => undefined)}
+                              hitSlop={{ top: 6, bottom: 6 }}
+                              style={styles.setlistLocationLink}
+                            >
+                              <Text numberOfLines={1} style={[styles.setlistDetails, styles.setlistLocationText]}>
+                                {setlist.location}
+                              </Text>
+                            </Pressable>
+                          ) : (
+                            <Text numberOfLines={1} style={styles.setlistDetails}>{setlist.location}</Text>
+                          )
+                        )}
+                        {!!(setlist.date || setlist.time) && (
+                          <Text numberOfLines={1} style={styles.setlistDetails}>
+                            {[setlist.date, setlist.time].filter(Boolean).join(' · ')}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.setlistActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Play ${setlist.name}`}
+                    accessibilityHint="Starts this setlist from the first song."
+                    disabled={setlist.items.length === 0}
+                    onPress={() => onOpenFlow(setlist)}
+                    style={[
+                      styles.iconButton,
+                      setlist.items.length === 0 && styles.disabledIconButton,
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="play-circle" size={29} color={theme.colors.action_primary} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Rename ${setlist.name}`}
+                    onPress={() => onOpenSetlistEditor(setlist)}
+                    style={styles.iconButton}
+                  >
+                    <MaterialCommunityIcons name="pencil" size={23} color={theme.colors.action_edit} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Add to ${setlist.name}`}
+                    accessibilityHint="Choose to add a new song, copy a song from another setlist, or add a break."
+                    onPress={() => openAddMenu(setlist)}
+                    style={styles.compactIconButton}
+                  >
+                    <MaterialCommunityIcons name="plus-circle" size={24} color={theme.colors.action_primary} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${setlist.name}`}
+                    onPress={() => confirmDeleteSetlist(setlist)}
+                    style={styles.iconButton}
+                  >
+                    <MaterialCommunityIcons name="minus-circle" size={27} color={theme.colors.action_danger} />
+                  </Pressable>
+                </View>
+              </View>
+
+              {expanded && setlist.items.length === 0 ? (
+                <Text style={styles.songHint}>No songs or breaks in this setlist yet.</Text>
+              ) : expanded ? (
+                <NestableDraggableFlatList
+                  data={setlist.items}
+                  keyExtractor={(item) => `${item.kind}-${item.kind === 'song' ? item.song.id : item.id}`}
+                  activationDistance={24}
+                  onDragEnd={({ data }) => onReorderItems(setlist.id, data)}
+                  renderItem={({ item, drag, isActive }) => (
+                    <ScaleDecorator>
+                      {item.kind === 'song' ? (
+                        <View style={[styles.songRow, isActive && styles.songRowDragging]}>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Reorder ${item.song.title}`}
+                            onLongPress={drag}
+                            delayLongPress={180}
+                            style={styles.dragHandle}
+                          >
+                            <Text style={styles.dragHandleText}>☰</Text>
+                          </Pressable>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Play ${item.song.title}`}
+                            style={styles.songHeading}
+                            onPress={() => onOpenPerformance(
+                              setlist,
+                              setlist.items,
+                              setlist.items.findIndex((entry) =>
+                                entry.kind === 'song' && entry.song.id === item.song.id,
+                              ),
+                            )}
+                          >
+                            <Text style={styles.songTitle}>{item.song.title}</Text>
+                            <SongTags tags={item.song.tags} compact />
+                          </Pressable>
+                          <View style={styles.songActions}>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Edit ${item.song.title}`}
+                              style={styles.songIconButton}
+                              onPress={() => onOpenSongForEdit(setlist.id, item.song)}
+                            >
+                              <MaterialCommunityIcons name="pencil" size={21} color={theme.colors.action_edit} />
+                            </Pressable>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Copy ${item.song.title} to a setlist`}
+                              style={styles.songIconButton}
+                              onPress={() => setCopyingSong({
+                                song: item.song,
+                                sourceSetlistId: setlist.id,
+                              })}
+                            >
+                              <MaterialCommunityIcons name="content-copy" size={20} color={theme.colors.action_copy} />
+                            </Pressable>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Delete ${item.song.title} from ${setlist.name}`}
+                              style={styles.songIconButton}
+                              onPress={() => confirmDeleteSong(setlist.id, item.song)}
+                            >
+                              <MaterialCommunityIcons name="minus-circle" size={24} color={theme.colors.action_danger} />
+                            </Pressable>
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={[styles.songRow, isActive && styles.songRowDragging]}>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Reorder break"
+                            onLongPress={drag}
+                            delayLongPress={180}
+                            style={styles.dragHandle}
+                          >
+                            <Text style={styles.dragHandleText}>☰</Text>
+                          </Pressable>
+                          <Text style={[styles.songTitle, styles.breakTitle]}>
+                            Break{item.duration_minutes ? ` · ${item.duration_minutes} min` : ''}
+                          </Text>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Delete break from ${setlist.name}`}
+                            style={styles.songIconButton}
+                            onPress={() => confirmDeleteBreak(setlist.id, item.id)}
+                          >
+                            <MaterialCommunityIcons name="minus-circle" size={24} color={theme.colors.action_danger} />
+                          </Pressable>
+                        </View>
+                      )}
+                    </ScaleDecorator>
+                  )}
+                />
+              ) : null}
+            </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
@@ -341,15 +589,16 @@ export default function DashboardScreen({
             onPress={() => onOpenGroupEditor()}
             style={styles.headerActionButton}
           >
-            <MaterialCommunityIcons name="folder-plus" size={22} color="#FFB74D" />
+            <MaterialCommunityIcons name="folder-plus" size={22} color={theme.colors.action_edit} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Create ungrouped setlist"
-            onPress={() => onCreateSetlist(null)}
+            accessibilityLabel="Add setlist"
+            accessibilityHint="Choose a new setlist or copy an existing one."
+            onPress={openNewSetlistMenu}
             style={styles.headerActionButton}
           >
-            <MaterialCommunityIcons name="plus-circle" size={22} color="#4FC3F7" />
+            <MaterialCommunityIcons name="plus-circle" size={22} color={theme.colors.action_primary} />
           </Pressable>
         </View>
       </View>
@@ -388,8 +637,8 @@ export default function DashboardScreen({
       )}
 
       <NestableScrollContainer style={styles.scroll} contentContainerStyle={styles.list}>
-        {dashboardEntries.length === 0 ? (
-          <Text style={styles.emptyState}>No setlists yet. Create one to begin.</Text>
+        {!hasAnySetlists ? (
+          <EmptyDashboard onCreateSetlist={() => onCreateSetlist(null)} />
         ) : (
           dashboardEntries.map((entry) => {
             if (entry.type === 'group') {
@@ -397,7 +646,7 @@ export default function DashboardScreen({
               const collapsed = Boolean(expansionState.collapsedGroups[group.id]);
               const groupSetlists = setlists.filter((setlist) => setlist.group_id === group.id);
               return (
-                <View key={`group-${group.id}`} style={styles.groupBranch}>
+                <View key={entry.key} style={styles.groupBranch}>
                   <View style={styles.groupHeader}>
                     <Pressable
                       accessibilityRole="button"
@@ -425,7 +674,7 @@ export default function DashboardScreen({
                       onPress={() => onCreateSetlist(group.id)}
                       style={styles.groupAction}
                     >
-                      <MaterialCommunityIcons name="playlist-plus" size={22} color="#4FC3F7" />
+                      <MaterialCommunityIcons name="playlist-plus" size={22} color={theme.colors.action_primary} />
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
@@ -433,7 +682,7 @@ export default function DashboardScreen({
                       onPress={() => onOpenGroupEditor(group)}
                       style={styles.groupAction}
                     >
-                      <MaterialCommunityIcons name="pencil" size={19} color="#FFB74D" />
+                      <MaterialCommunityIcons name="pencil" size={19} color={theme.colors.action_edit} />
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
@@ -441,233 +690,30 @@ export default function DashboardScreen({
                       onPress={() => confirmDeleteGroup(group)}
                       style={styles.groupAction}
                     >
-                      <MaterialCommunityIcons name="folder-remove" size={20} color="#FF8A80" />
+                      <MaterialCommunityIcons name="folder-remove" size={20} color={theme.colors.action_danger} />
                     </Pressable>
                   </View>
                 </View>
               );
             }
-            const setlist = entry.setlist;
-            const expanded = Boolean(expansionState.expandedSetlists[setlist.id]);
-            const siblings = setlists.filter(
-              (other) => (other.group_id ?? null) === (setlist.group_id ?? null),
-            );
-            const siblingIndex = siblings.findIndex((other) => other.id === setlist.id);
             return (
-            <View
-              key={setlist.id}
-              style={[
-                styles.card,
-                entry.indented && styles.indentedCard,
-              ]}
-            >
-              <View style={styles.cardHeader}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} ${setlist.name}`}
-                  accessibilityState={{ expanded }}
-                  onPress={() => toggleSetlist(setlist.id)}
-                  style={styles.setlistExpandButton}
-                >
-                  <MaterialCommunityIcons
-                    name={expanded ? 'chevron-down' : 'chevron-right'}
-                    size={23}
-                    color={theme.colors.text_secondary}
+              <React.Fragment key={entry.key}>
+                {entry.setlists.length > 0 && (
+                  <NestableDraggableFlatList
+                    data={entry.setlists}
+                    keyExtractor={(setlist) => setlist.id}
+                    scrollEnabled={false}
+                    activationDistance={reorderEnabled ? 12 : 100000}
+                    containerStyle={styles.setlistReorderList}
+                    onDragEnd={({ data }) => onReorderSetlists(data.map((setlist) => setlist.id))}
+                    renderItem={({ item, drag, isActive }) => (
+                      <ScaleDecorator>
+                        {renderSetlistCard(item, entry.indented, entry.setlists.length, drag, isActive)}
+                      </ScaleDecorator>
+                    )}
                   />
-                </Pressable>
-                <View style={styles.setlistHeading}>
-                  <Text numberOfLines={1} style={styles.setlistName}>{setlist.name}</Text>
-                  {(setlist.location || setlist.date || setlist.time) && (
-                    <Text numberOfLines={1} style={styles.setlistDetails}>
-                      {[setlist.location, setlist.date, setlist.time].filter(Boolean).join(' · ')}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.setlistActions}>
-                  {siblings.length > 1 && (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Change order of ${setlist.name}`}
-                      onPress={() => chooseSetlistMove(setlist.name, siblingIndex, siblings.length, setlist.id)}
-                      hitSlop={6}
-                      style={styles.setlistOrderHandle}
-                    >
-                      <Text style={styles.setlistOrderHandleText}>☰</Text>
-                    </Pressable>
-                  )}
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open ${setlist.name} flow view`}
-                    accessibilityHint="Shows all songs and breaks in this setlist."
-                    disabled={setlist.items.length === 0}
-                    onPress={() => onOpenFlow(setlist)}
-                    style={[
-                      styles.iconButton,
-                      setlist.items.length === 0 && styles.disabledIconButton,
-                    ]}
-                  >
-                    <MaterialCommunityIcons name="playlist-play" size={27} color="#4FC3F7" />
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Rename ${setlist.name}`}
-                    onPress={() => onOpenSetlistEditor(setlist)}
-                    style={styles.iconButton}
-                  >
-                    <MaterialCommunityIcons name="pencil" size={23} color="#FFB74D" />
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Copy ${setlist.name}`}
-                    onPress={() => copyEntireSetlist(setlist)}
-                    style={styles.compactIconButton}
-                  >
-                    <MaterialCommunityIcons name="content-copy" size={21} color="#4FC3F7" />
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Add song to ${setlist.name}`}
-                    accessibilityHint="Opens the song editor to add a song."
-                    onPress={() => onOpenNewSong(setlist.id)}
-                    style={styles.compactIconButton}
-                  >
-                    <MaterialCommunityIcons name="plus-circle" size={24} color="#4FC3F7" />
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Add break to ${setlist.name}`}
-                    accessibilityHint="Adds a standalone break, optionally with a display-only duration."
-                    onPress={() => {
-                      setBreakDuration('');
-                      setAddingBreakTo(setlist.id);
-                    }}
-                    style={styles.compactIconButton}
-                  >
-                    <MaterialCommunityIcons name="coffee" size={22} color="#FFB74D" />
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Delete ${setlist.name}`}
-                    onPress={() => confirmDeleteSetlist(setlist)}
-                    style={styles.iconButton}
-                  >
-                    <MaterialCommunityIcons name="minus-circle" size={27} color="#FF8A80" />
-                  </Pressable>
-                </View>
-              </View>
-
-              {expanded && setlist.items.length === 0 ? (
-                <Text style={styles.songHint}>No songs or breaks in this setlist yet.</Text>
-              ) : expanded ? (
-                <NestableDraggableFlatList
-                  data={setlist.items}
-                  keyExtractor={(item) => `${item.kind}-${item.kind === 'song' ? item.song.id : item.id}`}
-                  activationDistance={24}
-                  onDragEnd={({ data }) => onReorderItems(setlist.id, data)}
-                  renderItem={({ item, drag, isActive }) => (
-                    <ScaleDecorator>
-                      {item.kind === 'song' ? (
-                        <View style={[styles.songRow, isActive && styles.songRowDragging]}>
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={`Reorder ${item.song.title}`}
-                            onLongPress={drag}
-                            delayLongPress={180}
-                            style={styles.dragHandle}
-                          >
-                            <Text style={styles.dragHandleText}>☰</Text>
-                          </Pressable>
-                          <View style={styles.songHeading}>
-                            <Text style={styles.songTitle}>{item.song.title}</Text>
-                            <SongTags tags={item.song.tags} compact />
-                          </View>
-                          <View style={styles.songActions}>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Play ${item.song.title}`}
-                              style={styles.songIconButton}
-                              onPress={() => onOpenPerformance(
-                                setlist,
-                                setlist.items,
-                                setlist.items.findIndex((entry) =>
-                                  entry.kind === 'song' && entry.song.id === item.song.id,
-                                ),
-                              )}
-                            >
-                              <MaterialCommunityIcons name="play-circle" size={24} color="#4FC3F7" />
-                            </Pressable>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Edit ${item.song.title}`}
-                              style={styles.songIconButton}
-                              onPress={() => onOpenSongForEdit(setlist.id, item.song)}
-                            >
-                              <MaterialCommunityIcons name="pencil" size={21} color="#FFB74D" />
-                            </Pressable>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Copy ${item.song.title} to a setlist`}
-                              style={styles.songIconButton}
-                              onPress={() => setCopyingSong({
-                                song: item.song,
-                                sourceSetlistId: setlist.id,
-                              })}
-                            >
-                              <MaterialCommunityIcons name="content-copy" size={20} color="#B39DDB" />
-                            </Pressable>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Delete ${item.song.title} from ${setlist.name}`}
-                              style={styles.songIconButton}
-                              onPress={() => confirmDeleteSong(setlist.id, item.song)}
-                            >
-                              <MaterialCommunityIcons name="minus-circle" size={24} color="#FF8A80" />
-                            </Pressable>
-                          </View>
-                        </View>
-                      ) : (
-                        <View style={[styles.songRow, isActive && styles.songRowDragging]}>
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel="Reorder break"
-                            onLongPress={drag}
-                            delayLongPress={180}
-                            style={styles.dragHandle}
-                          >
-                            <Text style={styles.dragHandleText}>☰</Text>
-                          </Pressable>
-                          <Text style={[styles.songTitle, styles.breakTitle]}>
-                            Break{item.duration_minutes ? ` · ${item.duration_minutes} min` : ''}
-                          </Text>
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={`Show break${item.duration_minutes ? `, ${item.duration_minutes} minutes` : ''} in performance`}
-                            style={styles.songIconButton}
-                            onPress={() => onOpenPerformance(
-                              setlist,
-                              setlist.items,
-                              setlist.items.findIndex(
-                                (entry) => entry.kind === 'break' && entry.id === item.id,
-                              ),
-                            )}
-                          >
-                            <MaterialCommunityIcons name="play-circle" size={24} color="#4FC3F7" />
-                          </Pressable>
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={`Delete break from ${setlist.name}`}
-                            style={styles.songIconButton}
-                            onPress={() => confirmDeleteBreak(setlist.id, item.id)}
-                          >
-                            <MaterialCommunityIcons name="minus-circle" size={24} color="#FF8A80" />
-                          </Pressable>
-                        </View>
-                      )}
-                    </ScaleDecorator>
-                  )}
-                />
-              ) : null}
-            </View>
+                )}
+              </React.Fragment>
             );
           })
         )}
@@ -681,7 +727,7 @@ export default function DashboardScreen({
           onPress={onOpenSettings}
         >
           <MaterialCommunityIcons name="cog" size={28} color={theme.colors.accent_highlight} />
-          <Text style={styles.settingsLabel}>Settings</Text>
+          <Text numberOfLines={1} style={styles.settingsLabel}>Settings</Text>
         </Pressable>
       </View>
 
@@ -761,7 +807,7 @@ export default function DashboardScreen({
                     <MaterialCommunityIcons
                       name="playlist-plus"
                       size={22}
-                      color="#4FC3F7"
+                      color={theme.colors.action_primary}
                     />
                     <Text numberOfLines={1} style={styles.destinationText}>
                       {setlist.name}
@@ -779,11 +825,111 @@ export default function DashboardScreen({
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
+      <Modal visible={menu !== null} transparent animationType="fade" onRequestClose={() => setMenu(null)}>
+        <View style={styles.centeredBackdrop}>
+          <View style={styles.renameDialog}>
+            <Text style={styles.dialogTitle}>{menu?.title}</Text>
+            {menu?.options.map((option) => (
+              <Pressable
+                key={option.label}
+                accessibilityRole="button"
+                accessibilityLabel={option.label}
+                onPress={() => {
+                  setMenu(null);
+                  option.onPress();
+                }}
+                style={styles.destinationButton}
+              >
+                <MaterialCommunityIcons name={option.icon} size={22} color={theme.colors.action_primary} />
+                <Text numberOfLines={1} style={styles.destinationText}>{option.label}</Text>
+              </Pressable>
+            ))}
+            <View style={styles.dialogActions}>
+              <Pressable onPress={() => setMenu(null)} style={styles.dialogButton}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={picker !== null} transparent animationType="fade" onRequestClose={() => setPicker(null)}>
+        <View style={styles.centeredBackdrop}>
+          <View style={styles.renameDialog}>
+            <Text style={styles.dialogTitle}>
+              {picker?.kind === 'copy-setlist'
+                ? 'Copy which setlist?'
+                : pickerSource ? `Copy a song from ${pickerSource.name}` : 'Copy from which setlist?'}
+            </Text>
+            <ScrollView style={styles.destinationList}>
+              {pickerSource
+                ? pickerSource.items.flatMap((item) => (item.kind === 'song' ? [item.song] : [])).map((song) => (
+                    <Pressable
+                      key={song.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Copy ${song.title}`}
+                      onPress={() => {
+                        if (picker?.kind !== 'copy-song') {
+                          return;
+                        }
+                        try {
+                          onCopySong(song.id, picker.targetSetlistId);
+                          setPicker(null);
+                        } catch (error) {
+                          Alert.alert('Copy failed', error instanceof Error ? error.message : 'An unexpected error occurred.');
+                        }
+                      }}
+                      style={styles.destinationButton}
+                    >
+                      <MaterialCommunityIcons name="music-note" size={22} color={theme.colors.action_primary} />
+                      <Text numberOfLines={1} style={styles.destinationText}>{song.title}</Text>
+                    </Pressable>
+                  ))
+                : setlists
+                    .filter((setlist) => picker?.kind === 'copy-setlist' || (
+                      picker?.kind === 'copy-song' &&
+                      setlist.id !== picker.targetSetlistId &&
+                      setlist.items.some((item) => item.kind === 'song')
+                    ))
+                    .map((setlist) => (
+                      <Pressable
+                        key={setlist.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Choose ${setlist.name}`}
+                        onPress={() => {
+                          if (picker?.kind === 'copy-setlist') {
+                            setPicker(null);
+                            copyEntireSetlist(setlist);
+                          } else if (picker?.kind === 'copy-song') {
+                            setPicker({ ...picker, sourceSetlistId: setlist.id });
+                          }
+                        }}
+                        style={styles.destinationButton}
+                      >
+                        <MaterialCommunityIcons name="playlist-music" size={22} color={theme.colors.action_primary} />
+                        <Text numberOfLines={1} style={styles.destinationText}>{setlist.name}</Text>
+                      </Pressable>
+                    ))}
+            </ScrollView>
+            <View style={styles.dialogActions}>
+              <Pressable onPress={() => setPicker(null)} style={styles.dialogButton}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-const createStyles = (theme: AppTheme) => StyleSheet.create({
+// Interpolates between narrow (<=320pt) and roomy (>=430pt) screens so small phones keep title space.
+const scaleByWidth = (screenWidth: number, narrow: number, roomy: number) => {
+  const t = Math.max(0, Math.min(1, (screenWidth - 320) / 110));
+  return Math.round(narrow + (roomy - narrow) * t);
+};
+
+const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create({
   backupBanner: {
     gap: 10,
     marginHorizontal: 16,
@@ -857,7 +1003,9 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     gap: 12,
   },
   bottomBarButton: {
-    minWidth: 84,
+    minWidth: 0,
+    flexShrink: 1,
+    paddingHorizontal: 8,
     height: 48,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -866,6 +1014,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   },
   settingsLabel: {
     color: theme.colors.accent_highlight,
+    flexShrink: 1,
     fontSize: 13,
     lineHeight: 28,
     fontWeight: theme.typography.font_weight_bold,
@@ -922,11 +1071,12 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
     marginBottom: 10,
   },
   setlistExpandButton: {
-    width: 24,
+    width: 20,
+    marginRight: scaleByWidth(screenWidth, 6, 12),
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -941,13 +1091,31 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  setlistDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  setlistDetailsText: {
+    flexShrink: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  setlistLocationLink: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+  },
+  setlistLocationText: {
+    color: theme.colors.accent_highlight,
+    textDecorationLine: 'underline',
+  },
   setlistDetails: {
+    flexShrink: 1,
     color: theme.colors.text_secondary,
     fontSize: 12,
-    marginTop: 2,
   },
   iconButton: {
-    width: 40,
+    width: scaleByWidth(screenWidth, 30, 40),
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
@@ -961,7 +1129,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     gap: 0,
   },
   compactIconButton: {
-    width: 34,
+    width: scaleByWidth(screenWidth, 28, 34),
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1011,7 +1179,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.text_secondary,
   },
   saveText: {
-    color: '#4FC3F7',
+    color: theme.colors.action_primary,
     fontWeight: theme.typography.font_weight_bold,
   },
   disabledAction: {
@@ -1038,12 +1206,6 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.text_primary,
     fontSize: 16,
   },
-  emptyState: {
-    color: theme.colors.text_secondary,
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 12,
-  },
   songHint: {
     color: theme.colors.text_secondary,
     fontSize: 14,
@@ -1068,16 +1230,21 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     alignItems: 'center',
     marginRight: 6,
   },
-  setlistOrderHandle: {
-    minWidth: 36,
+  centeredBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: theme.colors.overlay,
+  },
+  setlistDragHandle: {
+    width: 20,
     minHeight: 40,
+    marginRight: -4,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  setlistOrderHandleText: {
-    color: theme.colors.accent_highlight,
-    fontSize: 22,
-    fontWeight: '900',
+  setlistReorderList: {
+    gap: 14,
   },
   dragHandleText: {
     color: theme.colors.text_secondary,
