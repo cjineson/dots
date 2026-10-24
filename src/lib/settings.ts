@@ -38,7 +38,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   backupSnoozedUntil: null,
 };
 
-const PALETTE_IDS: string[] = ['stage', 'pretty', 'aqua', 'chill', 'beige', 'goth'];
+const PALETTE_IDS: string[] = ['stage', 'pretty', 'aqua', 'chill', 'beige', 'goth', 'forest', 'slate', 'clay', 'mono'];
 
 // 'girlie' was renamed to 'pretty'.
 function parsePalette(raw: string | undefined): PaletteId {

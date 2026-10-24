@@ -414,3 +414,25 @@ test('archive round-trips setlist notes and rejects non-string notes', () => {
     ),
   );
 });
+
+test('song tags accept the extended tag colours', () => {
+  const parsed = parseSetlistArchive(JSON.stringify({
+    format: 'gigbox-setlists',
+    version: 5,
+    groups: [],
+    setlists: [{
+      name: 'Set',
+      group: null,
+      items: [{
+        type: 'song',
+        title: 'Song',
+        notes_raw_text: '',
+        tags: [{ label: 'ballad', color: '#B39DDB' }],
+      }],
+    }],
+  }));
+  assert.deepEqual(
+    parsed.setlists[0].items[0].type === 'song' && parsed.setlists[0].items[0].tags,
+    [{ label: 'ballad', color: '#B39DDB' }],
+  );
+});

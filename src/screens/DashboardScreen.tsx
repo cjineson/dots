@@ -811,7 +811,7 @@ export default function DashboardScreen({
                     />
                     <Text numberOfLines={1} style={styles.destinationText}>
                       {setlist.name}
-                      {setlist.id === copyingSong?.sourceSetlistId ? ' (current)' : ''}
+                      {setlist.id === copyingSong?.sourceSetlistId ? ' (current – makes a duplicate)' : ''}
                     </Text>
                   </Pressable>
                 ))}

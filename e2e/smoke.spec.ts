@@ -7,7 +7,7 @@ test('dashboard loads and opens Settings', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Settings', { exact: true }).first()).toBeVisible({ timeout: 45_000 });
   await page.getByText('Settings', { exact: true }).first().click();
-  await expect(page.getByText('Export library')).toBeVisible();
+  await expect(page.getByText('Export', { exact: true })).toBeVisible();
 
   expect(errors).toEqual([]);
 });
