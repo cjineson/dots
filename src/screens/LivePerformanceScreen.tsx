@@ -270,7 +270,7 @@ export default function LivePerformanceScreen({
               hitSlop={8}
             >
               <MaterialCommunityIcons
-                name="snail"
+                name="tortoise"
                 size={30}
                 color={theme.colors.accent_highlight}
               />
@@ -294,6 +294,7 @@ export default function LivePerformanceScreen({
 
       {song && !isEditorPreview && tagsOpen && (
         <FontSizeZoomControl
+          size={settings.barSize}
           label="Tag size"
           value={tagSize}
           min={MIN_TAG_SIZE}
@@ -319,13 +320,14 @@ export default function LivePerformanceScreen({
           </Pressable>
           <View style={styles.crawlSlider}>
             <FontSizeZoomControl
+              size={settings.barSize}
               label="Crawl speed (pts/sec)"
               value={crawlSpeed}
               min={MIN_AUTO_SCROLL_SPEED}
               max={MAX_AUTO_SCROLL_SPEED}
               step={AUTO_SCROLL_SPEED_STEP}
               curve={AUTO_SCROLL_SLIDER_CURVE}
-              decreaseIcon="snail"
+              decreaseIcon="tortoise"
               increaseIcon="rabbit"
               decreaseLabel="Slower"
               increaseLabel="Faster"
@@ -342,6 +344,7 @@ export default function LivePerformanceScreen({
 
       {song && !isEditorPreview && zoomOpen && (
         <FontSizeZoomControl
+          size={settings.barSize}
           label="Song text size"
           value={fontSize}
           onValueChange={(nextFontSize, persist) => {

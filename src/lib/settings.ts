@@ -2,6 +2,7 @@ import { clampFontSize } from './fontSize';
 import type { PaletteId } from '../theme';
 
 export type SwipeMode = 'normal' | 'firm' | 'off';
+export type BarSize = 'normal' | 'large' | 'huge';
 
 export type AppSettings = {
   keepAwake: boolean;
@@ -11,6 +12,7 @@ export type AppSettings = {
   highContrast: boolean;
   palette: PaletteId;
   autoScrollSpeed: number;
+  barSize: BarSize;
   lastExportAt: string | null;
   backupSnoozedUntil: string | null;
 };
@@ -31,6 +33,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   highContrast: false,
   palette: 'stage',
   autoScrollSpeed: 40,
+  barSize: 'normal',
   lastExportAt: null,
   backupSnoozedUntil: null,
 };
@@ -56,6 +59,7 @@ const SETTING_KEYS = {
   highContrast: 'high_contrast',
   palette: 'palette',
   autoScrollSpeed: 'auto_scroll_speed',
+  barSize: 'bar_size',
   lastExportAt: 'last_export_at',
   backupSnoozedUntil: 'backup_snoozed_until',
 } as const;
@@ -78,6 +82,7 @@ const parseNumber = (raw: string | undefined, fallback: number, clamp: (n: numbe
 
 export function parseSettings(raw: Record<string, string>): AppSettings {
   const swipe = raw[SETTING_KEYS.swipeMode];
+  const bar = raw[SETTING_KEYS.barSize];
   const lastExport = raw[SETTING_KEYS.lastExportAt];
   const snoozed = raw[SETTING_KEYS.backupSnoozedUntil];
   return {
@@ -96,6 +101,7 @@ export function parseSettings(raw: Record<string, string>): AppSettings {
       DEFAULT_SETTINGS.autoScrollSpeed,
       clampAutoScrollSpeed,
     ),
+    barSize: bar === 'large' || bar === 'huge' || bar === 'normal' ? bar : 'normal',
     lastExportAt: lastExport && !Number.isNaN(Date.parse(lastExport)) ? lastExport : null,
     backupSnoozedUntil: snoozed && !Number.isNaN(Date.parse(snoozed)) ? snoozed : null,
   };
