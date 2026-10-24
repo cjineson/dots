@@ -42,7 +42,7 @@ export default function FontSizeZoomControl({
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [trackWidth, setTrackWidth] = useState(0);
-  const hitAreaRef = useRef<View>(null);
+  const hitAreaRef = useRef<React.ComponentRef<typeof View>>(null);
   const hitAreaLeft = useRef<number | null>(null);
   const progress = (value - min) / (max - min);
 

@@ -77,7 +77,7 @@ export default function FlowScreen({
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   useScreenAwake(settings.keepAwake);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const scrollY = useRef(0);
   const virtualY = useRef(0);
   const contentHeight = useRef(0);
