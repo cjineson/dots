@@ -20,7 +20,7 @@ import {
   MAX_AUTO_SCROLL_SPEED,
   MIN_AUTO_SCROLL_SPEED,
 } from '../lib/settings';
-import type { AppSettings, SwipeMode } from '../lib/settings';
+import type { AppSettings, BarSize, SwipeMode } from '../lib/settings';
 import { useTheme } from '../themeContext';
 import type { ThemePreference } from '../themeContext';
 import { PALETTE_OPTIONS } from '../theme';
@@ -44,6 +44,12 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: 'dark', label: 'Dark' },
   { value: 'light', label: 'Light' },
   { value: 'system', label: 'System' },
+];
+
+const BAR_SIZE_OPTIONS: Array<{ value: BarSize; label: string }> = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'large', label: 'Large' },
+  { value: 'huge', label: 'Huge' },
 ];
 
 const SWIPE_OPTIONS: Array<{ value: SwipeMode; label: string }> = [
@@ -166,14 +172,22 @@ export default function SettingsScreen({
           (value) => onSettingChange('swipeMode', value),
           'swipe',
         )}
+        <Text style={styles.label}>Scroll & zoom bar size</Text>
+        {renderSegments(
+          BAR_SIZE_OPTIONS,
+          settings.barSize,
+          (value) => onSettingChange('barSize', value),
+          'barsize',
+        )}
         <FontSizeZoomControl
+          size={settings.barSize}
           label="Default auto-scroll speed (pts/sec)"
           value={settings.autoScrollSpeed}
           min={MIN_AUTO_SCROLL_SPEED}
           max={MAX_AUTO_SCROLL_SPEED}
           step={AUTO_SCROLL_SPEED_STEP}
           curve={AUTO_SCROLL_SLIDER_CURVE}
-              decreaseIcon="snail"
+          decreaseIcon="tortoise"
           increaseIcon="rabbit"
           decreaseLabel="Slower"
           increaseLabel="Faster"
@@ -186,6 +200,7 @@ export default function SettingsScreen({
 
         <Text style={styles.sectionTitle}>Defaults</Text>
         <FontSizeZoomControl
+          size={settings.barSize}
           label="Text size for new songs"
           value={settings.defaultFontSize}
           min={10}
@@ -197,6 +212,7 @@ export default function SettingsScreen({
           }}
         />
         <FontSizeZoomControl
+          size={settings.barSize}
           label="Tag size"
           value={tagSize}
           min={MIN_TAG_SIZE}

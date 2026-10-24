@@ -10,9 +10,16 @@ import type { GestureResponderEvent } from 'react-native';
 
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
+import type { BarSize } from '../lib/settings';
 import { FONT_SIZE_STEP, MAX_FONT_SIZE, MIN_FONT_SIZE } from '../lib/fontSize';
 
 const SLIDER_HORIZONTAL_INSET = 10;
+
+const SIZE_METRICS: Record<BarSize, { button: number; icon: number; track: number; thumb: number }> = {
+  normal: { button: 60, icon: 34, track: 6, thumb: 22 },
+  large: { button: 76, icon: 42, track: 10, thumb: 32 },
+  huge: { button: 92, icon: 50, track: 14, thumb: 42 },
+};
 
 type FontSizeZoomControlProps = {
   label: string;
@@ -26,6 +33,7 @@ type FontSizeZoomControlProps = {
   decreaseLabel?: string;
   increaseLabel?: string;
   curve?: number;
+  size?: BarSize;
 };
 
 export default function FontSizeZoomControl({
@@ -40,9 +48,10 @@ export default function FontSizeZoomControl({
   decreaseLabel = 'Zoom out',
   increaseLabel = 'Zoom in',
   curve = 1,
+  size = 'normal',
 }: FontSizeZoomControlProps) {
   const theme = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, SIZE_METRICS[size]), [theme, size]);
   const [trackWidth, setTrackWidth] = useState(0);
   const hitAreaRef = useRef<React.ComponentRef<typeof View>>(null);
   const hitAreaLeft = useRef<number | null>(null);
@@ -89,7 +98,7 @@ export default function FontSizeZoomControl({
         >
           <MaterialCommunityIcons
             name={decreaseIcon}
-            size={34}
+            size={SIZE_METRICS[size].icon}
             color={theme.colors.accent_highlight}
           />
         </Pressable>
@@ -145,7 +154,7 @@ export default function FontSizeZoomControl({
         >
           <MaterialCommunityIcons
             name={increaseIcon}
-            size={34}
+            size={SIZE_METRICS[size].icon}
             color={theme.colors.accent_highlight}
           />
         </Pressable>
@@ -154,7 +163,7 @@ export default function FontSizeZoomControl({
   );
 }
 
-const createStyles = (theme: AppTheme) => StyleSheet.create({
+const createStyles = (theme: AppTheme, m: (typeof SIZE_METRICS)[BarSize]) => StyleSheet.create({
   controlGroup: {
     marginBottom: 8,
   },
@@ -168,7 +177,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    minHeight: 68,
+    minHeight: m.button + 8,
     paddingHorizontal: 8,
     borderWidth: 1,
     borderColor: theme.colors.border_contrast,
@@ -176,8 +185,8 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   stepButton: {
-    width: 60,
-    height: 60,
+    width: m.button,
+    height: m.button,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 10,
@@ -186,29 +195,29 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   sliderHitArea: {
     flex: 1,
     minWidth: 40,
-    height: 60,
+    height: m.button,
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
   track: {
-    height: 6,
-    borderRadius: 3,
+    height: m.track,
+    borderRadius: m.track / 2,
     backgroundColor: theme.colors.border_contrast,
   },
   trackFill: {
-    height: 6,
-    borderRadius: 3,
+    height: m.track,
+    borderRadius: m.track / 2,
     backgroundColor: theme.colors.accent_highlight,
   },
   thumb: {
     position: 'absolute',
-    top: -8,
-    width: 22,
-    height: 22,
-    marginLeft: -11,
+    top: (m.track - m.thumb) / 2 - 2,
+    width: m.thumb,
+    height: m.thumb,
+    marginLeft: -m.thumb / 2,
     borderWidth: 2,
     borderColor: theme.colors.background,
-    borderRadius: 11,
+    borderRadius: m.thumb / 2,
     backgroundColor: theme.colors.accent_highlight,
   },
   value: {

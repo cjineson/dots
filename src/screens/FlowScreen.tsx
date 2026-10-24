@@ -281,6 +281,7 @@ export default function FlowScreen({
 
       {songs.length > 0 && tagsOpen && (
         <FontSizeZoomControl
+          size={settings.barSize}
           label="Tag size"
           value={tagSize}
           min={MIN_TAG_SIZE}
@@ -292,6 +293,7 @@ export default function FlowScreen({
 
       {songs.length > 0 && flowZoomOpen && (
         <FontSizeZoomControl
+          size={settings.barSize}
           label="Set entire setlist"
           value={flowFontSize}
           onValueChange={setFlowFontSizeAndPersist}
@@ -314,13 +316,14 @@ export default function FlowScreen({
           </Pressable>
           <View style={styles.scrollSlider}>
             <FontSizeZoomControl
+              size={settings.barSize}
               label="Auto-scroll speed (pts/sec)"
               value={scrollSpeed}
               min={MIN_AUTO_SCROLL_SPEED}
               max={MAX_AUTO_SCROLL_SPEED}
               step={AUTO_SCROLL_SPEED_STEP}
               curve={AUTO_SCROLL_SLIDER_CURVE}
-              decreaseIcon="snail"
+              decreaseIcon="tortoise"
               increaseIcon="rabbit"
               decreaseLabel="Slower"
               increaseLabel="Faster"
@@ -432,6 +435,7 @@ export default function FlowScreen({
               </View>
               {openSongZoomIds[song.id] && (
               <FontSizeZoomControl
+                size={settings.barSize}
                 label={`${song.title} text size`}
                 value={songFontSize(song)}
                 onValueChange={(nextFontSize, persist) =>
