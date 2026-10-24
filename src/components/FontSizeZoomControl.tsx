@@ -16,9 +16,12 @@ import { FONT_SIZE_STEP, MAX_FONT_SIZE, MIN_FONT_SIZE } from '../lib/fontSize';
 const SLIDER_HORIZONTAL_INSET = 10;
 
 const SIZE_METRICS: Record<BarSize, { button: number; icon: number; track: number; thumb: number }> = {
-  normal: { button: 60, icon: 34, track: 6, thumb: 22 },
-  large: { button: 76, icon: 42, track: 10, thumb: 32 },
-  huge: { button: 92, icon: 50, track: 14, thumb: 42 },
+  xxs: { button: 32, icon: 20, track: 3, thumb: 12 },
+  xs: { button: 40, icon: 24, track: 4, thumb: 16 },
+  s: { button: 48, icon: 28, track: 5, thumb: 18 },
+  m: { button: 60, icon: 34, track: 6, thumb: 22 },
+  l: { button: 76, icon: 42, track: 10, thumb: 32 },
+  xl: { button: 92, icon: 50, track: 14, thumb: 42 },
 };
 
 type FontSizeZoomControlProps = {
@@ -48,7 +51,7 @@ export default function FontSizeZoomControl({
   decreaseLabel = 'Zoom out',
   increaseLabel = 'Zoom in',
   curve = 1,
-  size = 'normal',
+  size = 'm',
 }: FontSizeZoomControlProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme, SIZE_METRICS[size]), [theme, size]);

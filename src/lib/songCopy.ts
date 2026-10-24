@@ -1,12 +1,24 @@
-const COPY_SUFFIX = /\s+Copy \d+$/i;
+import type { SongTag } from '../types';
 
-/** Returns "Title Copy N" with the lowest N not already used by a title in the setlist. */
-export function nextCopyTitle(title: string, existingTitles: string[]): string {
-  const base = title.replace(COPY_SUFFIX, '').trim() || 'Untitled Song';
-  const used = new Set(existingTitles.map((existing) => existing.trim().toLocaleLowerCase()));
-  let copyNumber = 1;
-  while (used.has(`${base} Copy ${copyNumber}`.toLocaleLowerCase())) {
-    copyNumber += 1;
-  }
-  return `${base} Copy ${copyNumber}`;
+const normalize = (value: string) => value.trim().toLocaleLowerCase();
+
+/** Order- and case-insensitive identity of a tag set, ignoring colours. */
+export function tagSignature(tags: SongTag[] = []): string {
+  return JSON.stringify([...new Set(tags.map((tag) => normalize(tag.label)))].sort());
+}
+
+/** Finds a song with the same title and the same tags, which would be an indistinguishable duplicate. */
+export function findVariantConflict<T extends { id: string; title: string; tags?: SongTag[] }>(
+  songs: T[],
+  title: string,
+  tags: SongTag[] = [],
+  ignoreSongId?: string,
+): T | undefined {
+  const signature = tagSignature(tags);
+  return songs.find(
+    (song) =>
+      song.id !== ignoreSongId &&
+      normalize(song.title) === normalize(title) &&
+      tagSignature(song.tags) === signature,
+  );
 }

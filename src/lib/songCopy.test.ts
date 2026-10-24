@@ -1,15 +1,27 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { nextCopyTitle } from './songCopy';
+import { findVariantConflict, tagSignature } from './songCopy';
 
-test('nextCopyTitle numbers copies and skips titles already in use', () => {
-  assert.equal(nextCopyTitle('Song', ['Song']), 'Song Copy 1');
-  assert.equal(nextCopyTitle('Song', ['Song', 'Song Copy 1']), 'Song Copy 2');
-  assert.equal(nextCopyTitle('Song', ['Song', 'song copy 1', 'Song Copy 3']), 'Song Copy 2');
+const tag = (label: string) => ({ label, color: '#FFCC00' as const });
+
+test('tagSignature ignores order, case and colour', () => {
+  assert.equal(
+    tagSignature([tag('Piano'), tag('Capo 2')]),
+    tagSignature([{ label: 'capo 2', color: '#FFFFFF' }, tag('piano')]),
+  );
+  assert.notEqual(tagSignature([tag('Piano')]), tagSignature([tag('Guitar')]));
+  assert.equal(tagSignature(), tagSignature([]));
 });
 
-test('nextCopyTitle copies of copies use the original title', () => {
-  assert.equal(nextCopyTitle('Song Copy 1', ['Song', 'Song Copy 1']), 'Song Copy 2');
-  assert.equal(nextCopyTitle('  ', []), 'Untitled Song Copy 1');
+test('findVariantConflict allows same title only with different tags', () => {
+  const songs = [
+    { id: '1', title: 'Wonderwall', tags: [tag('Guitar')] },
+    { id: '2', title: 'Other', tags: [] },
+  ];
+  assert.equal(findVariantConflict(songs, 'wonderwall', [tag('guitar')])?.id, '1');
+  assert.equal(findVariantConflict(songs, 'Wonderwall', [tag('Piano')]), undefined);
+  assert.equal(findVariantConflict(songs, 'Wonderwall', [tag('Guitar'), tag('Capo 2')]), undefined);
+  assert.equal(findVariantConflict(songs, 'Wonderwall', [tag('Guitar')], '1'), undefined);
+  assert.equal(findVariantConflict(songs, 'Other', [])?.id, '2');
 });

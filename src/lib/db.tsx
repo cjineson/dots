@@ -10,7 +10,7 @@ import {
 import type { AppSettings } from './settings';
 import { UNGROUPED_SONGS_SETLIST_NAME } from './ungrouped';
 import { parseStoredSongTags } from './songTags';
-import { nextCopyTitle } from './songCopy';
+import { findVariantConflict } from './songCopy';
 import { makeId } from './uuid';
 import type {
   DashboardExpansionState,
@@ -21,6 +21,7 @@ import type {
   SetlistItem,
   SetlistWithSongs,
   Song,
+  SongTag,
 } from '../types';
 
 const db = SQLite.openDatabaseSync('gigbox.db');
@@ -424,7 +425,11 @@ export function copySetlist(setlistId: string): Setlist {
   return copy;
 }
 
-export function copySongToSetlist(songId: string, targetSetlistId: string): Song {
+export function copySongToSetlist(
+  songId: string,
+  targetSetlistId: string,
+  variantTag?: SongTag,
+): Song {
   const source = getSongById(songId);
   if (!source) {
     throw new Error('The song to copy could not be found.');
@@ -442,9 +447,13 @@ export function copySongToSetlist(songId: string, targetSetlistId: string): Song
     [targetSetlistId, source.id],
   );
   if (link) {
-    return duplicateSongInSetlist(source, targetSetlistId, link.sort_order);
+    if (!variantTag) {
+      throw new Error('This song is already in the setlist. Add a tag to make a separate version.');
+    }
+    return duplicateSongInSetlist(source, targetSetlistId, link.sort_order, variantTag);
   }
 
+  assertNoVariantConflict(targetSetlistId, source.title, source.tags ?? [], source.id);
   db.runSync(
     'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
     [targetSetlistId, source.id, getNextSortOrderForSetlist(targetSetlistId)],
@@ -452,23 +461,50 @@ export function copySongToSetlist(songId: string, targetSetlistId: string): Song
   return source;
 }
 
-// A song already in the setlist is duplicated as an independent "Title Copy N" right after the original.
-function duplicateSongInSetlist(source: Song, setlistId: string, afterSortOrder: number): Song {
-  const copy: Song = {
-    ...source,
-    id: makeId(),
-    title: nextCopyTitle(
-      source.title,
-      db
-        .getAllSync<{ title: string }>(
-          `SELECT songs.title FROM songs
-           JOIN setlist_songs ON setlist_songs.song_id = songs.id
-           WHERE setlist_songs.setlist_id = ?`,
-          [setlistId],
-        )
-        .map((row) => row.title ?? ''),
-    ),
-  };
+// Songs in one setlist may share a title only if their tags differ (e.g. Piano vs Guitar).
+function assertNoVariantConflict(
+  setlistId: string,
+  title: string,
+  tags: SongTag[],
+  ignoreSongId?: string,
+): void {
+  const rows = db.getAllSync<{ id: string; title: string; tags: string | null }>(
+    `SELECT songs.id, songs.title, songs.tags FROM songs
+     JOIN setlist_songs ON setlist_songs.song_id = songs.id
+     WHERE setlist_songs.setlist_id = ?`,
+    [setlistId],
+  );
+  const conflict = findVariantConflict(
+    rows.map((row) => ({ id: row.id, title: row.title ?? '', tags: parseStoredSongTags(row.tags) })),
+    title,
+    tags,
+    ignoreSongId,
+  );
+  if (conflict) {
+    throw new Error(
+      `This setlist already has "${conflict.title}" with the same tags. Give one a different tag (for example Piano or Guitar) to keep both.`,
+    );
+  }
+}
+
+// Duplicates a song already in the setlist as an independent version right after the original.
+function duplicateSongInSetlist(
+  source: Song,
+  setlistId: string,
+  afterSortOrder: number,
+  variantTag: SongTag,
+): Song {
+  const label = variantTag.label.trim();
+  if (!label) {
+    throw new Error('Enter a tag so the new version can be told apart.');
+  }
+  const sourceTags = source.tags ?? [];
+  const tags = sourceTags.some((tag) => tag.label.toLocaleLowerCase() === label.toLocaleLowerCase())
+    ? sourceTags
+    : [...sourceTags, { label, color: variantTag.color }];
+  assertNoVariantConflict(setlistId, source.title, tags);
+
+  const copy: Song = { ...source, id: makeId(), tags };
   db.withTransactionSync(() => {
     db.runSync(
       'UPDATE setlist_songs SET sort_order = sort_order + 1 WHERE setlist_id = ? AND sort_order > ?',
@@ -486,7 +522,7 @@ function duplicateSongInSetlist(source: Song, setlistId: string, afterSortOrder:
         copy.notes_raw_text,
         copy.font_size ?? 18,
         copy.cue_document ?? null,
-        JSON.stringify(copy.tags ?? []),
+        JSON.stringify(tags),
       ],
     );
     db.runSync(
@@ -683,6 +719,7 @@ export function saveSongForSetlist({
   const cleanedTitle = title.trim() || 'Untitled Song';
 
   const existing = getSongById(id);
+  assertNoVariantConflict(setlistId, cleanedTitle, tags ?? [], id);
 
   if (existing) {
     db.runSync('UPDATE songs SET title = ?, notes_raw_text = ?, cue_document = ?, tags = ? WHERE id = ?', [

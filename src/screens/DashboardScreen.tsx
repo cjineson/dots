@@ -24,6 +24,7 @@ import {
 import EmptyDashboard from '../components/EmptyDashboard';
 import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
+import { TAG_COLORS } from '../lib/cueDocument';
 import { hasMapTarget, openInMaps } from '../lib/maps';
 import { UNGROUPED_SONGS_SETLIST_NAME } from '../lib/ungrouped';
 import { BACKUP_REMIND_LATER_DAYS, BACKUP_REMINDER_DAYS } from '../lib/settings';
@@ -34,6 +35,8 @@ import type {
   SetlistItem,
   SetlistWithSongs,
   Song,
+  SongTag,
+  TagColor,
 } from '../types';
 
 type DashboardScreenProps = {
@@ -47,7 +50,7 @@ type DashboardScreenProps = {
   onOpenSetlistEditor: (setlist: SetlistWithSongs) => void;
   onDeleteSetlist: (setlistId: string) => void;
   onCopySetlist: (setlistId: string) => void;
-  onCopySong: (songId: string, targetSetlistId: string) => void;
+  onCopySong: (songId: string, targetSetlistId: string, variantTag?: SongTag) => void;
   onDeleteSong: (setlistId: string, songId: string) => void;
   onKeepSongUngrouped: (setlistId: string, songId: string) => void;
   onDeleteBreak: (setlistId: string, breakId: string) => void;
@@ -111,6 +114,12 @@ export default function DashboardScreen({
     song: Song;
     sourceSetlistId: string;
   } | null>(null);
+  const [variantFor, setVariantFor] = React.useState<{
+    song: Song;
+    setlistId: string;
+  } | null>(null);
+  const [variantName, setVariantName] = React.useState('');
+  const [variantColor, setVariantColor] = React.useState<TagColor>(TAG_COLORS[4]);
 
   const confirmDeleteGroup = (group: SetlistGroup) => {
     Alert.alert(
@@ -212,9 +221,34 @@ export default function DashboardScreen({
     if (!copyingSong) {
       return;
     }
+    if (targetSetlistId === copyingSong.sourceSetlistId) {
+      // Same-title songs in one setlist must differ by tag, so ask for one.
+      setVariantFor({ song: copyingSong.song, setlistId: targetSetlistId });
+      setVariantName('');
+      setCopyingSong(null);
+      return;
+    }
     try {
       onCopySong(copyingSong.song.id, targetSetlistId);
       setCopyingSong(null);
+    } catch (error) {
+      Alert.alert(
+        'Copy failed',
+        error instanceof Error ? error.message : 'An unexpected error occurred.',
+      );
+    }
+  };
+
+  const createVariant = () => {
+    if (!variantFor || !variantName.trim()) {
+      return;
+    }
+    try {
+      onCopySong(variantFor.song.id, variantFor.setlistId, {
+        label: variantName.trim(),
+        color: variantColor,
+      });
+      setVariantFor(null);
     } catch (error) {
       Alert.alert(
         'Copy failed',
@@ -776,6 +810,71 @@ export default function DashboardScreen({
       </Modal>
 
       <Modal
+        visible={variantFor !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVariantFor(null)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalBackdrop}
+        >
+          <ScrollView
+            contentContainerStyle={styles.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <View style={styles.renameDialog}>
+              <Text style={styles.dialogTitle}>New version of “{variantFor?.song.title}”</Text>
+              <Text style={styles.copyHint}>
+                Songs with the same title need different tags, e.g. Piano or Guitar. The copy has its
+                own chords and notes and can be edited separately.
+              </Text>
+              <SongTags tags={variantFor?.song.tags} compact wrapCompact />
+              <TextInput
+                autoFocus
+                value={variantName}
+                onChangeText={setVariantName}
+                onSubmitEditing={createVariant}
+                placeholder="New tag, e.g. Piano"
+                placeholderTextColor={theme.colors.text_secondary}
+                style={[styles.renameInput, styles.variantInput]}
+                accessibilityLabel="Tag for the new version"
+              />
+              <View style={styles.variantColors}>
+                {TAG_COLORS.map((color) => (
+                  <Pressable
+                    key={color}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Choose tag color ${color}`}
+                    accessibilityState={{ selected: variantColor === color }}
+                    onPress={() => setVariantColor(color)}
+                    style={[
+                      styles.variantSwatch,
+                      { backgroundColor: color },
+                      variantColor === color && styles.variantSwatchSelected,
+                    ]}
+                  />
+                ))}
+              </View>
+              <View style={styles.dialogActions}>
+                <Pressable onPress={() => setVariantFor(null)} style={styles.dialogButton}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={createVariant}
+                  disabled={!variantName.trim()}
+                  style={[styles.dialogButton, !variantName.trim() && styles.disabledAction]}
+                >
+                  <Text style={styles.saveText}>Create version</Text>
+                </Pressable>
+              </View>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
         visible={copyingSong !== null}
         transparent
         animationType="fade"
@@ -795,6 +894,7 @@ export default function DashboardScreen({
               <Text style={styles.copyHint}>
                 Choose a destination for “{copyingSong?.song.title}”.
               </Text>
+              <SongTags tags={copyingSong?.song.tags} compact wrapCompact />
               <ScrollView style={styles.destinationList}>
                 {setlists.map((setlist) => (
                   <Pressable
@@ -811,7 +911,7 @@ export default function DashboardScreen({
                     />
                     <Text numberOfLines={1} style={styles.destinationText}>
                       {setlist.name}
-                      {setlist.id === copyingSong?.sourceSetlistId ? ' (current – makes a duplicate)' : ''}
+                      {setlist.id === copyingSong?.sourceSetlistId ? ' (this setlist – new version)' : ''}
                     </Text>
                   </Pressable>
                 ))}
@@ -883,6 +983,7 @@ export default function DashboardScreen({
                     >
                       <MaterialCommunityIcons name="music-note" size={22} color={theme.colors.action_primary} />
                       <Text numberOfLines={1} style={styles.destinationText}>{song.title}</Text>
+                      <SongTags tags={song.tags} compact />
                     </Pressable>
                   ))
                 : setlists
@@ -1184,6 +1285,26 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
   },
   disabledAction: {
     opacity: 0.4,
+  },
+  variantInput: {
+    marginTop: 10,
+  },
+  variantColors: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  variantSwatch: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+  },
+  variantSwatchSelected: {
+    borderWidth: 3,
+    borderColor: theme.colors.text_primary,
   },
   copyHint: {
     color: theme.colors.text_secondary,
