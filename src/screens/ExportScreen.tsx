@@ -15,15 +15,16 @@ import {
 import type { ExportSelection } from '../lib/archiveSelection';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
-import type { SetlistGroup, SetlistWithSongs } from '../types';
+import type { SetlistGroup, SetlistWithSongs, Song } from '../types';
 
 type Props = {
   setlists: SetlistWithSongs[];
+  standaloneSongs: Song[];
   groups: SetlistGroup[];
   onExport: (selection: ExportSelection) => void;
 };
 
-export default function ExportScreen({ setlists, groups, onExport }: Props) {
+export default function ExportScreen({ setlists, standaloneSongs, groups, onExport }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [selection, setSelection] = useState<ExportSelection>(EMPTY_SELECTION);
@@ -31,7 +32,8 @@ export default function ExportScreen({ setlists, groups, onExport }: Props) {
   const total = countSelection(selection);
   const allSelected =
     groups.every((group) => selection.groupIds.has(group.id)) &&
-    setlists.every((setlist) => isSetlistSelected(selection, setlist));
+    setlists.every((setlist) => isSetlistSelected(selection, setlist)) &&
+    standaloneSongs.every((song) => selection.songIds.has(song.id));
 
   const renderCheck = (checked: boolean) => (
     <MaterialCommunityIcons
@@ -135,6 +137,34 @@ export default function ExportScreen({ setlists, groups, onExport }: Props) {
           <Text style={styles.sectionTitle}>No group</Text>
         )}
         {ungrouped.map(renderSetlist)}
+        {standaloneSongs.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Songs</Text>
+            {standaloneSongs.map((song) => {
+              const checked = selection.songIds.has(song.id);
+              return (
+                <Pressable
+                  key={song.id}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel={`Export standalone song ${song.title}`}
+                  accessibilityState={{ checked }}
+                  onPress={() =>
+                    setSelection({
+                      ...selection,
+                      songIds: checked
+                        ? new Set([...selection.songIds].filter((id) => id !== song.id))
+                        : new Set([...selection.songIds, song.id]),
+                    })
+                  }
+                  style={[styles.row, styles.songRow]}
+                >
+                  {renderCheck(checked)}
+                  <Text style={styles.rowText}>{song.title}</Text>
+                </Pressable>
+              );
+            })}
+          </>
+        )}
       </ScrollView>
       <View style={styles.footer}>
         <Pressable
@@ -147,7 +177,7 @@ export default function ExportScreen({ setlists, groups, onExport }: Props) {
                 : {
                     groupIds: new Set(groups.map((group) => group.id)),
                     setlistIds: new Set(setlists.map((setlist) => setlist.id)),
-                    songIds: new Set(),
+                    songIds: new Set(standaloneSongs.map((song) => song.id)),
                   },
             )
           }

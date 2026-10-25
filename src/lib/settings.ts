@@ -13,6 +13,8 @@ export type AppSettings = {
   keepAwake: boolean;
   defaultFontSize: number;
   showPosition: boolean;
+  showPerformanceEditButton: boolean;
+  showPerformanceSettingsButton: boolean;
   swipeMode: SwipeMode;
   highContrast: boolean;
   palette: PaletteId;
@@ -34,6 +36,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   keepAwake: true,
   defaultFontSize: 18,
   showPosition: true,
+  showPerformanceEditButton: true,
+  showPerformanceSettingsButton: true,
   swipeMode: 'normal',
   highContrast: false,
   palette: 'stage',
@@ -60,6 +64,8 @@ const SETTING_KEYS = {
   keepAwake: 'keep_awake',
   defaultFontSize: 'default_font_size',
   showPosition: 'show_position',
+  showPerformanceEditButton: 'show_performance_edit_button',
+  showPerformanceSettingsButton: 'show_performance_settings_button',
   swipeMode: 'swipe_mode',
   highContrast: 'high_contrast',
   palette: 'palette',
@@ -98,6 +104,14 @@ export function parseSettings(raw: Record<string, string>): AppSettings {
       clampFontSize,
     ),
     showPosition: parseBoolean(raw[SETTING_KEYS.showPosition], DEFAULT_SETTINGS.showPosition),
+    showPerformanceEditButton: parseBoolean(
+      raw[SETTING_KEYS.showPerformanceEditButton],
+      DEFAULT_SETTINGS.showPerformanceEditButton,
+    ),
+    showPerformanceSettingsButton: parseBoolean(
+      raw[SETTING_KEYS.showPerformanceSettingsButton],
+      DEFAULT_SETTINGS.showPerformanceSettingsButton,
+    ),
     swipeMode: swipe === 'firm' || swipe === 'off' || swipe === 'normal' ? swipe : 'normal',
     highContrast: parseBoolean(raw[SETTING_KEYS.highContrast], DEFAULT_SETTINGS.highContrast),
     palette: parsePalette(raw[SETTING_KEYS.palette]),
@@ -121,11 +135,11 @@ export function serializeSetting<K extends keyof AppSettings>(
 
 export function needsBackupReminder(
   lastExportAt: string | null,
-  hasSetlists: boolean,
+  hasLibraryContent: boolean,
   snoozedUntil: string | null = null,
   now: Date = new Date(),
 ) {
-  if (!hasSetlists) {
+  if (!hasLibraryContent) {
     return false;
   }
   if (snoozedUntil && now.getTime() < Date.parse(snoozedUntil)) {

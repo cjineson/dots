@@ -6,6 +6,7 @@ import {
   needsBackupReminder,
   parseSettings,
   serializeSetting,
+  settingStorageKey,
 } from './settings';
 
 test('parseSettings returns defaults for empty or invalid values', () => {
@@ -17,6 +18,8 @@ test('parseSettings returns defaults for empty or invalid values', () => {
       swipe_mode: 'sideways',
       auto_scroll_speed: 'NaN',
       last_export_at: 'yesterday',
+      show_performance_edit_button: 'invalid',
+      show_performance_settings_button: 'invalid',
     }),
     DEFAULT_SETTINGS,
   );
@@ -27,6 +30,8 @@ test('parseSettings reads and clamps stored values', () => {
     keep_awake: 'false',
     default_font_size: '500',
     show_position: 'false',
+    show_performance_edit_button: 'false',
+    show_performance_settings_button: 'true',
     swipe_mode: 'firm',
     high_contrast: 'true',
     palette: 'goth',
@@ -37,6 +42,8 @@ test('parseSettings reads and clamps stored values', () => {
   assert.equal(parsed.keepAwake, false);
   assert.equal(parsed.defaultFontSize, 128);
   assert.equal(parsed.showPosition, false);
+  assert.equal(parsed.showPerformanceEditButton, false);
+  assert.equal(parsed.showPerformanceSettingsButton, true);
   assert.equal(parsed.swipeMode, 'firm');
   assert.equal(parsed.highContrast, true);
   assert.equal(parsed.palette, 'goth');
@@ -53,6 +60,11 @@ test('serializeSetting stringifies values and keeps null as null', () => {
   assert.equal(serializeSetting('keepAwake', true), 'true');
   assert.equal(serializeSetting('autoScrollSpeed', 50), '50');
   assert.equal(serializeSetting('lastExportAt', null), null);
+  assert.equal(settingStorageKey('showPerformanceEditButton'), 'show_performance_edit_button');
+  assert.equal(
+    settingStorageKey('showPerformanceSettingsButton'),
+    'show_performance_settings_button',
+  );
 });
 
 test('needsBackupReminder only applies when there are setlists and the backup is old', () => {

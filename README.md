@@ -36,7 +36,7 @@ npm test
 ```
 
 ## Database behavior
-The app stores everything locally in SQLite and exports JSON archives (version 5; imports accept versions 1 through 5). See [Data and archives](docs/data-and-archives.md).
+The app stores everything locally in SQLite and exports JSON archives (version 6; imports accept versions 1 through 6). See [Data and archives](docs/data-and-archives.md).
 
 ## Future phases
 - Local P2P sync pathing

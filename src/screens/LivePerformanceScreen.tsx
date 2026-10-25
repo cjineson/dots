@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
+  Alert,
   Image,
   LayoutChangeEvent,
   PanResponder,
@@ -19,8 +20,12 @@ import FontSizeZoomControl from '../components/FontSizeZoomControl';
 import PerformanceCueContent from '../components/PerformanceCueContent';
 import {
   createCueDocumentFromText,
+  flattenCueDocument,
   getVisibleCueBlocks,
   parseCueDocument,
+  serializeCueDocument,
+  updateCueTableCell,
+  updateCueTextBlock,
 } from '../lib/cueDocument';
 import {
   clampFontSize,
@@ -30,6 +35,7 @@ import {
   TAG_SIZE_STEP,
 } from '../lib/fontSize';
 import { useScreenAwake } from '../lib/keepAwake';
+import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
 import {
   AUTO_SCROLL_SLIDER_CURVE,
   AUTO_SCROLL_SPEED_STEP,
@@ -38,15 +44,17 @@ import {
   SWIPE_DISTANCE,
 } from '../lib/settings';
 import type { AppSettings } from '../lib/settings';
-import type { CueBlock, SetlistItem, Song } from '../types';
+import type { CueBlock, CueDocument, SetlistItem, Song } from '../types';
 
 type LivePerformanceScreenProps = {
   items: SetlistItem[];
   index: number;
   isEditorPreview?: boolean;
   onGoToDashboard: () => void;
+  onOpenSettings: () => void;
   onExitEditorPreview: () => void;
   onIndexChange: (index: number) => void;
+  onSaveCueContent: (songId: string, notesRawText: string, cueDocument: string) => void;
   onFontSizeChange: (songId: string, fontSize: number) => void;
   tagSize: number;
   onTagSizeChange: (tagSize: number, persist: boolean) => void;
@@ -59,8 +67,10 @@ export default function LivePerformanceScreen({
   index,
   isEditorPreview = false,
   onGoToDashboard,
+  onOpenSettings,
   onExitEditorPreview,
   onIndexChange,
+  onSaveCueContent,
   onFontSizeChange,
   tagSize,
   onTagSizeChange,
@@ -72,12 +82,17 @@ export default function LivePerformanceScreen({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const item = items[index];
   const song = item?.kind === 'song' ? item.song : undefined;
-  const cueDocument = song?.cue_document
+  const [savedCueDocuments, setSavedCueDocuments] = useState<Record<string, CueDocument>>({});
+  const storedCueDocument = song?.cue_document
     ? parseCueDocument(song.cue_document)
     : createCueDocumentFromText(song?.notes_raw_text ?? '');
+  const cueDocument = song ? savedCueDocuments[song.id] ?? storedCueDocument : storedCueDocument;
   const cueBlocks = getVisibleCueBlocks(cueDocument);
   const [boxSize, setBoxSize] = useState({ width: 0, height: 0 });
   const [fontSizeBySong, setFontSizeBySong] = useState<Record<string, number>>({});
+  const [isCueEditing, setIsCueEditing] = useState(false);
+  const [draftCueDocument, setDraftCueDocument] = useState<CueDocument | null>(null);
+  const [cueEditBaseline, setCueEditBaseline] = useState('');
   const fontSize =
     song ? fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size
       : theme.typography.box_text_size;
@@ -101,9 +116,78 @@ export default function LivePerformanceScreen({
   const cueViewportHeight = useRef(0);
   const crawlY = useRef(0);
 
+  const displayedCueBlocks = isCueEditing && draftCueDocument
+    ? draftCueDocument.blocks
+    : cueBlocks;
+  const draftSnapshot = draftCueDocument ? serializeCueDocument(draftCueDocument) : '';
+  const draftIsDirty = isCueEditing && draftSnapshot !== cueEditBaseline;
+  const snapshot = draftIsDirty && song
+    ? `${song.id}:${draftSnapshot}`
+    : 'performance-readonly';
+
+  const saveCueEdits = () => {
+    if (!song || !draftCueDocument) {
+      return;
+    }
+    const serializedDocument = serializeCueDocument(draftCueDocument);
+    try {
+      onSaveCueContent(song.id, flattenCueDocument(draftCueDocument), serializedDocument);
+    } catch (error) {
+      Alert.alert(
+        'Save failed',
+        error instanceof Error ? error.message : 'An unexpected error occurred.',
+      );
+      return;
+    }
+    setSavedCueDocuments((current) => ({ ...current, [song.id]: draftCueDocument }));
+    setIsCueEditing(false);
+    setDraftCueDocument(null);
+    setCueEditBaseline('');
+  };
+
+  useUnsavedChangesPrompt({
+    snapshot,
+    save: saveCueEdits,
+  });
+
+  const startCueEditing = () => {
+    const serializedDocument = serializeCueDocument(cueDocument);
+    setDraftCueDocument(cueDocument);
+    setCueEditBaseline(serializedDocument);
+    setIsCueEditing(true);
+    setPanel(null);
+    setCrawling(false);
+  };
+
+  const cancelCueEditing = () => {
+    setIsCueEditing(false);
+    setDraftCueDocument(null);
+    setCueEditBaseline('');
+  };
+
+  const updateTextCue = (blockId: string, text: string) => {
+    setDraftCueDocument((current) =>
+      current ? updateCueTextBlock(current, blockId, text) : current,
+    );
+  };
+
+  const updateTableCueCell = (
+    blockId: string,
+    rowIndex: number,
+    columnIndex: number,
+    value: string,
+  ) => {
+    setDraftCueDocument((current) =>
+      current ? updateCueTableCell(current, blockId, rowIndex, columnIndex, value) : current,
+    );
+  };
+
   useEffect(() => {
     setCrawling(false);
     cueScrollY.current = 0;
+    setIsCueEditing(false);
+    setDraftCueDocument(null);
+    setCueEditBaseline('');
   }, [index]);
 
   useEffect(() => {
@@ -129,7 +213,7 @@ export default function LivePerformanceScreen({
     (block.font_size ?? theme.typography.box_text_size) * songFontScale;
 
   const fitsAtScale = (scale: number) => {
-    const contentHeight = cueBlocks.reduce((total, block) => {
+    const contentHeight = displayedCueBlocks.reduce((total, block) => {
       const size = baseSizeForBlock(block) * scale;
       if (block.type === 'table') {
         const columnWidth = availableWidth / block.rows[0].length;
@@ -174,10 +258,11 @@ export default function LivePerformanceScreen({
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, gesture) =>
+          !isCueEditing &&
           settings.swipeMode !== 'off' &&
           Math.abs(gesture.dx) > 24 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
         onPanResponderRelease: (_, gesture) => {
-          if (settings.swipeMode === 'off') {
+          if (isCueEditing || settings.swipeMode === 'off') {
             return;
           }
           const distance = SWIPE_DISTANCE[settings.swipeMode];
@@ -188,7 +273,7 @@ export default function LivePerformanceScreen({
           }
         },
       }),
-    [index, items.length, onIndexChange, settings.swipeMode],
+    [index, isCueEditing, items.length, onIndexChange, settings.swipeMode],
   );
 
   const handleBoxLayout = (event: LayoutChangeEvent) => {
@@ -203,96 +288,156 @@ export default function LivePerformanceScreen({
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
-        {isEditorPreview ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back to song editor"
-            onPress={onExitEditorPreview}
-            style={styles.backToEditButton}
-          >
-            <MaterialCommunityIcons name="arrow-left" size={20} color={theme.colors.accent_highlight} />
-            <Text style={styles.backToEditText}>Back to edit</Text>
-          </Pressable>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go to Dashboard"
-            onPress={onGoToDashboard}
-            hitSlop={8}
-            style={styles.dashboardButton}
-          >
-            <Image
-              source={require('../../assets/branding/gigbox-logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-              accessibilityLabel="GigBox"
-            />
-          </Pressable>
-        )}
-        <View style={styles.performanceHeading}>
-          <Text numberOfLines={1} style={styles.songTitle}>
-            {song?.title ?? 'Break'}
-          </Text>
-          {settings.showPosition && !isEditorPreview && items.length > 1 && (
-            <Text style={styles.positionText}>
-              {index + 1} of {items.length}
-            </Text>
-          )}
-        </View>
-        <View style={styles.performanceTags}>
-          <SongTags
-            tags={song?.tags}
-            compact
-            wrapCompact
-            scale={tagSize / DEFAULT_TAG_SIZE}
-          />
-        </View>
-        {song && !isEditorPreview && (
+        {isCueEditing ? (
           <>
+            <View style={styles.performanceHeading}>
+              <View style={styles.performanceTitleRow}>
+                <Text numberOfLines={1} style={styles.songTitle}>{song?.title ?? 'Break'}</Text>
+                <Text style={styles.positionText}>Editing cues</Text>
+              </View>
+            </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={tagsOpen ? 'Hide tag size control' : 'Show tag size control'}
-              accessibilityState={{ expanded: tagsOpen }}
-              onPress={() => setPanel(tagsOpen ? null : 'tags')}
-              hitSlop={8}
+              accessibilityLabel="Cancel cue edits"
+              onPress={cancelCueEditing}
+              style={styles.editActionButton}
             >
-              <MaterialCommunityIcons
-                name={tagsOpen ? 'tag-off-outline' : 'tag-outline'}
-                size={30}
-                color={theme.colors.accent_highlight}
-              />
+              <Text style={styles.cancelEditText}>Cancel</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={crawlOpen ? 'Hide crawl controls' : 'Show crawl controls'}
-              accessibilityState={{ expanded: crawlOpen }}
-              onPress={() => setPanel(crawlOpen ? null : 'crawl')}
-              hitSlop={8}
+              accessibilityLabel="Save cue edits"
+              onPress={saveCueEdits}
+              style={styles.saveEditButton}
             >
-              <MaterialCommunityIcons
-                name="tortoise"
-                size={30}
-                color={theme.colors.accent_highlight}
-              />
+              <Text style={styles.saveEditText}>Save</Text>
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={zoomOpen ? 'Hide zoom controls' : 'Show zoom controls'}
-              accessibilityState={{ expanded: zoomOpen }}
-              onPress={() => setPanel(zoomOpen ? null : 'zoom')}
-              hitSlop={8}
-            >
-              <MaterialCommunityIcons
-                name={zoomOpen ? 'magnify-close' : 'magnify-plus-outline'}
-                size={30}
-                color={theme.colors.accent_highlight}
+          </>
+        ) : (
+          <>
+            {isEditorPreview ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Back to song editor"
+                onPress={onExitEditorPreview}
+                style={styles.backToEditButton}
+              >
+                <MaterialCommunityIcons name="arrow-left" size={20} color={theme.colors.accent_highlight} />
+                <Text style={styles.backToEditText}>Back to edit</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Go to Dashboard"
+                onPress={onGoToDashboard}
+                hitSlop={8}
+                style={styles.dashboardButton}
+              >
+                <Image
+                  source={require('../../assets/branding/gigbox-logo.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                  accessibilityLabel="GigBox"
+                />
+              </Pressable>
+            )}
+            <View style={styles.performanceHeading}>
+              <View style={styles.performanceTitleRow}>
+                <Text numberOfLines={1} style={styles.songTitle}>
+                  {song?.title ?? 'Break'}
+                </Text>
+                {song && !isEditorPreview && settings.showPerformanceEditButton && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit cues"
+                    onPress={startCueEditing}
+                    hitSlop={8}
+                    style={styles.editCueButton}
+                  >
+                    <MaterialCommunityIcons
+                      name="pencil"
+                      size={26}
+                      color={theme.colors.accent_highlight}
+                    />
+                  </Pressable>
+                )}
+              </View>
+              {settings.showPosition && !isEditorPreview && items.length > 1 && (
+                <Text style={styles.positionText}>
+                  {index + 1} of {items.length}
+                </Text>
+              )}
+            </View>
+            <View style={styles.performanceTags}>
+              <SongTags
+                tags={song?.tags}
+                compact
+                wrapCompact
+                scale={tagSize / DEFAULT_TAG_SIZE}
               />
-            </Pressable>
+            </View>
+            {song && !isEditorPreview && (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={tagsOpen ? 'Hide tag size control' : 'Show tag size control'}
+                  accessibilityState={{ expanded: tagsOpen }}
+                  onPress={() => setPanel(tagsOpen ? null : 'tags')}
+                  hitSlop={8}
+                >
+                  <MaterialCommunityIcons
+                    name={tagsOpen ? 'tag-off-outline' : 'tag-outline'}
+                    size={30}
+                    color={theme.colors.accent_highlight}
+                  />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={crawlOpen ? 'Hide crawl controls' : 'Show crawl controls'}
+                  accessibilityState={{ expanded: crawlOpen }}
+                  onPress={() => setPanel(crawlOpen ? null : 'crawl')}
+                  hitSlop={8}
+                >
+                  <MaterialCommunityIcons
+                    name="tortoise"
+                    size={30}
+                    color={theme.colors.accent_highlight}
+                  />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={zoomOpen ? 'Hide zoom controls' : 'Show zoom controls'}
+                  accessibilityState={{ expanded: zoomOpen }}
+                  onPress={() => setPanel(zoomOpen ? null : 'zoom')}
+                  hitSlop={8}
+                >
+                  <MaterialCommunityIcons
+                    name={zoomOpen ? 'magnify-close' : 'magnify-plus-outline'}
+                    size={30}
+                    color={theme.colors.accent_highlight}
+                  />
+                </Pressable>
+              </>
+            )}
+            {!isEditorPreview && settings.showPerformanceSettingsButton && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open Settings"
+                onPress={onOpenSettings}
+                hitSlop={8}
+              >
+                <MaterialCommunityIcons
+                  name="cog-outline"
+                  size={30}
+                  color={theme.colors.accent_highlight}
+                />
+              </Pressable>
+            )}
           </>
         )}
       </View>
 
-      {song && !isEditorPreview && tagsOpen && (
+      {song && !isEditorPreview && !isCueEditing && tagsOpen && (
         <FontSizeZoomControl
           size={settings.barSize}
           label="Tag size"
@@ -304,7 +449,7 @@ export default function LivePerformanceScreen({
         />
       )}
 
-      {song && !isEditorPreview && crawlOpen && (
+      {song && !isEditorPreview && !isCueEditing && crawlOpen && (
         <View style={styles.crawlPanel}>
           <Pressable
             accessibilityRole="button"
@@ -342,7 +487,7 @@ export default function LivePerformanceScreen({
         </View>
       )}
 
-      {song && !isEditorPreview && zoomOpen && (
+      {song && !isEditorPreview && !isCueEditing && zoomOpen && (
         <FontSizeZoomControl
           size={settings.barSize}
           label="Song text size"
@@ -391,8 +536,11 @@ export default function LivePerformanceScreen({
             }}
           >
             <PerformanceCueContent
-              blocks={cueBlocks}
+              blocks={displayedCueBlocks}
               fontScale={songFontScale * lowScale}
+              editable={isCueEditing}
+              onTextChange={updateTextCue}
+              onTableCellChange={updateTableCueCell}
             />
           </ScrollView>
           )}
@@ -430,6 +578,34 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     gap: 10,
     marginBottom: 10,
   },
+  editCueButton: {
+    width: 36,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editActionButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  cancelEditText: {
+    color: theme.colors.text_secondary,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  saveEditButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: theme.colors.accent_highlight,
+  },
+  saveEditText: {
+    color: theme.colors.background,
+    fontSize: 15,
+    fontWeight: '700',
+  },
   positionText: {
     color: theme.colors.text_secondary,
     fontSize: 12,
@@ -456,6 +632,8 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     height: 31,
   },
   songTitle: {
+    flex: 1,
+    minWidth: 0,
     color: theme.colors.text_primary,
     fontSize: 18,
     fontWeight: theme.typography.font_weight_bold,
@@ -463,6 +641,11 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   performanceHeading: {
     flex: 1,
     minWidth: 0,
+  },
+  performanceTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   performanceTags: {
     maxWidth: 220,

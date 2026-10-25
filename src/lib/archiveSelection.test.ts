@@ -78,6 +78,22 @@ test('selecting some songs exports a partial setlist', () => {
   );
 });
 
+test('selecting standalone songs exports them outside a setlist', () => {
+  const standalone = song('solo-1', 'Solo song');
+  const content = selectArchiveContent(
+    [],
+    [],
+    select({ songIds: new Set([standalone.id]) }),
+    [standalone],
+  );
+  const parsed = parseSetlistArchive(
+    JSON.stringify(createSetlistArchive(content.setlists, content.groups, content.songs)),
+  );
+
+  assert.deepEqual(content.setlists, []);
+  assert.deepEqual(parsed.songs?.map(({ title }) => title), ['Solo song']);
+});
+
 test('toggle helpers keep group, setlist and song selections consistent', () => {
   let selection = toggleGroupSelection(EMPTY_SELECTION, band, all);
   assert.ok(isSetlistSelected(selection, a) && isSetlistSelected(selection, b));
@@ -106,4 +122,27 @@ test('findImportConflicts reports matching setlists and partial songs', () => {
   );
   assert.deepEqual(findImportConflicts(partial, all), { setlists: [], songs: ['One (in Friday)'] });
   assert.deepEqual(findImportConflicts(partial, [makeSetlist('x', 'other', band, [])]).songs, []);
+
+  const standaloneArchive = parseSetlistArchive(JSON.stringify(createSetlistArchive([], [], [
+    song('standalone-export', 'Solo tune'),
+  ])));
+  assert.deepEqual(
+    findImportConflicts(standaloneArchive, [], [song('standalone-existing', 'Solo tune')]),
+    { setlists: [], songs: ['Solo tune (standalone)'] },
+  );
+
+  const previousUngroupedArchive = parseSetlistArchive(JSON.stringify({
+    format: 'gigbox-setlists',
+    version: 5,
+    groups: [],
+    setlists: [{
+      name: 'Ungrouped songs',
+      group: null,
+      items: [{ type: 'song', title: 'Older solo', notes_raw_text: 'Cue' }],
+    }],
+  }));
+  assert.deepEqual(
+    findImportConflicts(previousUngroupedArchive, [], [song('existing', 'Older solo')]),
+    { setlists: [], songs: ['Older solo (standalone)'] },
+  );
 });

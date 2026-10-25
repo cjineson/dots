@@ -35,8 +35,8 @@ import {
   createSetlistGroup,
   deleteSetlistGroup,
   deleteBreakFromSetlist,
+  deleteSongPermanently,
   deleteSongFromSetlist,
-  keepSongUngrouped,
   deleteSetlist,
   getAppSettings,
   getDashboardExpansionState,
@@ -44,6 +44,7 @@ import {
   getTagSize,
   getThemePreference,
   getSetlistsWithSongs,
+  getStandaloneSongs,
   reorderSetlistSiblings,
   importSetlists,
   initializeDatabase,
@@ -57,6 +58,7 @@ import {
   saveSongForSetlist,
   saveTagSize,
   saveThemePreference,
+  updateSongCueContent,
   updateSongFontSize,
 } from './src/lib/db';
 import { DEFAULT_SETTINGS, needsBackupReminder } from './src/lib/settings';
@@ -86,7 +88,7 @@ type RootStackParamList = {
   Dashboard: undefined;
   Settings: undefined;
   Export: undefined;
-  Editor: { setlistId: string; song?: Song };
+  Editor: { setlistId?: string; song?: Song };
   SetlistDetails: { setlistId: string; isNew?: boolean };
   GroupEditor: { groupId?: string };
   Performance: {
@@ -116,6 +118,7 @@ export default function App() {
   const theme = resolveTheme(themePreference, systemScheme, settings.highContrast, settings.palette);
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [setlists, setSetlists] = useState<SetlistWithSongs[]>([]);
+  const [standaloneSongs, setStandaloneSongs] = useState<Song[]>([]);
   const [groups, setGroups] = useState<SetlistGroup[]>([]);
   const [dashboardExpansion, setDashboardExpansion] = useState<DashboardExpansionState>({
     expandedSetlists: {},
@@ -126,10 +129,11 @@ export default function App() {
   const [startupError, setStartupError] = useState<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
-  const commonSongTags = getCommonSongTags(setlists);
+  const commonSongTags = getCommonSongTags(setlists, standaloneSongs);
 
   const refreshSetlists = () => {
     setSetlists(getSetlistsWithSongs());
+    setStandaloneSongs(getStandaloneSongs());
     setGroups(getSetlistGroups());
   };
 
@@ -153,7 +157,7 @@ export default function App() {
   }, [startupAttempt]);
 
   const handleSaveSong = (
-    setlistId: string,
+    setlistId: string | undefined,
     existingSong: Song | undefined,
     {
       title,
@@ -268,6 +272,21 @@ export default function App() {
     setDashboardExpansion(state);
   };
 
+  const expandDashboardSetlist = (setlistId: string, groupId?: string | null) => {
+    const collapsedGroups = { ...dashboardExpansion.collapsedGroups };
+    if (groupId) {
+      delete collapsedGroups[groupId];
+    }
+    handleDashboardExpansionChange({
+      ...dashboardExpansion,
+      expandedSetlists: {
+        ...dashboardExpansion.expandedSetlists,
+        [setlistId]: true,
+      },
+      collapsedGroups,
+    });
+  };
+
   const handleDeleteSetlist = (setlistId: string) => {
     deleteSetlist(setlistId);
     refreshSetlists();
@@ -288,10 +307,19 @@ export default function App() {
     refreshSetlists();
   };
 
+  const handleSongCueContentChange = (
+    songId: string,
+    notesRawText: string,
+    cueDocument: string,
+  ) => {
+    updateSongCueContent(songId, notesRawText, cueDocument);
+    refreshSetlists();
+  };
+
   const handleExportSelection = async (selection: ExportSelection, onDone: () => void) => {
     try {
-      const content = selectArchiveContent(setlists, groups, selection);
-      if (content.setlists.length === 0 && content.groups.length === 0) {
+      const content = selectArchiveContent(setlists, groups, selection, standaloneSongs);
+      if (content.setlists.length === 0 && content.groups.length === 0 && content.songs.length === 0) {
         Alert.alert('Nothing to export', 'Select at least one group, setlist or song.');
         return;
       }
@@ -306,7 +334,7 @@ export default function App() {
       const pad = (value: number) => String(value).padStart(2, '0');
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
       const fileUri = `${FileSystem.cacheDirectory}gigbox-library-${timestamp}.json`;
-      const archive = createSetlistArchive(content.setlists, content.groups);
+      const archive = createSetlistArchive(content.setlists, content.groups, content.songs);
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(archive, null, 2));
       await Sharing.shareAsync(fileUri, {
         mimeType: 'application/json',
@@ -317,6 +345,8 @@ export default function App() {
       const exportedEverything =
         content.groups.length === groups.length &&
         content.setlists.length === setlists.length &&
+        content.songs.length === standaloneSongs.length &&
+        standaloneSongs.every((song) => content.songs.some((item) => item.id === song.id)) &&
         !content.setlists.some((setlist) => setlist.partial) &&
         setlists.every((setlist) => content.setlists.some((item) => item.id === setlist.id));
       if (exportedEverything) {
@@ -343,7 +373,7 @@ export default function App() {
 
       const json = decodeTextFile(await new File(result.assets[0].uri).bytes());
       const importedLibrary = parseSetlistArchive(json);
-      const conflicts = findImportConflicts(importedLibrary, setlists);
+      const conflicts = findImportConflicts(importedLibrary, setlists, standaloneSongs);
       const finishImport = (mode: 'copy' | 'replace') => {
         try {
           importSetlists(importedLibrary, mode);
@@ -445,11 +475,13 @@ export default function App() {
             {({ navigation }) => (
               <DashboardScreen
                 setlists={setlists}
+                standaloneSongs={standaloneSongs}
                 groups={groups}
                 expansionState={dashboardExpansion}
                 onExpansionStateChange={handleDashboardExpansionChange}
                 onCreateSetlist={(groupId) => {
                   const created = createSetlist('New Setlist', groupId);
+                  expandDashboardSetlist(created.id, groupId);
                   refreshSetlists();
                   navigation.navigate('SetlistDetails', { setlistId: created.id, isNew: true });
                 }}
@@ -463,12 +495,12 @@ export default function App() {
                 onDeleteSetlist={handleDeleteSetlist}
                 onCopySetlist={handleCopySetlist}
                 onCopySong={handleCopySong}
-                onKeepSongUngrouped={(setlistId, songId) => {
-                  keepSongUngrouped(setlistId, songId);
-                  refreshSetlists();
-                }}
                 onDeleteSong={(setlistId, songId) => {
                   deleteSongFromSetlist(setlistId, songId);
+                  refreshSetlists();
+                }}
+                onDeleteSongPermanently={(songId) => {
+                  deleteSongPermanently(songId);
                   refreshSetlists();
                 }}
                 onDeleteBreak={(setlistId, breakId) => {
@@ -490,7 +522,8 @@ export default function App() {
                 onOpenSongForEdit={(setlistId, song) =>
                   navigation.navigate('Editor', { setlistId, song })
                 }
-                onOpenPerformance={(_, items, index) =>
+                onCreateSong={() => navigation.navigate('Editor', {})}
+                onOpenPerformance={(items, index) =>
                   navigation.navigate('Performance', {
                     items,
                     index,
@@ -502,7 +535,7 @@ export default function App() {
                 onOpenSettings={() => navigation.navigate('Settings')}
                 backupReminder={needsBackupReminder(
                   settings.lastExportAt,
-                  setlists.length > 0,
+                  setlists.length > 0 || standaloneSongs.length > 0,
                   settings.backupSnoozedUntil,
                 )}
                 onSnoozeBackupReminder={(days) =>
@@ -527,7 +560,7 @@ export default function App() {
                 onTagSizeChange={handleTagSizeChange}
                 onResetSettings={handleResetSettings}
                 onClearAllData={handleClearAllData}
-                hasData={setlists.length > 0}
+                hasData={setlists.length > 0 || standaloneSongs.length > 0}
               />
             )}
           </Stack.Screen>
@@ -535,6 +568,7 @@ export default function App() {
             {({ navigation }) => (
               <ExportScreen
                 setlists={setlists}
+                standaloneSongs={standaloneSongs}
                 groups={groups}
                 onExport={(selection) =>
                   void handleExportSelection(selection, () => navigation.goBack())
@@ -629,6 +663,8 @@ export default function App() {
                 onSettingChange={handleSettingChange}
                 items={route.params.items}
                 onGoToDashboard={() => navigation.popToTop()}
+                onOpenSettings={() => navigation.navigate('Settings')}
+                onSaveCueContent={handleSongCueContentChange}
                 onFontSizeChange={handleSongFontSizeChange}
                 tagSize={tagSize}
                 onTagSizeChange={handleTagSizeChange}
@@ -642,7 +678,6 @@ export default function App() {
           >
             {({ navigation, route }) => (
               <SongEditorScreen
-                setlistId={route.params.setlistId}
                 initialSong={route.params.song}
                 commonTags={commonSongTags}
                 defaultFontSize={settings.defaultFontSize}
@@ -677,8 +712,10 @@ export default function App() {
                 settings={settings}
                 onSettingChange={handleSettingChange}
                 onGoToDashboard={() => navigation.popToTop()}
+                onOpenSettings={() => navigation.navigate('Settings')}
                 onExitEditorPreview={() => navigation.goBack()}
                 onIndexChange={(index) => navigation.setParams({ index })}
+                onSaveCueContent={handleSongCueContentChange}
                 onFontSizeChange={handleSongFontSizeChange}
                 tagSize={tagSize}
                 onTagSizeChange={handleTagSizeChange}

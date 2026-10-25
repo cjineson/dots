@@ -5,6 +5,8 @@ import { useTheme } from '../themeContext';
 
 type Props = {
   onCreateSetlist: () => void;
+  onCreateGroup: () => void;
+  onCreateSong: () => void;
 };
 
 const NOTES = [
@@ -62,7 +64,11 @@ function FloatingNote({ note, animate }: { note: (typeof NOTES)[number]; animate
   );
 }
 
-export default function EmptyDashboard({ onCreateSetlist }: Props) {
+export default function EmptyDashboard({
+  onCreateSetlist,
+  onCreateGroup,
+  onCreateSong,
+}: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme.colors), [theme]);
   const [animate, setAnimate] = React.useState(true);
@@ -122,23 +128,44 @@ export default function EmptyDashboard({ onCreateSetlist }: Props) {
       </View>
 
       <Animated.View style={{ opacity: entrance, alignItems: 'center' }}>
-        <Text style={styles.title}>Your stage is set</Text>
+        <Text style={styles.title}>Start with anything</Text>
         <Text style={styles.subtitle}>
-          Build your first setlist, add songs and cues, then tap a title to go live.
+          Create a group, setlist, or song. You can organize songs into setlists and groups later.
         </Text>
       </Animated.View>
 
       <Animated.View
-        style={{ transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) }] }}
+        style={[
+          styles.createOptions,
+          { transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.02] }) }] },
+        ]}
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Create your first setlist"
-          onPress={onCreateSetlist}
-          style={styles.cta}
+          accessibilityLabel="Create a group"
+          onPress={onCreateGroup}
+          style={[styles.createOption, { borderColor: theme.colors.action_edit }]}
         >
-          <MaterialCommunityIcons name="playlist-plus" size={22} color={theme.colors.on_accent} />
-          <Text style={styles.ctaText}>Create your first setlist</Text>
+          <MaterialCommunityIcons name="folder-plus" size={22} color={theme.colors.action_edit} />
+          <Text style={styles.createOptionText}>Group</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Create a setlist"
+          onPress={onCreateSetlist}
+          style={[styles.createOption, { borderColor: theme.colors.action_primary }]}
+        >
+          <MaterialCommunityIcons name="playlist-plus" size={22} color={theme.colors.action_primary} />
+          <Text style={styles.createOptionText}>Setlist</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Create a song"
+          onPress={onCreateSong}
+          style={[styles.createOption, { borderColor: theme.colors.action_extra }]}
+        >
+          <MaterialCommunityIcons name="music-note-plus" size={22} color={theme.colors.action_extra} />
+          <Text style={styles.createOptionText}>Song</Text>
         </Pressable>
       </Animated.View>
 
@@ -181,18 +208,26 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleShe
     marginTop: 6,
     maxWidth: 320,
   },
-  cta: {
+  createOptions: {
+    width: '100%',
+    maxWidth: 380,
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    minHeight: 48,
-    paddingHorizontal: 22,
-    borderRadius: 24,
-    backgroundColor: colors.accent_highlight,
   },
-  ctaText: {
-    color: colors.on_accent,
-    fontSize: 16,
+  createOption: {
+    flex: 1,
+    minHeight: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 12,
+    backgroundColor: colors.surface_card,
+  },
+  createOptionText: {
+    color: colors.text_primary,
+    fontSize: 14,
     fontWeight: '700',
   },
   hint: {

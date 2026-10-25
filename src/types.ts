@@ -89,9 +89,10 @@ export type SetlistWithSongs = Setlist & {
 
 export type SetlistArchive = {
   format: 'gigbox-setlists';
-  version: 5;
+  version: 5 | 6;
   exportedAt: string;
   groups: string[];
+  songs?: ArchiveSong[];
   setlists: Array<{
     name: string;
     group: string | null;
@@ -114,6 +115,14 @@ export type SetlistArchive = {
       | { type: 'break'; duration_minutes?: number }
     >;
   }>;
+};
+
+export type ArchiveSong = {
+  title: string;
+  notes_raw_text: string;
+  font_size?: number;
+  cue_document?: CueDocument;
+  tags?: SongTag[];
 };
 
 export type ImportedSetlist = {
@@ -142,6 +151,7 @@ export type ImportedSetlist = {
 export type ImportedLibrary = {
   groups: string[];
   setlists: ImportedSetlist[];
+  songs?: ArchiveSong[];
 };
 
 export type DashboardExpansionState = {
