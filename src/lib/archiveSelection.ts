@@ -1,4 +1,5 @@
-import type { ImportedLibrary, SetlistGroup, SetlistWithSongs } from '../types';
+import type { ImportedLibrary, SetlistGroup, SetlistWithSongs, Song } from '../types';
+import { UNGROUPED_SONGS_SETLIST_NAME } from './ungrouped';
 
 export type ExportSelection = {
   groupIds: ReadonlySet<string>;
@@ -9,6 +10,7 @@ export type ExportSelection = {
 export type ArchiveContent = {
   groups: SetlistGroup[];
   setlists: Array<SetlistWithSongs & { partial?: boolean }>;
+  songs: Song[];
 };
 
 export type ImportConflicts = {
@@ -31,6 +33,7 @@ export function selectArchiveContent(
   setlists: SetlistWithSongs[],
   groups: SetlistGroup[],
   selection: ExportSelection,
+  standaloneSongs: Song[] = [],
 ): ArchiveContent {
   const selectedSetlists: ArchiveContent['setlists'] = [];
   for (const setlist of setlists) {
@@ -62,6 +65,7 @@ export function selectArchiveContent(
       (group) => selection.groupIds.has(group.id) || usedGroupNames.has(normalize(group.name)),
     ),
     setlists: selectedSetlists,
+    songs: standaloneSongs.filter((song) => selection.songIds.has(song.id)),
   };
 }
 
@@ -69,9 +73,17 @@ export function selectArchiveContent(
 export function findImportConflicts(
   library: ImportedLibrary,
   existing: SetlistWithSongs[],
+  standaloneSongs: Song[] = [],
 ): ImportConflicts {
   const conflicts: ImportConflicts = { setlists: [], songs: [] };
   for (const imported of library.setlists) {
+    if (
+      imported.name.trim().toLocaleLowerCase() === UNGROUPED_SONGS_SETLIST_NAME.toLocaleLowerCase() &&
+      imported.group === null &&
+      imported.items.every((item) => item.type === 'song')
+    ) {
+      continue;
+    }
     const match = findMatchingSetlist(existing, imported.name, imported.group);
     if (!match) {
       continue;
@@ -85,6 +97,30 @@ export function findImportConflicts(
       if (item.type === 'song' && titles.has(normalize(item.title))) {
         conflicts.songs.push(`${item.title} (in ${match.name})`);
       }
+    }
+  }
+  const standaloneTitles = new Set(standaloneSongs.map((song) => normalize(song.title)));
+  const importedStandaloneSongs = [
+    ...(library.songs ?? []),
+    ...library.setlists
+      .filter((setlist) =>
+        setlist.name.trim().toLocaleLowerCase() === UNGROUPED_SONGS_SETLIST_NAME.toLocaleLowerCase() &&
+        setlist.group === null &&
+        setlist.items.every((item) => item.type === 'song'),
+      )
+      .flatMap((setlist) =>
+        setlist.items.flatMap((item) => item.type === 'song' ? [{
+          title: item.title,
+          notes_raw_text: item.notes_raw_text,
+          font_size: item.font_size,
+          cue_document: item.cue_document,
+          tags: item.tags,
+        }] : []),
+      ),
+  ];
+  for (const song of importedStandaloneSongs) {
+    if (standaloneTitles.has(normalize(song.title))) {
+      conflicts.songs.push(`${song.title} (standalone)`);
     }
   }
   return conflicts;

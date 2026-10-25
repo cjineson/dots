@@ -26,7 +26,6 @@ import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
 import { TAG_COLORS } from '../lib/cueDocument';
 import { hasMapTarget, openInMaps } from '../lib/maps';
-import { UNGROUPED_SONGS_SETLIST_NAME } from '../lib/ungrouped';
 import { BACKUP_REMIND_LATER_DAYS, BACKUP_REMINDER_DAYS } from '../lib/settings';
 import type { AppTheme } from '../theme';
 import type {
@@ -41,6 +40,7 @@ import type {
 
 type DashboardScreenProps = {
   setlists: SetlistWithSongs[];
+  standaloneSongs: Song[];
   groups: SetlistGroup[];
   expansionState: DashboardExpansionState;
   onExpansionStateChange: (state: DashboardExpansionState) => void;
@@ -52,16 +52,13 @@ type DashboardScreenProps = {
   onCopySetlist: (setlistId: string) => void;
   onCopySong: (songId: string, targetSetlistId: string, variantTag?: SongTag) => void;
   onDeleteSong: (setlistId: string, songId: string) => void;
-  onKeepSongUngrouped: (setlistId: string, songId: string) => void;
+  onDeleteSongPermanently: (songId: string) => void;
   onDeleteBreak: (setlistId: string, breakId: string) => void;
   onCreateBreak: (setlistId: string, durationMinutes?: number) => void;
   onOpenFlow: (setlist: SetlistWithSongs) => void;
-  onOpenSongForEdit: (setlistId: string, song?: Song) => void;
-  onOpenPerformance: (
-    setlist: SetlistWithSongs,
-    items: SetlistItem[],
-    index: number,
-  ) => void;
+  onOpenSongForEdit: (setlistId?: string, song?: Song) => void;
+  onCreateSong: () => void;
+  onOpenPerformance: (items: SetlistItem[], index: number) => void;
   onOpenNewSong: (setlistId: string) => void;
   onReorderSetlists: (orderedIds: string[]) => void;
   onReorderItems: (setlistId: string, items: SetlistItem[]) => void;
@@ -72,6 +69,7 @@ type DashboardScreenProps = {
 
 export default function DashboardScreen({
   setlists,
+  standaloneSongs,
   groups,
   expansionState,
   onExpansionStateChange,
@@ -83,11 +81,12 @@ export default function DashboardScreen({
   onCopySetlist,
   onCopySong,
   onDeleteSong,
-  onKeepSongUngrouped,
+  onDeleteSongPermanently,
   onDeleteBreak,
   onCreateBreak,
   onOpenFlow,
   onOpenSongForEdit,
+  onCreateSong,
   onOpenPerformance,
   onOpenNewSong,
   onReorderSetlists,
@@ -112,7 +111,7 @@ export default function DashboardScreen({
   >(null);
   const [copyingSong, setCopyingSong] = React.useState<{
     song: Song;
-    sourceSetlistId: string;
+    sourceSetlistId?: string;
   } | null>(null);
   const [variantFor, setVariantFor] = React.useState<{
     song: Song;
@@ -148,7 +147,7 @@ export default function DashboardScreen({
   const confirmDeleteSetlist = (setlist: SetlistWithSongs) => {
     Alert.alert(
       'Delete setlist?',
-      `Delete "${setlist.name}" and its songs and breaks? Songs used in other setlists will be kept.`,
+      `Delete "${setlist.name}" and its breaks? Songs used only here will stay in your Songs list.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -221,7 +220,7 @@ export default function DashboardScreen({
     if (!copyingSong) {
       return;
     }
-    if (targetSetlistId === copyingSong.sourceSetlistId) {
+    if (copyingSong.sourceSetlistId && targetSetlistId === copyingSong.sourceSetlistId) {
       // Same-title songs in one setlist must differ by tag, so ask for one.
       setVariantFor({ song: copyingSong.song, setlistId: targetSetlistId });
       setVariantName('');
@@ -273,10 +272,6 @@ export default function DashboardScreen({
         setlist.id !== setlistId &&
         setlist.items.some((item) => item.kind === 'song' && item.song.id === song.id),
     );
-    const currentSetlist = setlists.find((setlist) => setlist.id === setlistId);
-    const isUngroupedHolder =
-      currentSetlist?.name === UNGROUPED_SONGS_SETLIST_NAME && !currentSetlist.group_id;
-
     if (usedElsewhere) {
       Alert.alert('Remove song from setlist?', `"${song.title}" stays in your other setlists.`, [
         { text: 'Cancel', style: 'cancel' },
@@ -294,20 +289,38 @@ export default function DashboardScreen({
       {
         text: 'Remove permanently',
         style: 'destructive',
-        onPress: run(() => onDeleteSong(setlistId, song.id)),
+        onPress: run(() => onDeleteSongPermanently(song.id)),
       },
     ];
-    if (!isUngroupedHolder) {
-      buttons.splice(1, 0, {
-        text: 'Keep ungrouped',
-        onPress: run(() => onKeepSongUngrouped(setlistId, song.id)),
-      });
-    }
+    buttons.splice(1, 0, {
+      text: 'Keep in Songs',
+      onPress: run(() => onDeleteSong(setlistId, song.id)),
+    });
     Alert.alert(
       'This is the last setlist for this song',
-      `"${song.title}" isn't in any other setlist. Remove it permanently, or keep it ungrouped in "${UNGROUPED_SONGS_SETLIST_NAME}"?`,
+      `"${song.title}" isn't in any other setlist. Keep it in your Songs list, or remove it permanently?`,
       buttons,
     );
+  };
+
+  const confirmDeleteStandaloneSong = (song: Song) => {
+    Alert.alert('Remove song permanently?', `Delete "${song.title}" from your Songs list?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          try {
+            onDeleteSongPermanently(song.id);
+          } catch (error) {
+            Alert.alert(
+              'Delete failed',
+              error instanceof Error ? error.message : 'An unexpected error occurred.',
+            );
+          }
+        },
+      },
+    ]);
   };
 
   const saveBreak = () => {
@@ -372,6 +385,7 @@ export default function DashboardScreen({
     ]),
   ];
   const hasAnySetlists = setlists.length > 0 || groups.length > 0;
+  const hasAnyContent = hasAnySetlists || standaloneSongs.length > 0;
 
   const reorderEnabled = !setlists.some((setlist) => expansionState.expandedSetlists[setlist.id]);
 
@@ -535,8 +549,7 @@ export default function DashboardScreen({
                             accessibilityLabel={`Play ${item.song.title}`}
                             style={styles.songHeading}
                             onPress={() => onOpenPerformance(
-                              setlist,
-                              setlist.items,
+                            setlist.items,
                               setlist.items.findIndex((entry) =>
                                 entry.kind === 'song' && entry.song.id === item.song.id,
                               ),
@@ -634,6 +647,14 @@ export default function DashboardScreen({
           >
             <MaterialCommunityIcons name="plus-circle" size={22} color={theme.colors.action_primary} />
           </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add song"
+            onPress={onCreateSong}
+            style={styles.headerActionButton}
+          >
+            <MaterialCommunityIcons name="music-note-plus" size={22} color={theme.colors.action_primary} />
+          </Pressable>
         </View>
       </View>
       {backupReminder && (
@@ -646,7 +667,7 @@ export default function DashboardScreen({
           >
             <MaterialCommunityIcons name="cloud-upload-outline" size={22} color={theme.colors.accent_highlight} />
             <Text style={styles.backupBannerText}>
-              Back up your setlists - export a copy from Settings.
+              Back up your library - export a copy from Settings.
             </Text>
           </Pressable>
           <View style={styles.backupBannerActions}>
@@ -671,10 +692,72 @@ export default function DashboardScreen({
       )}
 
       <NestableScrollContainer style={styles.scroll} contentContainerStyle={styles.list}>
-        {!hasAnySetlists ? (
-          <EmptyDashboard onCreateSetlist={() => onCreateSetlist(null)} />
+        {!hasAnyContent ? (
+          <EmptyDashboard
+            onCreateSetlist={() => onCreateSetlist(null)}
+            onCreateGroup={() => onOpenGroupEditor()}
+            onCreateSong={onCreateSong}
+          />
         ) : (
-          dashboardEntries.map((entry) => {
+          <>
+          {standaloneSongs.length > 0 && (
+            <View style={styles.standaloneSongs}>
+              <View style={styles.standaloneHeader}>
+                <MaterialCommunityIcons
+                  name="music-note"
+                  size={20}
+                  color={theme.colors.accent_highlight}
+                />
+                <Text style={styles.standaloneTitle}>Songs</Text>
+              </View>
+              {standaloneSongs.map((song) => (
+                <View key={song.id} style={styles.songRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Play ${song.title}`}
+                    style={styles.songHeading}
+                    onPress={() => onOpenPerformance([{ kind: 'song', song }], 0)}
+                  >
+                    <Text style={styles.songTitle}>{song.title}</Text>
+                    <SongTags tags={song.tags} compact />
+                  </Pressable>
+                  <View style={styles.songActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit ${song.title}`}
+                      style={styles.songIconButton}
+                      onPress={() => onOpenSongForEdit(undefined, song)}
+                    >
+                      <MaterialCommunityIcons name="pencil" size={21} color={theme.colors.action_edit} />
+                    </Pressable>
+                    {setlists.length > 0 && (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Add ${song.title} to a setlist`}
+                        style={styles.songIconButton}
+                        onPress={() => setCopyingSong({ song })}
+                      >
+                        <MaterialCommunityIcons
+                          name="playlist-plus"
+                          size={22}
+                          color={theme.colors.action_primary}
+                        />
+                      </Pressable>
+                    )}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete ${song.title}`}
+                      style={styles.songIconButton}
+                      onPress={() => confirmDeleteStandaloneSong(song)}
+                    >
+                      <MaterialCommunityIcons name="minus-circle" size={24} color={theme.colors.action_danger} />
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+          {dashboardEntries.map((entry) => {
             if (entry.type === 'group') {
               const group = entry.group;
               const collapsed = Boolean(expansionState.collapsedGroups[group.id]);
@@ -749,7 +832,8 @@ export default function DashboardScreen({
                 )}
               </React.Fragment>
             );
-          })
+          })}
+          </>
         )}
       </NestableScrollContainer>
 
@@ -890,7 +974,9 @@ export default function DashboardScreen({
             keyboardDismissMode="on-drag"
           >
             <View style={styles.renameDialog}>
-              <Text style={styles.dialogTitle}>Copy song to setlist</Text>
+              <Text style={styles.dialogTitle}>
+                {copyingSong?.sourceSetlistId ? 'Copy song to setlist' : 'Add song to setlist'}
+              </Text>
               <Text style={styles.copyHint}>
                 Choose a destination for “{copyingSong?.song.title}”.
               </Text>
@@ -900,7 +986,7 @@ export default function DashboardScreen({
                   <Pressable
                     key={setlist.id}
                     accessibilityRole="button"
-                    accessibilityLabel={`Copy song to ${setlist.name}`}
+                    accessibilityLabel={`${copyingSong?.sourceSetlistId ? 'Copy song' : 'Add song'} to ${setlist.name}`}
                     onPress={() => copySongTo(setlist.id)}
                     style={styles.destinationButton}
                   >
@@ -911,7 +997,9 @@ export default function DashboardScreen({
                     />
                     <Text numberOfLines={1} style={styles.destinationText}>
                       {setlist.name}
-                      {setlist.id === copyingSong?.sourceSetlistId ? ' (this setlist – new version)' : ''}
+                      {copyingSong?.sourceSetlistId && setlist.id === copyingSong.sourceSetlistId
+                        ? ' (this setlist – new version)'
+                        : ''}
                     </Text>
                   </Pressable>
                 ))}
@@ -1128,6 +1216,25 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
     borderColor: theme.colors.border_contrast,
     borderRadius: 16,
     padding: 14,
+  },
+  standaloneSongs: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border_contrast,
+    backgroundColor: theme.colors.surface,
+  },
+  standaloneHeader: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  standaloneTitle: {
+    color: theme.colors.text_primary,
+    fontSize: 17,
+    fontWeight: theme.typography.font_weight_bold,
   },
   indentedCard: {
     marginLeft: 24,

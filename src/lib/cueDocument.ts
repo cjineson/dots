@@ -177,3 +177,44 @@ export function flattenCueDocument(document: CueDocument): string {
     )
     .join('\n');
 }
+
+export function updateCueTextBlock(
+  document: CueDocument,
+  blockId: string,
+  text: string,
+): CueDocument {
+  return {
+    ...document,
+    blocks: document.blocks.map((block) =>
+      block.id === blockId && (block.type === 'text' || block.type === 'section')
+        ? { ...block, text }
+        : block,
+    ),
+  };
+}
+
+export function updateCueTableCell(
+  document: CueDocument,
+  blockId: string,
+  rowIndex: number,
+  columnIndex: number,
+  value: string,
+): CueDocument {
+  return {
+    ...document,
+    blocks: document.blocks.map((block) =>
+      block.id === blockId && block.type === 'table'
+        ? {
+            ...block,
+            rows: block.rows.map((row, currentRowIndex) =>
+              currentRowIndex === rowIndex
+                ? row.map((cell, currentColumnIndex) =>
+                    currentColumnIndex === columnIndex ? value : cell,
+                  )
+                : row,
+            ),
+          }
+        : block,
+    ),
+  };
+}

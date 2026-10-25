@@ -1,5 +1,5 @@
 import { TAG_COLORS } from './cueDocument';
-import type { TagColor, SetlistWithSongs, SongTag } from '../types';
+import type { SetlistWithSongs, Song, SongTag, TagColor } from '../types';
 
 function isTagColor(value: unknown): value is TagColor {
   return TAG_COLORS.some((color) => color === value);
@@ -38,10 +38,13 @@ export function parseStoredSongTags(value: string | null): SongTag[] {
   return validateSongTags(parsed);
 }
 
-export function getCommonSongTags(setlists: SetlistWithSongs[]): SongTag[] {
+export function getCommonSongTags(setlists: SetlistWithSongs[], standaloneSongs: Song[] = []): SongTag[] {
   const songs = new Map(
     setlists.flatMap((setlist) => setlist.songs.map((song) => [song.id, song] as const)),
   );
+  for (const song of standaloneSongs) {
+    songs.set(song.id, song);
+  }
   const tagCounts = new Map<string, { tag: SongTag; count: number }>();
 
   for (const song of songs.values()) {

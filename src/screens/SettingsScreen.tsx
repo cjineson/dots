@@ -136,7 +136,12 @@ export default function SettingsScreen({
   const renderSwitch = (
     label: string,
     hint: string,
-    key: 'keepAwake' | 'showPosition' | 'highContrast',
+    key:
+      | 'keepAwake'
+      | 'showPosition'
+      | 'showPerformanceEditButton'
+      | 'showPerformanceSettingsButton'
+      | 'highContrast',
   ) => (
     <View style={styles.row}>
       <View style={styles.rowBody}>
@@ -170,6 +175,16 @@ export default function SettingsScreen({
         <Text style={styles.sectionTitle}>Performance</Text>
         {renderSwitch('Keep screen awake', 'Stops the screen sleeping in Performance and Flow.', 'keepAwake')}
         {renderSwitch('Show song position', 'Shows "3 of 12" in the Performance header.', 'showPosition')}
+        {renderSwitch(
+          'Show edit button',
+          'Shows the pencil in Performance and Flow headers.',
+          'showPerformanceEditButton',
+        )}
+        {renderSwitch(
+          'Show settings button',
+          'Shows a shortcut to Settings in Performance and Flow headers.',
+          'showPerformanceSettingsButton',
+        )}
         <Text style={styles.label}>Swipe between songs</Text>
         {renderSegments(
           SWIPE_OPTIONS,

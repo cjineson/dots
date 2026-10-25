@@ -29,4 +29,4 @@ Expo SDK 57 / React Native 0.86 / TypeScript. Local-first: everything lives in S
 ## Notable behaviours
 - Auto-scroll in Flow uses a 50 ms interval with a virtual Y position (avoids Android rounding stalls); it stops at the end and on drag.
 - The slider uses `pageX` + `measureInWindow` when `locationX` is undefined (web) to avoid NaN values.
-- Songs exist only via `setlist_songs`; `keepSongUngrouped` moves a song into a holding setlist before removal.
+- Songs may be standalone rows in `songs` or linked to setlists through `setlist_songs`. Removing the last setlist link leaves the song standalone; permanent deletion is explicit.

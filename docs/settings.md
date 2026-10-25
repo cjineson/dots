@@ -8,6 +8,8 @@ All settings are saved on-device in the SQLite `app_settings` key/value table. R
 | High contrast | `high_contrast` | off | Pure black/white surfaces, strong borders, brighter accent |
 | Keep screen awake | `keep_awake` | on | Performance and Flow only |
 | Show song position | `show_position` | on | "3 of 12" in the Performance header |
+| Show edit button | `show_performance_edit_button` | on | Shows the cue-edit pencil in Performance and Flow headers |
+| Show settings button | `show_performance_settings_button` | on | Shows a Settings shortcut in Performance and Flow headers |
 | Swipe between songs | `swipe_mode` | normal | normal = 60 px, firm = 140 px, or off |
 | Default auto-scroll speed | `auto_scroll_speed` | 40 pts/s | 1–200, step 1; also saved when changed in Flow |
 | Scroll & zoom bar size | `bar_size` | m | xxs, xs, s, m, l or xl; scales the slider buttons, icons, track and thumb. Older `normal`/`large`/`huge` values map to m/l/xl |

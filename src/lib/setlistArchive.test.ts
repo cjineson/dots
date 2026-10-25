@@ -79,8 +79,9 @@ test('createSetlistArchive writes the current format and cue document', () => {
   ]);
 
   assert.equal(archive.format, 'gigbox-setlists');
-  assert.equal(archive.version, 5);
+  assert.equal(archive.version, 6);
   assert.deepEqual(archive.groups, ['The Band']);
+  assert.deepEqual(archive.songs, []);
   assert.ok(Number.isFinite(Date.parse(archive.exportedAt)));
   assert.deepEqual(archive.setlists, [
     {
@@ -123,6 +124,7 @@ test('parseSetlistArchive reads current archives and preserves formatted cue blo
 
   assert.deepEqual(parsed, {
     groups: ['The Band'],
+    songs: [],
     setlists: [{
       name: 'Friday Night',
       group: 'The Band',
@@ -258,12 +260,41 @@ test('parseSetlistArchive rejects invalid JSON', () => {
 test('parseSetlistArchive rejects unsupported formats and versions', () => {
   for (const archive of [
     JSON.stringify({ format: 'other', version: 1, setlists: [] }),
-    JSON.stringify({ format: 'gigbox-setlists', version: 6, setlists: [] }),
+    JSON.stringify({ format: 'gigbox-setlists', version: 7, setlists: [] }),
   ]) {
     assert.throws(() => parseSetlistArchive(archive), {
       message: 'This file is not a supported GigBox setlist export.',
     });
   }
+});
+
+test('standalone songs round-trip in version 6 archives', () => {
+  const archive = createSetlistArchive([], [], [{
+    id: 'standalone-1',
+    title: 'Standalone',
+    notes_raw_text: 'Verse',
+    font_size: 24,
+    tags: [{ label: 'Acoustic', color: '#FFCC00' }],
+  }]);
+  const parsed = parseSetlistArchive(JSON.stringify(archive));
+
+  assert.equal(archive.version, 6);
+  assert.deepEqual(parsed.setlists, []);
+  assert.deepEqual(parsed.songs, [{
+    title: 'Standalone',
+    notes_raw_text: 'Verse',
+    font_size: 24,
+    tags: [{ label: 'Acoustic', color: '#FFCC00' }],
+  }]);
+  assert.throws(
+    () => parseSetlistArchive(JSON.stringify({
+      format: 'gigbox-setlists',
+      version: 6,
+      groups: [],
+      setlists: [],
+    })),
+    { message: 'The GigBox export has an invalid standalone songs list.' },
+  );
 });
 
 test('parseSetlistArchive rejects invalid break durations', () => {

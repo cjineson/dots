@@ -1,11 +1,13 @@
 import type {
   CueDocument,
+  ArchiveSong,
   ImportedLibrary,
   ImportedSetlist,
   SetlistArchive,
   SetlistGroup,
   SetlistItem,
   SetlistWithSongs,
+  Song,
 } from '../types';
 import { parseCueDocument, validateCueDocument } from './cueDocument';
 import { MAX_FONT_SIZE, MIN_FONT_SIZE } from './fontSize';
@@ -15,28 +17,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function exportSong(song: SetlistItem & { kind: 'song' }) {
+function exportSong(song: Song): ArchiveSong {
   return {
-    type: 'song' as const,
-    title: song.song.title,
-    notes_raw_text: song.song.notes_raw_text,
-    font_size: song.song.font_size,
-    ...(song.song.cue_document
-      ? { cue_document: parseCueDocument(song.song.cue_document) }
+    title: song.title,
+    notes_raw_text: song.notes_raw_text,
+    font_size: song.font_size,
+    ...(song.cue_document
+      ? { cue_document: parseCueDocument(song.cue_document) }
       : {}),
-    ...(song.song.tags?.length ? { tags: song.song.tags } : {}),
+    ...(song.tags?.length ? { tags: song.tags } : {}),
   };
 }
 
 export function createSetlistArchive(
   setlists: Array<SetlistWithSongs & { partial?: boolean }>,
   groups: SetlistGroup[] = [],
+  songs: Song[] = [],
 ): SetlistArchive {
   return {
     format: 'gigbox-setlists',
-    version: 5,
+    version: 6,
     exportedAt: new Date().toISOString(),
     groups: groups.map(({ name }) => name),
+    songs: songs.map(exportSong),
     setlists: setlists.map(({ name, group_name, location, latitude, longitude, notes, date, time, items, partial }) => ({
       name,
       ...(partial ? { partial: true as const } : {}),
@@ -48,7 +51,7 @@ export function createSetlistArchive(
       ...(time ? { time } : {}),
       items: items.map((item) =>
         item.kind === 'song'
-          ? exportSong(item)
+          ? { type: 'song' as const, ...exportSong(item.song) }
           : {
               type: 'break' as const,
               ...(item.duration_minutes !== undefined
@@ -145,7 +148,8 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
       value.version !== 2 &&
       value.version !== 3 &&
       value.version !== 4 &&
-      value.version !== 5)
+      value.version !== 5 &&
+      value.version !== 6)
   ) {
     throw new Error('This file is not a supported GigBox setlist export.');
   }
@@ -155,7 +159,7 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
   }
 
   const groups: string[] = [];
-  if (value.version === 5) {
+  if (value.version === 5 || value.version === 6) {
     if (
       !Array.isArray(value.groups) ||
       value.groups.some((group) => typeof group !== 'string' || !group.trim())
@@ -179,12 +183,13 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
       throw new Error(`Setlist ${setlistIndex + 1} must have a name.`);
     }
 
-    if (value.version === 3 || value.version === 4 || value.version === 5) {
+    if (value.version === 3 || value.version === 4 || value.version === 5 || value.version === 6) {
+      const hasVersionFiveFields = value.version === 5 || value.version === 6;
       if (!Array.isArray(setlist.items)) {
         throw new Error(`Setlist "${setlist.name}" has an invalid items list.`);
       }
       if (
-        (value.version === 4 || value.version === 5) &&
+        (value.version === 4 || hasVersionFiveFields) &&
         ['location', 'date', 'time'].some(
           (field) => setlist[field] !== undefined && typeof setlist[field] !== 'string',
         )
@@ -193,7 +198,7 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
       }
       const hasCoordinates = setlist.latitude !== undefined || setlist.longitude !== undefined;
       if (
-        value.version === 5 &&
+        hasVersionFiveFields &&
         hasCoordinates &&
         !(
           typeof setlist.latitude === 'number' && Math.abs(setlist.latitude) <= 90 &&
@@ -202,11 +207,11 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
       ) {
         throw new Error(`Setlist "${setlist.name}" has an invalid map position.`);
       }
-      if (value.version === 5 && setlist.notes !== undefined && typeof setlist.notes !== 'string') {
+      if (hasVersionFiveFields && setlist.notes !== undefined && typeof setlist.notes !== 'string') {
         throw new Error(`Setlist "${setlist.name}" has invalid header details.`);
       }
       let setlistGroup: string | null = null;
-      if (value.version === 5) {
+      if (hasVersionFiveFields) {
         if (setlist.group !== null && typeof setlist.group !== 'string') {
           throw new Error(`Setlist "${setlist.name}" has an invalid group.`);
         }
@@ -227,10 +232,10 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
         ...(typeof setlist.location === 'string' && setlist.location.trim()
           ? { location: setlist.location.trim() }
           : {}),
-        ...(value.version === 5 && hasCoordinates
+        ...(hasVersionFiveFields && hasCoordinates
           ? { latitude: setlist.latitude as number, longitude: setlist.longitude as number }
           : {}),
-        ...(value.version === 5 && typeof setlist.notes === 'string' && setlist.notes.trim()
+        ...(hasVersionFiveFields && typeof setlist.notes === 'string' && setlist.notes.trim()
           ? { notes: setlist.notes }
           : {}),
         ...(typeof setlist.date === 'string' && setlist.date.trim()
@@ -239,7 +244,7 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
         ...(typeof setlist.time === 'string' && setlist.time.trim()
           ? { time: setlist.time.trim() }
           : {}),
-        ...(value.version === 5 && setlist.partial === true ? { partial: true } : {}),
+        ...(hasVersionFiveFields && setlist.partial === true ? { partial: true } : {}),
         items: setlist.items.map((item, itemIndex) =>
           parseItem(item, setlist.name as string, itemIndex),
         ),
@@ -258,9 +263,21 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
     };
   });
 
-  if (setlists.length === 0 && groups.length === 0) {
+  let songs: ArchiveSong[] | undefined;
+  if (value.version === 6) {
+    if (!Array.isArray(value.songs)) {
+      throw new Error('The GigBox export has an invalid standalone songs list.');
+    }
+    songs = value.songs.map((song, songIndex) => {
+      const parsed = parseSong(song, 'Standalone songs', songIndex);
+      const { type: _type, ...archiveSong } = parsed;
+      return archiveSong;
+    });
+  }
+
+  if (setlists.length === 0 && groups.length === 0 && (!songs || songs.length === 0)) {
     throw new Error('This export does not contain any setlists.');
   }
 
-  return { groups, setlists };
+  return { groups, setlists, ...(songs ? { songs } : {}) };
 }

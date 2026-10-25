@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
@@ -8,6 +8,14 @@ import type { CueBlock } from '../types';
 type PerformanceCueContentProps = {
   blocks: CueBlock[];
   fontScale?: number;
+  editable?: boolean;
+  onTextChange?: (blockId: string, text: string) => void;
+  onTableCellChange?: (
+    blockId: string,
+    rowIndex: number,
+    columnIndex: number,
+    value: string,
+  ) => void;
 };
 
 const MIN_FONT_SIZE = 10;
@@ -15,6 +23,9 @@ const MIN_FONT_SIZE = 10;
 export default function PerformanceCueContent({
   blocks,
   fontScale = 1,
+  editable = false,
+  onTextChange,
+  onTableCellChange,
 }: PerformanceCueContentProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -34,33 +45,62 @@ export default function PerformanceCueContent({
             <View key={block.id} style={styles.performanceTable}>
               {block.rows.map((row, rowIndex) => (
                 <View key={`${block.id}-row-${rowIndex}`} style={styles.performanceTableRow}>
-                  {row.map((cell, columnIndex) => (
-                    <Text
-                      key={`${block.id}-cell-${rowIndex}-${columnIndex}`}
-                      style={[styles.performanceTableCell, { color, fontSize }]}
-                    >
-                      {cell}
-                    </Text>
-                  ))}
+                  {row.map((cell, columnIndex) =>
+                    editable && onTableCellChange ? (
+                      <TextInput
+                        key={`${block.id}-cell-${rowIndex}-${columnIndex}`}
+                        accessibilityLabel={`Edit table cell ${rowIndex + 1}, ${columnIndex + 1}`}
+                        value={cell}
+                        onChangeText={(value) =>
+                          onTableCellChange(block.id, rowIndex, columnIndex, value)
+                        }
+                        multiline
+                        textAlign="center"
+                        textAlignVertical="center"
+                        style={[
+                          styles.performanceTableCell,
+                          styles.editableCueInput,
+                          { color, fontSize },
+                        ]}
+                      />
+                    ) : (
+                      <Text
+                        key={`${block.id}-cell-${rowIndex}-${columnIndex}`}
+                        style={[styles.performanceTableCell, { color, fontSize }]}
+                      >
+                        {cell}
+                      </Text>
+                    ),
+                  )}
                 </View>
               ))}
             </View>
           );
         }
 
-        return (
-          <Text
+        const textStyle = [
+          styles.cueText,
+          block.type === 'section' && styles.sectionText,
+          {
+            color,
+            fontSize,
+            marginBottom: block.type === 'section' ? 12 : 4,
+          },
+        ];
+
+        return editable && onTextChange ? (
+          <TextInput
             key={block.id}
-            style={[
-              styles.cueText,
-              block.type === 'section' && styles.sectionText,
-              {
-                color,
-                fontSize,
-                marginBottom: block.type === 'section' ? 12 : 4,
-              },
-            ]}
-          >
+            accessibilityLabel={`Edit ${block.type} cue`}
+            value={block.text}
+            onChangeText={(text) => onTextChange(block.id, text)}
+            multiline
+            textAlign="center"
+            textAlignVertical="center"
+            style={[textStyle, styles.editableCueInput]}
+          />
+        ) : (
+          <Text key={block.id} style={textStyle}>
             {block.text}
           </Text>
         );
@@ -95,5 +135,12 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border_contrast,
     padding: 6,
+  },
+  editableCueInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.accent_highlight,
+    borderRadius: 6,
+    padding: 8,
+    minHeight: 44,
   },
 });

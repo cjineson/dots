@@ -28,7 +28,6 @@ import type { AppTheme } from '../theme';
 import type { CueBlock, CueDocument, CueTextColor, Song, SongTag, TagColor } from '../types';
 
 type SongEditorScreenProps = {
-  setlistId: string;
   initialSong?: Song;
   commonTags: SongTag[];
   defaultFontSize?: number;
@@ -48,7 +47,6 @@ const MAX_FONT_SIZE = 64;
 const FONT_SIZE_STEP = 2;
 
 export default function SongEditorScreen({
-  setlistId,
   initialSong,
   commonTags,
   defaultFontSize,
@@ -309,10 +307,6 @@ export default function SongEditorScreen({
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.subtle}>Setlist ID: {setlistId}</Text>
-      </View>
-
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>Title</Text>
         <TextInput
@@ -331,7 +325,7 @@ export default function SongEditorScreen({
               onChangeText={setTagName}
               onSubmitEditing={addTag}
               returnKeyType="done"
-              placeholder="Tag name (e.g. acoustic)"
+              placeholder="Tag name (e.g. Acoustic, Electric, Piano, Capo 5)"
               placeholderTextColor={theme.colors.text_secondary}
               style={[styles.input, styles.tagInput]}
             />
@@ -398,7 +392,11 @@ export default function SongEditorScreen({
 
         <View style={styles.cueHeading}>
           <Text style={styles.label}>Cue layout</Text>
-          <Text style={styles.helperText}>Add sections, cue text, or a table.</Text>
+          <Text style={styles.helperText}>
+            Build what appears on the performance screen. Add a Section for a heading like “Verse”,
+            a Cue for lyrics, chords, or stage directions, or a Table to line up parts in columns.
+            Blocks appear in the order you add them.
+          </Text>
         </View>
 
         {document.blocks.map(renderBlock)}
@@ -468,13 +466,6 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     backgroundColor: theme.colors.background,
     paddingHorizontal: 16,
     paddingTop: 16,
-  },
-  header: {
-    marginBottom: 12,
-  },
-  subtle: {
-    color: theme.colors.text_secondary,
-    marginTop: 6,
   },
   content: {
     paddingBottom: 12,

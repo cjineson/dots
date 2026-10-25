@@ -7,6 +7,8 @@ import {
   getVisibleCueBlocks,
   parseCueDocument,
   serializeCueDocument,
+  updateCueTableCell,
+  updateCueTextBlock,
 } from './cueDocument';
 
 test('legacy multiline cue text becomes one text block', () => {
@@ -38,6 +40,26 @@ test('cue documents preserve section styles and table rows through serialization
 
   assert.deepEqual(parseCueDocument(serializeCueDocument(document)), document);
   assert.equal(flattenCueDocument(document), 'Chords\nVerse | Chorus\nC | G');
+});
+
+test('inline cue updates preserve unrelated blocks, styles, and table cells', () => {
+  const document = {
+    version: 1 as const,
+    blocks: [
+      { id: 'section', type: 'section' as const, text: 'Verse', color: '#FFCC00' as const },
+      { id: 'cue', type: 'text' as const, text: 'Old lyric' },
+      { id: 'table', type: 'table' as const, rows: [['C', 'G'], ['Am', 'F']] },
+    ],
+  };
+  const withText = updateCueTextBlock(document, 'cue', 'New lyric');
+  const withCell = updateCueTableCell(withText, 'table', 1, 0, 'Dm');
+
+  assert.deepEqual(document.blocks[1], { id: 'cue', type: 'text', text: 'Old lyric' });
+  assert.deepEqual(withCell.blocks, [
+    { id: 'section', type: 'section', text: 'Verse', color: '#FFCC00' },
+    { id: 'cue', type: 'text', text: 'New lyric' },
+    { id: 'table', type: 'table', rows: [['C', 'G'], ['Dm', 'F']] },
+  ]);
 });
 
 test('performance views hide generated section labels but retain cues and tables', () => {

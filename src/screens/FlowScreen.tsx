@@ -1,20 +1,26 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
+  Alert,
   Image,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
 import FontSizeZoomControl from '../components/FontSizeZoomControl';
 import {
   createCueDocumentFromText,
+  flattenCueDocument,
   getVisibleCueBlocks,
   parseCueDocument,
+  serializeCueDocument,
+  updateCueTableCell,
+  updateCueTextBlock,
 } from '../lib/cueDocument';
 import {
   clampFontSize,
@@ -27,6 +33,7 @@ import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
 import { useScreenAwake } from '../lib/keepAwake';
+import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
 import { parseNotes, toggleChecklistLine } from '../lib/notes';
 import {
   AUTO_SCROLL_SLIDER_CURVE,
@@ -35,7 +42,7 @@ import {
   MIN_AUTO_SCROLL_SPEED,
 } from '../lib/settings';
 import type { AppSettings } from '../lib/settings';
-import type { CueBlock, SetlistItem, Song } from '../types';
+import type { CueBlock, CueDocument, SetlistItem, Song } from '../types';
 
 const AUTO_SCROLL_TICK_MS = 50;
 
@@ -49,6 +56,8 @@ type FlowScreenProps = {
   setlistDetails?: string;
   items: SetlistItem[];
   onGoToDashboard: () => void;
+  onOpenSettings: () => void;
+  onSaveCueContent: (songId: string, notesRawText: string, cueDocument: string) => void;
   onFontSizeChange: (songId: string, fontSize: number) => void;
   tagSize: number;
   onTagSizeChange: (tagSize: number, persist: boolean) => void;
@@ -64,6 +73,8 @@ export default function FlowScreen({
   setlistDetails,
   items,
   onGoToDashboard,
+  onOpenSettings,
+  onSaveCueContent,
   onFontSizeChange,
   tagSize,
   onTagSizeChange,
@@ -121,6 +132,10 @@ export default function FlowScreen({
   const [flowZoomOpen, setFlowZoomOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [openSongZoomIds, setOpenSongZoomIds] = useState<Record<string, boolean>>({});
+  const [isCueEditing, setIsCueEditing] = useState(false);
+  const [draftCueDocuments, setDraftCueDocuments] = useState<Record<string, CueDocument> | null>(null);
+  const [cueEditBaseline, setCueEditBaseline] = useState('');
+  const [savedCueDocuments, setSavedCueDocuments] = useState<Record<string, CueDocument>>({});
 
   const toggleTags = () => {
     setScrollOpen(false);
@@ -132,6 +147,108 @@ export default function FlowScreen({
   const songFontSize = (song: Song) =>
     fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size;
   const songs = items.flatMap((item) => item.kind === 'song' ? [item.song] : []);
+  const documents = Object.fromEntries(
+    songs.map((song) => [
+      song.id,
+      savedCueDocuments[song.id] ?? (song.cue_document
+        ? parseCueDocument(song.cue_document)
+        : createCueDocumentFromText(song.notes_raw_text)),
+    ]),
+  ) as Record<string, CueDocument>;
+  const draftSnapshot = draftCueDocuments
+    ? JSON.stringify(Object.fromEntries(
+        Object.entries(draftCueDocuments).map(([songId, document]) => [
+          songId,
+          serializeCueDocument(document),
+        ]),
+      ))
+    : '';
+  const snapshot = isCueEditing && draftSnapshot !== cueEditBaseline
+    ? draftSnapshot
+    : 'flow-readonly';
+
+  const saveCueEdits = () => {
+    if (!draftCueDocuments) {
+      return;
+    }
+    try {
+      songs.forEach((song) => {
+        const document = draftCueDocuments[song.id];
+        if (serializeCueDocument(document) !== serializeCueDocument(documents[song.id])) {
+          onSaveCueContent(song.id, flattenCueDocument(document), serializeCueDocument(document));
+        }
+      });
+    } catch (error) {
+      Alert.alert(
+        'Save failed',
+        error instanceof Error ? error.message : 'An unexpected error occurred.',
+      );
+      return;
+    }
+    setSavedCueDocuments(draftCueDocuments);
+    setIsCueEditing(false);
+    setDraftCueDocuments(null);
+    setCueEditBaseline('');
+  };
+
+  useUnsavedChangesPrompt({
+    snapshot,
+    save: saveCueEdits,
+  });
+
+  const startCueEditing = () => {
+    const initialDocuments = Object.fromEntries(
+      songs.map((song) => [song.id, documents[song.id]]),
+    );
+    setDraftCueDocuments(initialDocuments);
+    setCueEditBaseline(JSON.stringify(Object.fromEntries(
+      Object.entries(initialDocuments).map(([songId, document]) => [
+        songId,
+        serializeCueDocument(document),
+      ]),
+    )));
+    setIsCueEditing(true);
+    setAutoScrolling(false);
+    setScrollOpen(false);
+    setTagsOpen(false);
+    setFlowZoomOpen(false);
+    setOpenSongZoomIds({});
+  };
+
+  const cancelCueEditing = () => {
+    setIsCueEditing(false);
+    setDraftCueDocuments(null);
+    setCueEditBaseline('');
+  };
+
+  const updateTextCue = (songId: string, blockId: string, text: string) => {
+    setDraftCueDocuments((current) => current
+      ? { ...current, [songId]: updateCueTextBlock(current[songId], blockId, text) }
+      : current,
+    );
+  };
+
+  const updateTableCueCell = (
+    songId: string,
+    blockId: string,
+    rowIndex: number,
+    columnIndex: number,
+    value: string,
+  ) => {
+    setDraftCueDocuments((current) => current
+      ? {
+          ...current,
+          [songId]: updateCueTableCell(
+            current[songId],
+            blockId,
+            rowIndex,
+            columnIndex,
+            value,
+          ),
+        }
+      : current,
+    );
+  };
 
   const setFlowFontSizeAndPersist = (nextFontSize: number, persist: boolean) => {
     const boundedFontSize = clampFontSize(nextFontSize);
@@ -161,7 +278,7 @@ export default function FlowScreen({
     }
   };
 
-  const renderBlock = (block: CueBlock) => {
+  const renderBlock = (block: CueBlock, songId: string) => {
     const fontSize = block.font_size ?? theme.typography.box_text_size;
     const color =
       !block.color || block.color === '#FFFFFF' ? theme.colors.text_primary : block.color;
@@ -170,21 +287,52 @@ export default function FlowScreen({
         <View key={block.id} style={styles.table}>
           {block.rows.map((row, rowIndex) => (
             <View key={`${block.id}-row-${rowIndex}`} style={styles.tableRow}>
-              {row.map((cell, columnIndex) => (
-                <Text
-                  key={`${block.id}-cell-${rowIndex}-${columnIndex}`}
-                  style={[styles.tableCell, { color, fontSize }]}
-                >
-                  {cell}
-                </Text>
-              ))}
+              {row.map((cell, columnIndex) =>
+                isCueEditing ? (
+                  <TextInput
+                    key={`${block.id}-cell-${rowIndex}-${columnIndex}`}
+                    accessibilityLabel={`Edit table cell ${rowIndex + 1}, ${columnIndex + 1}`}
+                    value={cell}
+                    onChangeText={(value) =>
+                      updateTableCueCell(songId, block.id, rowIndex, columnIndex, value)
+                    }
+                    multiline
+                    textAlign="center"
+                    textAlignVertical="center"
+                    style={[styles.tableCell, styles.editableCueInput, { color, fontSize }]}
+                  />
+                ) : (
+                  <Text
+                    key={`${block.id}-cell-${rowIndex}-${columnIndex}`}
+                    style={[styles.tableCell, { color, fontSize }]}
+                  >
+                    {cell}
+                  </Text>
+                ),
+              )}
             </View>
           ))}
         </View>
       );
     }
 
-    return (
+    return isCueEditing ? (
+      <TextInput
+        key={block.id}
+        accessibilityLabel={`Edit ${block.type} cue`}
+        value={block.text}
+        onChangeText={(text) => updateTextCue(songId, block.id, text)}
+        multiline
+        textAlign="center"
+        textAlignVertical="center"
+        style={[
+          styles.cueText,
+          block.type === 'section' && styles.sectionText,
+          styles.editableCueInput,
+          { color, fontSize },
+        ]}
+      />
+    ) : (
       <Text
         key={block.id}
         style={[
@@ -216,70 +364,126 @@ export default function FlowScreen({
           />
         </Pressable>
         <View style={styles.setlistHeading}>
-          <Text numberOfLines={1} style={styles.setlistTitle}>
-            {setlistName}
-          </Text>
-          {setlistDetails && (
+          <View style={styles.flowTitleRow}>
+            <Text numberOfLines={1} style={styles.setlistTitle}>
+              {setlistName}
+            </Text>
+            {!isCueEditing && songs.length > 0 && settings.showPerformanceEditButton && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Edit cues"
+                onPress={startCueEditing}
+                hitSlop={8}
+                style={styles.editCueButton}
+              >
+                <MaterialCommunityIcons
+                  name="pencil"
+                  size={26}
+                  color={theme.colors.accent_highlight}
+                />
+              </Pressable>
+            )}
+          </View>
+          {isCueEditing ? (
+            <Text style={styles.editingLabel}>Editing cues</Text>
+          ) : setlistDetails ? (
             <Text numberOfLines={1} style={styles.setlistDetails}>
               {setlistDetails}
             </Text>
-          )}
+          ) : null}
         </View>
-        {songs.length > 0 && (
+        {isCueEditing ? (
           <>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={scrollOpen ? 'Hide auto-scroll control' : 'Show auto-scroll control'}
-              accessibilityState={{ expanded: scrollOpen }}
-              onPress={() => {
-                setTagsOpen(false);
-                setFlowZoomOpen(false);
-                setOpenSongZoomIds({});
-                setScrollOpen((open) => !open);
-              }}
-              hitSlop={8}
+              accessibilityLabel="Cancel cue edits"
+              onPress={cancelCueEditing}
+              style={styles.editActionButton}
             >
-              <MaterialCommunityIcons
-                name={autoScrolling ? 'pause-circle-outline' : 'arrow-expand-down'}
-                size={28}
-                color={theme.colors.accent_highlight}
-              />
+              <Text style={styles.cancelEditText}>Cancel</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={tagsOpen ? 'Hide tag size control' : 'Show tag size control'}
-              accessibilityState={{ expanded: tagsOpen }}
-              onPress={toggleTags}
-              hitSlop={8}
+              accessibilityLabel="Save cue edits"
+              onPress={saveCueEdits}
+              style={styles.saveEditButton}
             >
-              <MaterialCommunityIcons
-                name={tagsOpen ? 'tag-off-outline' : 'tag-outline'}
-                size={28}
-                color={theme.colors.accent_highlight}
-              />
+              <Text style={styles.saveEditText}>Save</Text>
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={flowZoomOpen ? 'Hide setlist zoom controls' : 'Show setlist zoom controls'}
-              accessibilityState={{ expanded: flowZoomOpen }}
-              onPress={() => {
-                setTagsOpen(false);
-                setScrollOpen(false);
-                setFlowZoomOpen((open) => !open);
-              }}
-              hitSlop={8}
-            >
-              <MaterialCommunityIcons
-                name={flowZoomOpen ? 'magnify-close' : 'magnify-plus-outline'}
-                size={28}
-                color={theme.colors.accent_highlight}
-              />
-            </Pressable>
+          </>
+        ) : (
+          <>
+            {songs.length > 0 && (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={scrollOpen ? 'Hide auto-scroll control' : 'Show auto-scroll control'}
+                  accessibilityState={{ expanded: scrollOpen }}
+                  onPress={() => {
+                    setTagsOpen(false);
+                    setFlowZoomOpen(false);
+                    setOpenSongZoomIds({});
+                    setScrollOpen((open) => !open);
+                  }}
+                  hitSlop={8}
+                >
+                  <MaterialCommunityIcons
+                    name={autoScrolling ? 'pause-circle-outline' : 'tortoise'}
+                    size={28}
+                    color={theme.colors.accent_highlight}
+                  />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={tagsOpen ? 'Hide tag size control' : 'Show tag size control'}
+                  accessibilityState={{ expanded: tagsOpen }}
+                  onPress={toggleTags}
+                  hitSlop={8}
+                >
+                  <MaterialCommunityIcons
+                    name={tagsOpen ? 'tag-off-outline' : 'tag-outline'}
+                    size={28}
+                    color={theme.colors.accent_highlight}
+                  />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={flowZoomOpen ? 'Hide setlist zoom controls' : 'Show setlist zoom controls'}
+                  accessibilityState={{ expanded: flowZoomOpen }}
+                  onPress={() => {
+                    setTagsOpen(false);
+                    setScrollOpen(false);
+                    setFlowZoomOpen((open) => !open);
+                  }}
+                  hitSlop={8}
+                >
+                  <MaterialCommunityIcons
+                    name={flowZoomOpen ? 'magnify-close' : 'magnify-plus-outline'}
+                    size={28}
+                    color={theme.colors.accent_highlight}
+                  />
+                </Pressable>
+              </>
+            )}
+            {settings.showPerformanceSettingsButton && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open Settings"
+                onPress={onOpenSettings}
+                hitSlop={8}
+              >
+                <MaterialCommunityIcons
+                  name="cog-outline"
+                  size={28}
+                  color={theme.colors.accent_highlight}
+                />
+              </Pressable>
+            )}
           </>
         )}
       </View>
 
-      {songs.length > 0 && tagsOpen && (
+      {!isCueEditing && songs.length > 0 && tagsOpen && (
         <FontSizeZoomControl
           size={settings.barSize}
           label="Tag size"
@@ -291,7 +495,7 @@ export default function FlowScreen({
         />
       )}
 
-      {songs.length > 0 && flowZoomOpen && (
+      {!isCueEditing && songs.length > 0 && flowZoomOpen && (
         <FontSizeZoomControl
           size={settings.barSize}
           label="Set entire setlist"
@@ -300,7 +504,7 @@ export default function FlowScreen({
         />
       )}
 
-      {songs.length > 0 && scrollOpen && (
+      {!isCueEditing && songs.length > 0 && scrollOpen && (
         <View style={styles.scrollPanel}>
           <Pressable
             accessibilityRole="button"
@@ -399,10 +603,12 @@ export default function FlowScreen({
           }
 
           const song = item.song;
-          const cueDocument = song.cue_document
-            ? parseCueDocument(song.cue_document)
-            : createCueDocumentFromText(song.notes_raw_text);
-          const cueBlocks = getVisibleCueBlocks(cueDocument);
+          const cueDocument = isCueEditing
+            ? draftCueDocuments?.[song.id] ?? documents[song.id]
+            : documents[song.id];
+          const cueBlocks = isCueEditing
+            ? cueDocument.blocks
+            : getVisibleCueBlocks(cueDocument);
           const songZoom = songFontSize(song) /
             theme.typography.box_text_size;
           return (
@@ -416,24 +622,26 @@ export default function FlowScreen({
                   compact
                   scale={tagSize / DEFAULT_TAG_SIZE}
                 />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Toggle zoom controls for ${song.title}`}
-                  accessibilityState={{ expanded: !!openSongZoomIds[song.id] }}
-                  onPress={() => {
-                    setTagsOpen(false);
-                    setOpenSongZoomIds((current) => ({ ...current, [song.id]: !current[song.id] }));
-                  }}
-                  hitSlop={8}
-                >
-                  <MaterialCommunityIcons
-                    name={openSongZoomIds[song.id] ? 'magnify-close' : 'magnify-plus-outline'}
-                    size={26}
-                    color={theme.colors.accent_highlight}
-                  />
-                </Pressable>
+                {!isCueEditing && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Toggle zoom controls for ${song.title}`}
+                    accessibilityState={{ expanded: !!openSongZoomIds[song.id] }}
+                    onPress={() => {
+                      setTagsOpen(false);
+                      setOpenSongZoomIds((current) => ({ ...current, [song.id]: !current[song.id] }));
+                    }}
+                    hitSlop={8}
+                  >
+                    <MaterialCommunityIcons
+                      name={openSongZoomIds[song.id] ? 'magnify-close' : 'magnify-plus-outline'}
+                      size={26}
+                      color={theme.colors.accent_highlight}
+                    />
+                  </Pressable>
+                )}
               </View>
-              {openSongZoomIds[song.id] && (
+              {!isCueEditing && openSongZoomIds[song.id] && (
               <FontSizeZoomControl
                 size={settings.barSize}
                 label={`${song.title} text size`}
@@ -449,7 +657,7 @@ export default function FlowScreen({
                     ...block,
                     font_size:
                       (block.font_size ?? theme.typography.box_text_size) * songZoom,
-                  }),
+                  }, song.id),
                 )}
               </View>
             </View>
@@ -536,9 +744,46 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   setlistHeading: {
     flex: 1,
     minWidth: 0,
+    justifyContent: 'center',
+  },
+  flowTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    minWidth: 0,
+    gap: 4,
+  },
+  editCueButton: {
+    width: 36,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editingLabel: {
+    color: theme.colors.text_secondary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  editActionButton: {
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  cancelEditText: {
+    color: theme.colors.text_secondary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  saveEditButton: {
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: theme.colors.accent_highlight,
+  },
+  saveEditText: {
+    color: theme.colors.background,
+    fontSize: 14,
+    fontWeight: '700',
   },
   setlistDetails: {
     flexShrink: 1,
@@ -624,5 +869,12 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border_contrast,
     padding: 6,
+  },
+  editableCueInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.accent_highlight,
+    borderRadius: 6,
+    padding: 8,
+    minHeight: 44,
   },
 });
