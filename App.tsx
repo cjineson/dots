@@ -729,7 +729,6 @@ export default function App() {
               <SongEditorScreen
                 initialSong={route.params.song}
                 commonTags={commonSongTags}
-                defaultFontSize={settings.defaultFontSize}
                 onCancel={() => navigation.goBack()}
                 onSave={(payload) =>
                   handleSaveSong(route.params.setlistId, route.params.groupId, route.params.song, payload, () =>

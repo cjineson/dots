@@ -138,6 +138,7 @@ export default function SettingsScreen({
     hint: string,
     key:
       | 'keepAwake'
+      | 'applyDefaultFontSizeToAll'
       | 'showPosition'
       | 'showPerformanceEditButton'
       | 'showPerformanceSettingsButton'
@@ -221,7 +222,7 @@ export default function SettingsScreen({
         <Text style={styles.sectionTitle}>Defaults</Text>
         <FontSizeZoomControl
           size={settings.barSize}
-          label="Text size for new songs"
+          label="Default text size"
           value={settings.defaultFontSize}
           min={10}
           max={64}
@@ -231,6 +232,11 @@ export default function SettingsScreen({
             }
           }}
         />
+        {renderSwitch(
+          'Override every song',
+          'Use the default text size for all songs, ignoring sizes set on individual songs.',
+          'applyDefaultFontSizeToAll',
+        )}
         <FontSizeZoomControl
           size={settings.barSize}
           label="Tag size"

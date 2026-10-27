@@ -47,6 +47,7 @@ import {
   SWIPE_DISTANCE,
 } from '../lib/settings';
 import type { AppSettings } from '../lib/settings';
+import { resolveSongFontSize } from '../lib/fontSize';
 import type { SongSearchEntry } from '../lib/songSearch';
 import { addOrRecolorTag } from '../lib/songTags';
 import type { CueBlock, CueDocument, SetlistItem, Song, SongTag, TagColor } from '../types';
@@ -116,12 +117,16 @@ export default function LivePerformanceScreen({
   const [tagColor, setTagColor] = useState<TagColor>(TAG_COLORS[1]);
   const currentTags = song ? savedTags[song.id] ?? song.tags ?? [] : [];
   const fontSize =
-    song ? fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size
-      : theme.typography.box_text_size;
+    song ? fontSizeBySong[song.id] ?? resolveSongFontSize(
+        song.font_size,
+        settings.defaultFontSize,
+        settings.applyDefaultFontSizeToAll,
+      )
+      : settings.defaultFontSize;
   const hasManualFontSize =
     song !== undefined && (
       fontSizeBySong[song.id] !== undefined ||
-      song.font_size !== undefined && song.font_size !== theme.typography.box_text_size
+      fontSize !== settings.defaultFontSize
     );
   const availableWidth = Math.max(0, boxSize.width - theme.layout.box_padding * 2);
   const availableHeight = Math.max(0, boxSize.height - theme.layout.box_padding * 2);

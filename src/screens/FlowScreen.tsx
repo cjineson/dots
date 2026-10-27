@@ -42,6 +42,7 @@ import {
   MIN_AUTO_SCROLL_SPEED,
 } from '../lib/settings';
 import type { AppSettings } from '../lib/settings';
+import { resolveSongFontSize } from '../lib/fontSize';
 import type { CueBlock, CueDocument, SetlistItem, Song } from '../types';
 
 const AUTO_SCROLL_TICK_MS = 50;
@@ -117,7 +118,11 @@ export default function FlowScreen({
     Object.fromEntries(
       items.flatMap((item) => item.kind === 'song' ? [[
         item.song.id,
-        item.song.font_size ?? theme.typography.box_text_size,
+        resolveSongFontSize(
+          item.song.font_size,
+          settings.defaultFontSize,
+          settings.applyDefaultFontSizeToAll,
+        ),
       ]] : []),
     ),
   );
@@ -145,7 +150,11 @@ export default function FlowScreen({
   };
 
   const songFontSize = (song: Song) =>
-    fontSizeBySong[song.id] ?? song.font_size ?? theme.typography.box_text_size;
+    fontSizeBySong[song.id] ?? resolveSongFontSize(
+      song.font_size,
+      settings.defaultFontSize,
+      settings.applyDefaultFontSizeToAll,
+    );
   const songs = items.flatMap((item) => item.kind === 'song' ? [item.song] : []);
   const documents = Object.fromEntries(
     songs.map((song) => [
