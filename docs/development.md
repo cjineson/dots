@@ -22,7 +22,7 @@ CI (`.github/workflows/ci.yml`) runs on PRs to `main`; see [ci-and-releases.md](
 npx playwright install chromium   # once
 npm run test:e2e
 ```
-The suite in `e2e/` runs against the Expo **web** export (`web-dist/`, served by `e2e/serve.mjs` with cross-origin isolation headers). `expo-sqlite`'s web build can't handle the app's synchronous startup queries, so on web only, `metro.config.js` swaps it for an in-memory `sql.js` shim (`src/web/sqliteShim.ts`) and `index.web.js` waits for it before starting the app. Native builds are unaffected. Each page load starts with an empty database. `scripts/web-dev-clean.sh` starts the web dev server with that empty database; `scripts/web-dev-live.sh` first imports your own library: export it from the app and save the JSON as `public/dev-seed.json` (git-ignored; in a Codespace, drag the file into the `public/` folder in the Explorer, no push needed). Settings → Import also works in the web build for one-off loads, but the in-memory database is lost on reload. The seed is only loaded by the dev server, never by the e2e export. Native-only features (date pickers, haptics, location) are not covered.
+The suite in `e2e/` runs against the Expo **web** export (`web-dist/`, served by `e2e/serve.mjs` with cross-origin isolation headers). `expo-sqlite`'s web build can't handle the app's synchronous startup queries, so on web only, `metro.config.js` swaps it for an in-memory `sql.js` shim (`src/web/sqliteShim.ts`) and `index.web.js` waits for it before starting the app. Native builds are unaffected. Each page load starts with an empty database. Native-only features (date pickers, haptics, location) are not covered.
 
 ## Workflow
 - One branch and PR per request. Do not commit, push or open a PR unless asked.
@@ -41,3 +41,20 @@ The suite in `e2e/` runs against the Expo **web** export (`web-dist/`, served by
 
 ## Ideas not yet built
 Open in Maps from the dashboard, real drag-and-drop for setlists, local P2P sync, checking light-mode contrast of fixed accent colours.
+
+## Web dev server with your own library
+
+The web build keeps its database in memory, so it starts empty on every page load. Two scripts start the dev server:
+
+- `scripts/web-dev-clean.sh [port]` starts with an empty database.
+- `scripts/web-dev-live.sh [port]` first imports `public/dev-seed.json` (default port 8081). It exits with a message if that file is missing.
+
+To preload your own setlists:
+
+1. In the real GigBox app, go to Settings → Export and save the JSON archive to your computer.
+2. Put it at `public/dev-seed.json` in the repository, creating `public/` if needed. The file is git-ignored, so it is never committed or pushed.
+   - Locally: copy or save the file to that path.
+   - In a Codespace: in the VS Code Explorer, right-click the `public` folder and choose **Upload…**, pick the file, then rename it to `dev-seed.json` (F2). Drag and drop may not work; alternatively right-click `public` → **New File…**, name it `dev-seed.json` and paste the JSON contents.
+3. Run `scripts/web-dev-live.sh`. The library is re-imported on every page reload, so edits made in the browser are lost on reload.
+
+The seed is only loaded when `EXPO_PUBLIC_DEV_SEED=1` (set by `web-dev-live.sh`) in the dev server, never by the e2e export or a production build. Settings → Import also works in the web build for a one-off load without a seed file.
