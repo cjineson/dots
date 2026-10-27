@@ -867,7 +867,7 @@ export default function DashboardScreen({
           <EmptyDashboard
             onCreateSetlist={() => onCreateSetlist(null)}
             onCreateGroup={() => onOpenGroupEditor()}
-            onCreateSong={onCreateSong}
+            onCreateSong={() => onCreateSong()}
           />
         ) : (
           <>

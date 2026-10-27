@@ -535,7 +535,9 @@ export default function App() {
                 onOpenSongForEdit={(setlistId, song) =>
                   navigation.navigate('Editor', { setlistId, song })
                 }
-                onCreateSong={(groupId) => navigation.navigate('Editor', { groupId })}
+                onCreateSong={(groupId) =>
+                  navigation.navigate('Editor', { groupId: typeof groupId === 'string' ? groupId : null })
+                }
                 onOpenPerformance={(items, index) =>
                   navigation.navigate('Performance', {
                     items,
