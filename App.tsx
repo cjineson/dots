@@ -46,6 +46,7 @@ import {
   getSetlistsWithSongs,
   getStandaloneSongs,
   reorderSetlistSiblings,
+  reorderStandaloneSongs,
   importSetlists,
   initializeDatabase,
   renameSetlist,
@@ -67,6 +68,7 @@ import { findImportConflicts, selectArchiveContent } from './src/lib/archiveSele
 import type { ExportSelection } from './src/lib/archiveSelection';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
 import { getCommonSongTags } from './src/lib/songTags';
+import { buildSongSearchEntries } from './src/lib/songSearch';
 import { decodeTextFile } from './src/lib/textEncoding';
 import { clampTagSize, DEFAULT_TAG_SIZE } from './src/lib/fontSize';
 import { resolveTheme, ThemeProvider } from './src/themeContext';
@@ -88,7 +90,7 @@ type RootStackParamList = {
   Dashboard: undefined;
   Settings: undefined;
   Export: undefined;
-  Editor: { setlistId?: string; song?: Song };
+  Editor: { setlistId?: string; song?: Song; groupId?: string | null };
   SetlistDetails: { setlistId: string; isNew?: boolean };
   GroupEditor: { groupId?: string };
   Performance: {
@@ -130,6 +132,10 @@ export default function App() {
   const [startupAttempt, setStartupAttempt] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
   const commonSongTags = getCommonSongTags(setlists, standaloneSongs);
+  const songSearchEntries = useMemo(
+    () => buildSongSearchEntries(setlists, standaloneSongs, groups),
+    [setlists, standaloneSongs, groups],
+  );
 
   const refreshSetlists = () => {
     setSetlists(getSetlistsWithSongs());
@@ -158,6 +164,7 @@ export default function App() {
 
   const handleSaveSong = (
     setlistId: string | undefined,
+    groupId: string | null | undefined,
     existingSong: Song | undefined,
     {
       title,
@@ -176,6 +183,7 @@ export default function App() {
   ) => {
     saveSongForSetlist({
       setlistId,
+      groupId,
       songId: existingSong?.id,
       title,
       notes_raw_text: notesRawText,
@@ -212,6 +220,11 @@ export default function App() {
 
   const handleReorderSetlists = (orderedIds: string[]) => {
     reorderSetlistSiblings(orderedIds);
+    refreshSetlists();
+  };
+
+  const handleReorderSongs = (orderedIds: string[]) => {
+    reorderStandaloneSongs(orderedIds);
     refreshSetlists();
   };
 
@@ -522,7 +535,7 @@ export default function App() {
                 onOpenSongForEdit={(setlistId, song) =>
                   navigation.navigate('Editor', { setlistId, song })
                 }
-                onCreateSong={() => navigation.navigate('Editor', {})}
+                onCreateSong={(groupId) => navigation.navigate('Editor', { groupId })}
                 onOpenPerformance={(items, index) =>
                   navigation.navigate('Performance', {
                     items,
@@ -532,6 +545,8 @@ export default function App() {
                 onOpenNewSong={(setlistId) => navigation.navigate('Editor', { setlistId })}
                 onReorderSetlists={handleReorderSetlists}
                 onReorderItems={handleReorderItems}
+                onReorderSongs={handleReorderSongs}
+                searchEntries={songSearchEntries}
                 onOpenSettings={() => navigation.navigate('Settings')}
                 backupReminder={needsBackupReminder(
                   settings.lastExportAt,
@@ -683,7 +698,7 @@ export default function App() {
                 defaultFontSize={settings.defaultFontSize}
                 onCancel={() => navigation.goBack()}
                 onSave={(payload) =>
-                  handleSaveSong(route.params.setlistId, route.params.song, payload, () =>
+                  handleSaveSong(route.params.setlistId, route.params.groupId, route.params.song, payload, () =>
                     navigation.popToTop(),
                   )
                 }
@@ -715,6 +730,10 @@ export default function App() {
                 onOpenSettings={() => navigation.navigate('Settings')}
                 onExitEditorPreview={() => navigation.goBack()}
                 onIndexChange={(index) => navigation.setParams({ index })}
+                searchEntries={songSearchEntries}
+                onSelectSearchResult={(entry) =>
+                  navigation.setParams({ items: entry.items, index: entry.index })
+                }
                 onSaveCueContent={handleSongCueContentChange}
                 onFontSizeChange={handleSongFontSizeChange}
                 tagSize={tagSize}

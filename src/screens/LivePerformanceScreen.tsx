@@ -18,6 +18,7 @@ import type { AppTheme } from '../theme';
 import SongTags from '../components/SongTags';
 import FontSizeZoomControl from '../components/FontSizeZoomControl';
 import PerformanceCueContent from '../components/PerformanceCueContent';
+import SongSearchPanel from '../components/SongSearchPanel';
 import {
   createCueDocumentFromText,
   flattenCueDocument,
@@ -44,6 +45,7 @@ import {
   SWIPE_DISTANCE,
 } from '../lib/settings';
 import type { AppSettings } from '../lib/settings';
+import type { SongSearchEntry } from '../lib/songSearch';
 import type { CueBlock, CueDocument, SetlistItem, Song } from '../types';
 
 type LivePerformanceScreenProps = {
@@ -54,6 +56,8 @@ type LivePerformanceScreenProps = {
   onOpenSettings: () => void;
   onExitEditorPreview: () => void;
   onIndexChange: (index: number) => void;
+  searchEntries: SongSearchEntry[];
+  onSelectSearchResult: (entry: SongSearchEntry) => void;
   onSaveCueContent: (songId: string, notesRawText: string, cueDocument: string) => void;
   onFontSizeChange: (songId: string, fontSize: number) => void;
   tagSize: number;
@@ -70,6 +74,8 @@ export default function LivePerformanceScreen({
   onOpenSettings,
   onExitEditorPreview,
   onIndexChange,
+  searchEntries,
+  onSelectSearchResult,
   onSaveCueContent,
   onFontSizeChange,
   tagSize,
@@ -104,6 +110,7 @@ export default function LivePerformanceScreen({
   const availableWidth = Math.max(0, boxSize.width - theme.layout.box_padding * 2);
   const availableHeight = Math.max(0, boxSize.height - theme.layout.box_padding * 2);
   const songFontScale = fontSize / theme.typography.box_text_size;
+  const [searchOpen, setSearchOpen] = useState(false);
   const [panel, setPanel] = useState<'zoom' | 'tags' | 'crawl' | null>(null);
   const crawlOpen = panel === 'crawl';
   const [crawling, setCrawling] = useState(false);
@@ -419,6 +426,21 @@ export default function LivePerformanceScreen({
                 </Pressable>
               </>
             )}
+            {!isEditorPreview && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={searchOpen ? 'Close song search' : 'Search songs'}
+                accessibilityState={{ expanded: searchOpen }}
+                onPress={() => setSearchOpen((open) => !open)}
+                hitSlop={8}
+              >
+                <MaterialCommunityIcons
+                  name="text-search"
+                  size={30}
+                  color={theme.colors.accent_highlight}
+                />
+              </Pressable>
+            )}
             {!isEditorPreview && settings.showPerformanceSettingsButton && (
               <Pressable
                 accessibilityRole="button"
@@ -436,6 +458,17 @@ export default function LivePerformanceScreen({
           </>
         )}
       </View>
+
+      {!isEditorPreview && !isCueEditing && searchOpen && (
+        <SongSearchPanel
+          entries={searchEntries}
+          onClose={() => setSearchOpen(false)}
+          onSelect={(entry) => {
+            setSearchOpen(false);
+            onSelectSearchResult(entry);
+          }}
+        />
+      )}
 
       {song && !isEditorPreview && !isCueEditing && tagsOpen && (
         <FontSizeZoomControl
