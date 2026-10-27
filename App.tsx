@@ -12,6 +12,7 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
@@ -490,13 +491,30 @@ export default function App() {
       >
         <StatusBar style={theme.mode === 'light' ? 'dark' : 'light'} />
         <Stack.Navigator
-          screenOptions={{
+          screenOptions={({ navigation, route }) => ({
             contentStyle: { backgroundColor: theme.colors.background },
             headerStyle: { backgroundColor: theme.colors.background },
             headerTintColor: theme.colors.text_primary,
             headerTitleStyle: { color: theme.colors.text_primary },
             gestureEnabled: true,
-          }}
+            // Same cog as the performance and flow headers, on every screen with a native header.
+            headerRight: route.name === 'Settings'
+              ? undefined
+              : () => (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Open Settings"
+                    onPress={() => navigation.navigate('Settings')}
+                    hitSlop={8}
+                  >
+                    <MaterialCommunityIcons
+                      name="cog-outline"
+                      size={30}
+                      color={theme.colors.accent_highlight}
+                    />
+                  </Pressable>
+                ),
+          })}
         >
           <Stack.Screen name="Dashboard" options={{ headerShown: false }}>
             {({ navigation }) => (
