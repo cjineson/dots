@@ -1081,14 +1081,35 @@ export function updateSongCueContent(
   songId: string,
   notesRawText: string,
   cueDocument: string,
+  tags?: SongTag[],
 ): void {
-  const result = db.runSync(
-    'UPDATE songs SET notes_raw_text = ?, cue_document = ? WHERE id = ?',
-    [notesRawText, cueDocument, songId],
-  );
-  if (result.changes === 0) {
-    throw new Error('This song no longer exists.');
-  }
+  db.withTransactionSync(() => {
+    if (tags) {
+      const song = db.getFirstSync<{ title: string | null }>('SELECT title FROM songs WHERE id = ?', [songId]);
+      if (!song) {
+        throw new Error('This song no longer exists.');
+      }
+      const setlistIds = db.getAllSync<{ setlist_id: string }>(
+        'SELECT setlist_id FROM setlist_songs WHERE song_id = ?',
+        [songId],
+      );
+      for (const { setlist_id } of setlistIds) {
+        assertNoVariantConflict(setlist_id, song.title ?? '', tags, songId);
+      }
+    }
+    const result = tags
+      ? db.runSync(
+          'UPDATE songs SET notes_raw_text = ?, cue_document = ?, tags = ? WHERE id = ?',
+          [notesRawText, cueDocument, JSON.stringify(tags), songId],
+        )
+      : db.runSync(
+          'UPDATE songs SET notes_raw_text = ?, cue_document = ? WHERE id = ?',
+          [notesRawText, cueDocument, songId],
+        );
+    if (result.changes === 0) {
+      throw new Error('This song no longer exists.');
+    }
+  });
 }
 
 function getNextSetlistOrderIndex(): number {

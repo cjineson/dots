@@ -332,8 +332,9 @@ export default function App() {
     songId: string,
     notesRawText: string,
     cueDocument: string,
+    tags?: SongTag[],
   ) => {
-    updateSongCueContent(songId, notesRawText, cueDocument);
+    updateSongCueContent(songId, notesRawText, cueDocument, tags);
     refreshSetlists();
   };
 
@@ -745,6 +746,7 @@ export default function App() {
                 onOpenSettings={() => navigation.navigate('Settings')}
                 onExitEditorPreview={() => navigation.goBack()}
                 onIndexChange={(index) => navigation.setParams({ index })}
+                commonTags={commonSongTags}
                 searchEntries={songSearchEntries}
                 onSelectSearchResult={(entry) =>
                   navigation.setParams({ items: entry.items, index: entry.index })

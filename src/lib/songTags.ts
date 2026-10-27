@@ -68,3 +68,18 @@ export function getCommonSongTags(setlists: SetlistWithSongs[], standaloneSongs:
     .sort((left, right) => right.count - left.count || left.tag.label.localeCompare(right.tag.label))
     .map(({ tag }) => tag);
 }
+
+// Adds a tag, or recolours it when a tag with the same label (ignoring case) already exists.
+export function addOrRecolorTag(tags: SongTag[], label: string, color: TagColor): SongTag[] {
+  const cleaned = label.trim();
+  if (!cleaned) {
+    return tags;
+  }
+  const existingIndex = tags.findIndex(
+    (tag) => tag.label.toLocaleLowerCase() === cleaned.toLocaleLowerCase(),
+  );
+  if (existingIndex < 0) {
+    return [...tags, { label: cleaned, color }];
+  }
+  return tags.map((tag, index) => (index === existingIndex ? { ...tag, color } : tag));
+}
