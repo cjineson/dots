@@ -392,7 +392,12 @@ export default function App() {
         return;
       }
 
-      const json = decodeTextFile(await new File(result.assets[0].uri).bytes());
+      const asset = result.assets[0];
+      // expo-file-system's File is native-only; on web the picked file is a blob/object URL.
+      const bytes = Platform.OS === 'web'
+        ? new Uint8Array(await (await fetch(asset.uri)).arrayBuffer())
+        : await new File(asset.uri).bytes();
+      const json = decodeTextFile(bytes);
       const importedLibrary = parseSetlistArchive(json);
       const conflicts = findImportConflicts(importedLibrary, setlists, standaloneSongs);
       const finishImport = (mode: 'copy' | 'replace') => {
