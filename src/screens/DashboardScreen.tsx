@@ -1444,8 +1444,9 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
     marginBottom: 10,
   },
   setlistExpandButton: {
-    width: 20,
-    marginRight: scaleByWidth(screenWidth, 6, 12),
+    width: 32,
+    flexShrink: 0,
+    marginRight: scaleByWidth(screenWidth, 0, 6),
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1632,7 +1633,8 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
     backgroundColor: theme.colors.overlay,
   },
   setlistDragHandle: {
-    width: 20,
+    width: 24,
+    flexShrink: 0,
     minHeight: 40,
     marginRight: -4,
     justifyContent: 'center',
