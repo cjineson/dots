@@ -40,6 +40,9 @@ import type {
   TagColor,
 } from '../types';
 
+// Picker source id for the standalone Songs list, which is not a setlist.
+const STANDALONE_SOURCE = 'standalone-songs';
+
 type DashboardScreenProps = {
   setlists: SetlistWithSongs[];
   standaloneSongs: Song[];
@@ -199,7 +202,7 @@ export default function DashboardScreen({
       options: [
         { label: 'Add new song', icon: 'music-note-plus', onPress: () => onOpenNewSong(setlist.id) },
         {
-          label: 'Copy song from another setlist',
+          label: 'Add existing song',
           icon: 'content-copy',
           onPress: () => setPicker({ kind: 'copy-song', targetSetlistId: setlist.id, sourceSetlistId: null }),
         },
@@ -267,8 +270,15 @@ export default function DashboardScreen({
     });
   };
 
+  const pickerFromStandalone =
+    picker?.kind === 'copy-song' && picker.sourceSetlistId === STANDALONE_SOURCE;
   const pickerSource = picker?.kind === 'copy-song'
-    ? setlists.find((setlist) => setlist.id === picker.sourceSetlistId)
+    ? pickerFromStandalone
+      ? {
+          name: 'Songs',
+          items: standaloneSongs.map((song): SetlistItem => ({ kind: 'song', song })),
+        }
+      : setlists.find((setlist) => setlist.id === picker.sourceSetlistId)
     : undefined;
 
   const copySongTo = (targetSetlistId: string) => {
@@ -1184,7 +1194,7 @@ export default function DashboardScreen({
             <Text style={styles.dialogTitle}>
               {picker?.kind === 'copy-setlist'
                 ? 'Copy which setlist?'
-                : pickerSource ? `Copy a song from ${pickerSource.name}` : 'Copy from which setlist?'}
+                : pickerSource ? `Copy a song from ${pickerSource.name}` : 'Copy from where?'}
             </Text>
             <ScrollView style={styles.destinationList}>
               {pickerSource
@@ -1211,8 +1221,13 @@ export default function DashboardScreen({
                       <SongTags tags={song.tags} compact />
                     </Pressable>
                   ))
-                : setlists
-                    .filter((setlist) => picker?.kind === 'copy-setlist' || (
+                : [
+                    ...(picker?.kind === 'copy-song' && standaloneSongs.length > 0
+                      ? [{ id: STANDALONE_SOURCE, name: 'Songs', items: [], standalone: true }]
+                      : []),
+                    ...setlists.map((setlist) => ({ ...setlist, standalone: false })),
+                  ]
+                    .filter((setlist) => setlist.standalone || picker?.kind === 'copy-setlist' || (
                       picker?.kind === 'copy-song' &&
                       setlist.id !== picker.targetSetlistId &&
                       setlist.items.some((item) => item.kind === 'song')
@@ -1225,15 +1240,24 @@ export default function DashboardScreen({
                         onPress={() => {
                           if (picker?.kind === 'copy-setlist') {
                             setPicker(null);
-                            copyEntireSetlist(setlist);
+                            const original = setlists.find((item) => item.id === setlist.id);
+                            if (original) {
+                              copyEntireSetlist(original);
+                            }
                           } else if (picker?.kind === 'copy-song') {
                             setPicker({ ...picker, sourceSetlistId: setlist.id });
                           }
                         }}
                         style={styles.destinationButton}
                       >
-                        <MaterialCommunityIcons name="playlist-music" size={22} color={theme.colors.action_primary} />
-                        <Text numberOfLines={1} style={styles.destinationText}>{setlist.name}</Text>
+                        <MaterialCommunityIcons
+                          name={setlist.standalone ? 'music-note' : 'playlist-music'}
+                          size={22}
+                          color={theme.colors.action_primary}
+                        />
+                        <Text numberOfLines={1} style={styles.destinationText}>
+                          {setlist.standalone ? 'Songs (not in a setlist)' : setlist.name}
+                        </Text>
                       </Pressable>
                     ))}
             </ScrollView>
