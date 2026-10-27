@@ -7,9 +7,11 @@
 - When a setlist has a location, a small map-pin beside its location/date line opens the venue in Maps.
 - Expand a setlist to see its songs and breaks. Per-setlist buttons: play (opens the whole setlist), edit details, add (+: new song, copy song from another setlist, or break), delete (−).
 - Song rows: tap the title to open Performance; edit, copy, and remove (−). Copying to another setlist links the same song; choosing the current setlist asks for a new tag (e.g. Piano or Guitar) and makes an independent version of the song with the same title, placed right after the original, so its chords and notes can change separately. Songs in the same setlist can share a title only when their tags differ. The copy pickers show each song's tags so you can pick the right version.
-- The standalone **Songs** list has play and edit controls plus **Add to a setlist** and permanent delete actions. A standalone song linked into a setlist moves out of this list.
+- The standalone **Songs** list sits at the bottom of the dashboard, and each group has its own songs after its setlists. A group's + offers "Add new setlist" or "Add new song"; the header's add-song button adds to the top-level list. New songs and songs left without a setlist go to the bottom of the top-level list. When all setlists are collapsed, long-press and drag a song's ☰ handle to reorder it. Songs have play and edit controls plus **Add to a setlist** and permanent delete actions. A standalone song linked into a setlist moves out of this list.
+- A setlist's + menu has **Add existing song**, which can pick from another setlist or from the standalone **Songs** list (the song then moves out of that list into the setlist).
+- Use the search button in the dashboard header to find a song by title or tag: choosing a result expands its group and setlist, scrolls to it and highlights it. The search button in the performance header opens the chosen song in performance (stepping through its setlist).
 - A **backup banner** appears when you have songs or setlists and have not exported for 30 days (or ever). **Remind me later** hides it for 3 days, **Dismiss** for 30.
-- The bottom bar has the **Settings** button.
+- The **Settings** cog is at the top right of the header, as on every other screen.
 
 ## Removing songs
 Songs can be standalone or linked into one or more setlists. Editing a linked song updates it everywhere it appears.
@@ -22,7 +24,7 @@ Songs can be standalone or linked into one or more setlists. Editing a linked so
 - **Notes / checklist**: free text. Lines starting `[ ]` or `[x]` become tickable items in Flow.
 
 ## Song editor
-Title, coloured tags (13 soft colours; with quick picks of tags already in your library), and a cue layout that determines what appears in Performance and Flow. Add a **Section** for a heading such as “Verse,” a **Cue** for lyrics, chords, or stage directions, or a **Table** to align parts in columns. Blocks appear in the order listed and can be styled or edited. Use **Preview performance view** to preview the layout and return to the unsaved editor. New songs start at the default text size from Settings.
+Title, coloured tags (13 soft colours; with quick picks of tags already in your library), and a cue layout that determines what appears in Performance and Flow. Add a **Section** for a heading such as “Verse,” a **Cue** for lyrics, chords, or stage directions, or a **Table** to align parts in columns. Blocks appear in the order listed and can be styled or edited. Use **Preview performance view** to preview the layout and return to the unsaved editor. Songs follow the **Default text size** from Settings unless you zoom them individually; use **Reset all song text sizes** in Settings to clear every custom song and block size.
 
 Leaving any editor (song, setlist, group) with unsaved changes prompts **Keep editing / Discard / Save**.
 
@@ -36,7 +38,7 @@ Header buttons (panels are mutually exclusive):
 Tap the pencil next to the setlist title to edit cue text and table cells inline. Save to keep changes or Cancel to discard them; editing pauses auto-scroll and hides the size controls. Use the gear icon to open Settings. Pencil and gear visibility can be changed independently in Settings. The GigBox logo is the "home" button and fills the header height.
 
 ## Performance view
-One cue box per song; long lines scale down to fit unless you set a manual size. Swipe left/right for next/previous (sensitivity configurable). The header shows the song title, tags and optionally "3 of 12". Tag size and zoom buttons work as in Flow, and the screen can stay awake. Tap the pencil beside the song title to enter deliberate inline edit mode for cue text and table cells. Save to keep changes or Cancel to discard them; swipe navigation and crawl controls are unavailable while editing. Use the gear icon to open Settings; pencil and gear visibility can be changed independently in Settings.
+One cue box per song; long lines scale down to fit unless you set a manual size. Swipe left/right for next/previous (sensitivity configurable). The header shows the song title, tags and optionally "3 of 12". Tag size and zoom buttons work as in Flow, and the screen can stay awake. Tap the pencil beside the song title to enter deliberate inline edit mode for cue text and table cells. In edit mode the header shows the song's tags: tap a tag to remove it, or tap the tag-plus button to add one (name, colour, or a quick pick of tags already in your library). Tag changes are saved or discarded along with the cue edits. Save to keep changes or Cancel to discard them; swipe navigation and crawl controls are unavailable while editing. Use the gear icon to open Settings; pencil and gear visibility can be changed independently in Settings.
 
 ## Settings
 See [settings.md](settings.md).

@@ -41,3 +41,20 @@ The suite in `e2e/` runs against the Expo **web** export (`web-dist/`, served by
 
 ## Ideas not yet built
 Open in Maps from the dashboard, real drag-and-drop for setlists, local P2P sync, checking light-mode contrast of fixed accent colours.
+
+## Web dev server with your own library
+
+The web build keeps its database in memory, so it starts empty on every page load. Two scripts start the dev server:
+
+- `scripts/web-dev-clean.sh [port]` starts with an empty database.
+- `scripts/web-dev-live.sh [port]` first imports `public/dev-seed.json` (default port 8081). It exits with a message if that file is missing.
+
+To preload your own setlists:
+
+1. In the real GigBox app, go to Settings → Export and save the JSON archive to your computer.
+2. Put it at `public/dev-seed.json` in the repository, creating `public/` if needed. The file is git-ignored, so it is never committed or pushed.
+   - Locally: copy or save the file to that path.
+   - In a Codespace: in the VS Code Explorer, right-click the `public` folder and choose **Upload…**, pick the file, then rename it to `dev-seed.json` (F2). Drag and drop may not work; alternatively right-click `public` → **New File…**, name it `dev-seed.json` and paste the JSON contents.
+3. Run `scripts/web-dev-live.sh`. The library is re-imported on every page reload, so edits made in the browser are lost on reload.
+
+The seed is only loaded when `EXPO_PUBLIC_DEV_SEED=1` (set by `web-dev-live.sh`) in the dev server, never by the e2e export or a production build. Settings → Import also works in the web build for a one-off load without a seed file.

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -11,6 +12,7 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
@@ -28,6 +30,7 @@ import SetlistDetailsScreen from './src/screens/SetlistDetailsScreen';
 import SongEditorScreen from './src/screens/SongEditorScreen';
 import {
   clearAllLibraryData,
+  resetAllSongFontSizes,
   copySetlist,
   copySongToSetlist,
   createBreakForSetlist,
@@ -46,6 +49,7 @@ import {
   getSetlistsWithSongs,
   getStandaloneSongs,
   reorderSetlistSiblings,
+  reorderStandaloneSongs,
   importSetlists,
   initializeDatabase,
   renameSetlist,
@@ -67,7 +71,9 @@ import { findImportConflicts, selectArchiveContent } from './src/lib/archiveSele
 import type { ExportSelection } from './src/lib/archiveSelection';
 import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArchive';
 import { getCommonSongTags } from './src/lib/songTags';
+import { buildSongSearchEntries } from './src/lib/songSearch';
 import { decodeTextFile } from './src/lib/textEncoding';
+import { loadDevSeedArchive } from './src/web/devSeed';
 import { clampTagSize, DEFAULT_TAG_SIZE } from './src/lib/fontSize';
 import { resolveTheme, ThemeProvider } from './src/themeContext';
 import type { ThemePreference } from './src/themeContext';
@@ -88,7 +94,7 @@ type RootStackParamList = {
   Dashboard: undefined;
   Settings: undefined;
   Export: undefined;
-  Editor: { setlistId?: string; song?: Song };
+  Editor: { setlistId?: string; song?: Song; groupId?: string | null };
   SetlistDetails: { setlistId: string; isNew?: boolean };
   GroupEditor: { groupId?: string };
   Performance: {
@@ -130,6 +136,10 @@ export default function App() {
   const [startupAttempt, setStartupAttempt] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
   const commonSongTags = getCommonSongTags(setlists, standaloneSongs);
+  const songSearchEntries = useMemo(
+    () => buildSongSearchEntries(setlists, standaloneSongs, groups),
+    [setlists, standaloneSongs, groups],
+  );
 
   const refreshSetlists = () => {
     setSetlists(getSetlistsWithSongs());
@@ -146,6 +156,12 @@ export default function App() {
       setThemePreference(getThemePreference());
       setSettings(getAppSettings());
       setStartupError(null);
+      if (Platform.OS === 'web' && __DEV__ && process.env.EXPO_PUBLIC_DEV_SEED === '1' && startupAttempt === 0) {
+        // The web database is in-memory, so optionally reload a local archive for development.
+        void loadDevSeedArchive(getSetlistsWithSongs().length + getStandaloneSongs().length === 0)
+          .then((loaded) => loaded && refreshSetlists())
+          .catch((error) => console.warn('Could not load dev-seed.json.', error));
+      }
     } catch (error) {
       setStartupError(
         error instanceof Error ? error.message : 'An unexpected startup error occurred.',
@@ -158,6 +174,7 @@ export default function App() {
 
   const handleSaveSong = (
     setlistId: string | undefined,
+    groupId: string | null | undefined,
     existingSong: Song | undefined,
     {
       title,
@@ -176,6 +193,7 @@ export default function App() {
   ) => {
     saveSongForSetlist({
       setlistId,
+      groupId,
       songId: existingSong?.id,
       title,
       notes_raw_text: notesRawText,
@@ -215,6 +233,11 @@ export default function App() {
     refreshSetlists();
   };
 
+  const handleReorderSongs = (orderedIds: string[]) => {
+    reorderStandaloneSongs(orderedIds);
+    refreshSetlists();
+  };
+
   const handleCreateSetlistGroup = (name: string) => {
     const group = createSetlistGroup(name);
     refreshSetlists();
@@ -251,6 +274,11 @@ export default function App() {
   const handleClearAllData = () => {
     clearAllLibraryData();
     setDashboardExpansion(getDashboardExpansionState());
+    refreshSetlists();
+  };
+
+  const handleResetSongSizes = () => {
+    resetAllSongFontSizes();
     refreshSetlists();
   };
 
@@ -311,8 +339,9 @@ export default function App() {
     songId: string,
     notesRawText: string,
     cueDocument: string,
+    tags?: SongTag[],
   ) => {
-    updateSongCueContent(songId, notesRawText, cueDocument);
+    updateSongCueContent(songId, notesRawText, cueDocument, tags);
     refreshSetlists();
   };
 
@@ -371,7 +400,12 @@ export default function App() {
         return;
       }
 
-      const json = decodeTextFile(await new File(result.assets[0].uri).bytes());
+      const asset = result.assets[0];
+      // expo-file-system's File is native-only; on web the picked file is a blob/object URL.
+      const bytes = Platform.OS === 'web'
+        ? new Uint8Array(await (await fetch(asset.uri)).arrayBuffer())
+        : await new File(asset.uri).bytes();
+      const json = decodeTextFile(bytes);
       const importedLibrary = parseSetlistArchive(json);
       const conflicts = findImportConflicts(importedLibrary, setlists, standaloneSongs);
       const finishImport = (mode: 'copy' | 'replace') => {
@@ -463,13 +497,30 @@ export default function App() {
       >
         <StatusBar style={theme.mode === 'light' ? 'dark' : 'light'} />
         <Stack.Navigator
-          screenOptions={{
+          screenOptions={({ navigation, route }) => ({
             contentStyle: { backgroundColor: theme.colors.background },
             headerStyle: { backgroundColor: theme.colors.background },
             headerTintColor: theme.colors.text_primary,
             headerTitleStyle: { color: theme.colors.text_primary },
             gestureEnabled: true,
-          }}
+            // Same cog as the performance and flow headers, on every screen with a native header.
+            headerRight: route.name === 'Settings'
+              ? undefined
+              : () => (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Open Settings"
+                    onPress={() => navigation.navigate('Settings')}
+                    hitSlop={8}
+                  >
+                    <MaterialCommunityIcons
+                      name="cog-outline"
+                      size={30}
+                      color={theme.colors.accent_highlight}
+                    />
+                  </Pressable>
+                ),
+          })}
         >
           <Stack.Screen name="Dashboard" options={{ headerShown: false }}>
             {({ navigation }) => (
@@ -522,7 +573,9 @@ export default function App() {
                 onOpenSongForEdit={(setlistId, song) =>
                   navigation.navigate('Editor', { setlistId, song })
                 }
-                onCreateSong={() => navigation.navigate('Editor', {})}
+                onCreateSong={(groupId) =>
+                  navigation.navigate('Editor', { groupId: typeof groupId === 'string' ? groupId : null })
+                }
                 onOpenPerformance={(items, index) =>
                   navigation.navigate('Performance', {
                     items,
@@ -532,6 +585,8 @@ export default function App() {
                 onOpenNewSong={(setlistId) => navigation.navigate('Editor', { setlistId })}
                 onReorderSetlists={handleReorderSetlists}
                 onReorderItems={handleReorderItems}
+                onReorderSongs={handleReorderSongs}
+                searchEntries={songSearchEntries}
                 onOpenSettings={() => navigation.navigate('Settings')}
                 backupReminder={needsBackupReminder(
                   settings.lastExportAt,
@@ -560,6 +615,7 @@ export default function App() {
                 onTagSizeChange={handleTagSizeChange}
                 onResetSettings={handleResetSettings}
                 onClearAllData={handleClearAllData}
+                onResetSongSizes={handleResetSongSizes}
                 hasData={setlists.length > 0 || standaloneSongs.length > 0}
               />
             )}
@@ -680,10 +736,9 @@ export default function App() {
               <SongEditorScreen
                 initialSong={route.params.song}
                 commonTags={commonSongTags}
-                defaultFontSize={settings.defaultFontSize}
                 onCancel={() => navigation.goBack()}
                 onSave={(payload) =>
-                  handleSaveSong(route.params.setlistId, route.params.song, payload, () =>
+                  handleSaveSong(route.params.setlistId, route.params.groupId, route.params.song, payload, () =>
                     navigation.popToTop(),
                   )
                 }
@@ -715,6 +770,11 @@ export default function App() {
                 onOpenSettings={() => navigation.navigate('Settings')}
                 onExitEditorPreview={() => navigation.goBack()}
                 onIndexChange={(index) => navigation.setParams({ index })}
+                commonTags={commonSongTags}
+                searchEntries={songSearchEntries}
+                onSelectSearchResult={(entry) =>
+                  navigation.setParams({ items: entry.items, index: entry.index })
+                }
                 onSaveCueContent={handleSongCueContentChange}
                 onFontSizeChange={handleSongFontSizeChange}
                 tagSize={tagSize}

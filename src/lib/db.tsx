@@ -95,6 +95,12 @@ export function initializeDatabase(): void {
   if (!songColumns.some((column) => column.name === 'tags')) {
     db.execSync('ALTER TABLE songs ADD COLUMN tags TEXT');
   }
+  if (!songColumns.some((column) => column.name === 'group_id')) {
+    db.execSync('ALTER TABLE songs ADD COLUMN group_id TEXT');
+  }
+  if (!songColumns.some((column) => column.name === 'sort_order')) {
+    db.execSync('ALTER TABLE songs ADD COLUMN sort_order INTEGER');
+  }
   const setlistColumns = db.getAllSync<{ name: string }>('PRAGMA table_info(setlists)');
   for (const column of ['location', 'date', 'time', 'group_id']) {
     if (!setlistColumns.some((existing) => existing.name === column)) {
@@ -111,6 +117,29 @@ export function initializeDatabase(): void {
   }
 
   migrateUngroupedSongsSetlist();
+  assignStandaloneSongOrder();
+}
+
+// Standalone songs created before ordering existed get a stable alphabetical position.
+function assignStandaloneSongOrder(): void {
+  db.withTransactionSync(() => {
+    const unordered = db.getAllSync<{ id: string }>(
+      `SELECT id FROM songs
+       WHERE sort_order IS NULL
+         AND NOT EXISTS (SELECT 1 FROM setlist_songs WHERE setlist_songs.song_id = songs.id)
+       ORDER BY title COLLATE NOCASE ASC`,
+    );
+    for (const song of unordered) {
+      db.runSync('UPDATE songs SET sort_order = ? WHERE id = ?', [getNextStandaloneSongOrder(), song.id]);
+    }
+  });
+}
+
+function getNextStandaloneSongOrder(): number {
+  const max = db.getFirstSync<{ maxOrder: number | null }>(
+    'SELECT MAX(sort_order) as maxOrder FROM songs',
+  );
+  return (max?.maxOrder ?? -1) + 1;
 }
 
 function migrateUngroupedSongsSetlist(): void {
@@ -307,6 +336,16 @@ export function renameSetlistGroup(groupId: string, name: string): void {
 export function deleteSetlistGroup(groupId: string): void {
   db.withTransactionSync(() => {
     db.runSync('UPDATE setlists SET group_id = NULL WHERE group_id = ?', [groupId]);
+    const groupSongs = db.getAllSync<{ id: string }>(
+      'SELECT id FROM songs WHERE group_id = ? ORDER BY sort_order ASC',
+      [groupId],
+    );
+    for (const song of groupSongs) {
+      db.runSync('UPDATE songs SET group_id = NULL, sort_order = ? WHERE id = ?', [
+        getNextStandaloneSongOrder(),
+        song.id,
+      ]);
+    }
     const result = db.runSync('DELETE FROM setlist_groups WHERE id = ?', [groupId]);
     if (result.changes === 0) {
       throw new Error('The group to remove could not be found.');
@@ -637,16 +676,18 @@ export function getStandaloneSongs(): Song[] {
     font_size: number | null;
     cue_document: string | null;
     tags: string | null;
+    group_id: string | null;
   }>(
     `SELECT songs.*
      FROM songs
      WHERE NOT EXISTS (
        SELECT 1 FROM setlist_songs WHERE setlist_songs.song_id = songs.id
      )
-     ORDER BY songs.title COLLATE NOCASE ASC`,
+     ORDER BY songs.sort_order IS NULL, songs.sort_order ASC, songs.title COLLATE NOCASE ASC`,
   );
   return rows.map((row) => ({
     id: row.id,
+    group_id: row.group_id,
     title: row.title ?? 'Untitled Song',
     notes_raw_text: row.notes_raw_text ?? '',
     font_size: row.font_size ?? undefined,
@@ -681,10 +722,20 @@ export function createBreakForSetlist(
 }
 
 export function deleteSongFromSetlist(setlistId: string, songId: string): void {
-  db.runSync('DELETE FROM setlist_songs WHERE setlist_id = ? AND song_id = ?', [
-    setlistId,
-    songId,
-  ]);
+  db.withTransactionSync(() => {
+    db.runSync('DELETE FROM setlist_songs WHERE setlist_id = ? AND song_id = ?', [
+      setlistId,
+      songId,
+    ]);
+    const remaining = db.getFirstSync('SELECT 1 FROM setlist_songs WHERE song_id = ?', [songId]);
+    if (!remaining) {
+      // A song leaving its last setlist becomes an ungrouped song at the bottom of the list.
+      db.runSync('UPDATE songs SET group_id = NULL, sort_order = ? WHERE id = ?', [
+        getNextStandaloneSongOrder(),
+        songId,
+      ]);
+    }
+  });
 }
 
 export function deleteSongPermanently(songId: string): void {
@@ -724,6 +775,7 @@ export function getSongById(songId: string): Song | null {
 
 export function saveSongForSetlist({
   setlistId,
+  groupId,
   songId,
   title,
   notes_raw_text,
@@ -732,6 +784,7 @@ export function saveSongForSetlist({
   font_size,
 }: {
   setlistId?: string;
+  groupId?: string | null;
   songId?: string;
   font_size?: number;
   title: string;
@@ -756,14 +809,25 @@ export function saveSongForSetlist({
       id,
     ]);
   } else {
-    db.runSync('INSERT INTO songs (id, title, notes_raw_text, cue_document, tags, font_size) VALUES (?, ?, ?, ?, ?, ?)', [
-      id,
-      cleanedTitle,
-      notes_raw_text,
-      cue_document,
-      JSON.stringify(tags ?? []),
-      font_size ?? 18,
-    ]);
+    if (!setlistId && groupId) {
+      const group = db.getFirstSync('SELECT id FROM setlist_groups WHERE id = ?', [groupId]);
+      if (!group) {
+        throw new Error('The group for this song could not be found.');
+      }
+    }
+    db.runSync(
+      'INSERT INTO songs (id, title, notes_raw_text, cue_document, tags, font_size, group_id, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        cleanedTitle,
+        notes_raw_text,
+        cue_document,
+        JSON.stringify(tags ?? []),
+        font_size ?? 18,
+        setlistId ? null : groupId ?? null,
+        setlistId ? null : getNextStandaloneSongOrder(),
+      ],
+    );
   }
 
   if (setlistId) {
@@ -833,7 +897,7 @@ function insertImportedItem(setlistId: string, item: ImportedItem, sortOrder: nu
 
 function insertImportedStandaloneSong(song: NonNullable<ImportedLibrary['songs']>[number]): void {
   db.runSync(
-    'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [
       makeId(),
       song.title.trim() || 'Untitled Song',
@@ -841,6 +905,7 @@ function insertImportedStandaloneSong(song: NonNullable<ImportedLibrary['songs']
       song.font_size ?? 18,
       song.cue_document ? JSON.stringify(song.cue_document) : null,
       JSON.stringify(song.tags ?? []),
+      getNextStandaloneSongOrder(),
     ],
   );
 }
@@ -1008,6 +1073,29 @@ export function importSetlists(library: ImportedLibrary, mode: ImportMode = 'cop
   });
 }
 
+export function resetAllSongFontSizes(): void {
+  const rows = db.getAllSync<{ id: string; cue_document: string | null }>(
+    'SELECT id, cue_document FROM songs',
+  );
+  db.withTransactionSync(() => {
+    db.runSync('UPDATE songs SET font_size = 18');
+    rows.forEach((row) => {
+      if (!row.cue_document) return;
+      try {
+        const parsed = JSON.parse(row.cue_document) as { blocks?: Record<string, unknown>[] };
+        if (!Array.isArray(parsed.blocks)) return;
+        const blocks = parsed.blocks.map(({ font_size: _unused, ...rest }) => rest);
+        db.runSync('UPDATE songs SET cue_document = ? WHERE id = ?', [
+          JSON.stringify({ ...parsed, blocks }),
+          row.id,
+        ]);
+      } catch {
+        // Leave unparseable documents untouched.
+      }
+    });
+  });
+}
+
 export function updateSongFontSize(songId: string, fontSize: number): void {
   db.runSync('UPDATE songs SET font_size = ? WHERE id = ?', [fontSize, songId]);
 }
@@ -1016,14 +1104,35 @@ export function updateSongCueContent(
   songId: string,
   notesRawText: string,
   cueDocument: string,
+  tags?: SongTag[],
 ): void {
-  const result = db.runSync(
-    'UPDATE songs SET notes_raw_text = ?, cue_document = ? WHERE id = ?',
-    [notesRawText, cueDocument, songId],
-  );
-  if (result.changes === 0) {
-    throw new Error('This song no longer exists.');
-  }
+  db.withTransactionSync(() => {
+    if (tags) {
+      const song = db.getFirstSync<{ title: string | null }>('SELECT title FROM songs WHERE id = ?', [songId]);
+      if (!song) {
+        throw new Error('This song no longer exists.');
+      }
+      const setlistIds = db.getAllSync<{ setlist_id: string }>(
+        'SELECT setlist_id FROM setlist_songs WHERE song_id = ?',
+        [songId],
+      );
+      for (const { setlist_id } of setlistIds) {
+        assertNoVariantConflict(setlist_id, song.title ?? '', tags, songId);
+      }
+    }
+    const result = tags
+      ? db.runSync(
+          'UPDATE songs SET notes_raw_text = ?, cue_document = ?, tags = ? WHERE id = ?',
+          [notesRawText, cueDocument, JSON.stringify(tags), songId],
+        )
+      : db.runSync(
+          'UPDATE songs SET notes_raw_text = ?, cue_document = ? WHERE id = ?',
+          [notesRawText, cueDocument, songId],
+        );
+    if (result.changes === 0) {
+      throw new Error('This song no longer exists.');
+    }
+  });
 }
 
 function getNextSetlistOrderIndex(): number {
@@ -1050,6 +1159,26 @@ export function reorderSetlistSiblings(orderedIds: string[]): void {
     const result = rows.map((row) => (ids.has(row.id) ? queue.shift() as string : row.id));
     result.forEach((id, index) => {
       db.runSync('UPDATE setlists SET order_index = ? WHERE id = ?', [index, id]);
+    });
+  });
+}
+
+export function reorderStandaloneSongs(orderedIds: string[]): void {
+  db.withTransactionSync(() => {
+    const rows = db.getAllSync<{ id: string }>(
+      `SELECT id FROM songs
+       WHERE NOT EXISTS (SELECT 1 FROM setlist_songs WHERE setlist_songs.song_id = songs.id)
+       ORDER BY sort_order IS NULL, sort_order ASC, title COLLATE NOCASE ASC`,
+    );
+    const ids = new Set(orderedIds);
+    if (ids.size !== orderedIds.length || orderedIds.some((id) => !rows.some((row) => row.id === id))) {
+      throw new Error('The songs to reorder could not be found.');
+    }
+    // Siblings keep the slots they already occupy; only their order among those slots changes.
+    const queue = [...orderedIds];
+    const result = rows.map((row) => (ids.has(row.id) ? queue.shift() as string : row.id));
+    result.forEach((id, index) => {
+      db.runSync('UPDATE songs SET sort_order = ? WHERE id = ?', [index, id]);
     });
   });
 }

@@ -27,6 +27,7 @@ export type Song = {
   font_size?: number;
   cue_document?: string;
   tags?: SongTag[];
+  group_id?: string | null;
 };
 
 export type SongTag = {

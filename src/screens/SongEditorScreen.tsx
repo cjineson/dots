@@ -30,7 +30,6 @@ import type { CueBlock, CueDocument, CueTextColor, Song, SongTag, TagColor } fro
 type SongEditorScreenProps = {
   initialSong?: Song;
   commonTags: SongTag[];
-  defaultFontSize?: number;
   onCancel: () => void;
   onSave: (payload: {
     title: string;
@@ -49,7 +48,6 @@ const FONT_SIZE_STEP = 2;
 export default function SongEditorScreen({
   initialSong,
   commonTags,
-  defaultFontSize,
   onCancel,
   onSave,
   onPlay,
@@ -72,10 +70,10 @@ export default function SongEditorScreen({
       title: title.trim() || 'Untitled Song',
       notes_raw_text: flattenCueDocument(document),
       cue_document: serializeCueDocument(document),
-      font_size: initialSong?.font_size ?? defaultFontSize ?? theme.typography.box_text_size,
+      font_size: initialSong?.font_size ?? theme.typography.box_text_size,
       tags,
     }),
-    [document, tags, title, initialSong, defaultFontSize],
+    [document, tags, title, initialSong],
   );
   const savePayload = () => ({
     title,

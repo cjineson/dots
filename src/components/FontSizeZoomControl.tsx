@@ -15,9 +15,9 @@ import { FONT_SIZE_STEP, MAX_FONT_SIZE, MIN_FONT_SIZE } from '../lib/fontSize';
 
 const SLIDER_HORIZONTAL_INSET = 10;
 
-const SIZE_METRICS: Record<BarSize, { button: number; icon: number; track: number; thumb: number }> = {
-  xxs: { button: 32, icon: 20, track: 3, thumb: 12 },
-  xs: { button: 40, icon: 24, track: 4, thumb: 16 },
+const SIZE_METRICS: Record<BarSize, { button: number; icon: number; track: number; thumb: number; compact?: boolean }> = {
+  xxs: { button: 24, icon: 16, track: 3, thumb: 11, compact: true },
+  xs: { button: 32, icon: 20, track: 4, thumb: 14, compact: true },
   s: { button: 48, icon: 28, track: 5, thumb: 18 },
   m: { button: 60, icon: 34, track: 6, thumb: 22 },
   l: { button: 76, icon: 42, track: 10, thumb: 32 },
@@ -90,7 +90,7 @@ export default function FontSizeZoomControl({
 
   return (
     <View style={styles.controlGroup}>
-      <Text style={styles.label}>{label}</Text>
+      {size !== 'xxs' && <Text style={styles.label}>{label}</Text>}
       <View style={styles.controlRow}>
         <Pressable
           accessibilityRole="button"
@@ -168,20 +168,20 @@ export default function FontSizeZoomControl({
 
 const createStyles = (theme: AppTheme, m: (typeof SIZE_METRICS)[BarSize]) => StyleSheet.create({
   controlGroup: {
-    marginBottom: 8,
+    marginBottom: m.compact ? 2 : 8,
   },
   label: {
-    marginBottom: 4,
+    marginBottom: m.compact ? 2 : 4,
     color: theme.colors.text_secondary,
-    fontSize: 12,
+    fontSize: m.compact ? 11 : 12,
     fontWeight: '600',
   },
   controlRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    minHeight: m.button + 8,
-    paddingHorizontal: 8,
+    gap: m.compact ? 4 : 8,
+    minHeight: m.button + (m.compact ? 4 : 8),
+    paddingHorizontal: m.compact ? 4 : 8,
     borderWidth: 1,
     borderColor: theme.colors.border_contrast,
     borderRadius: 12,

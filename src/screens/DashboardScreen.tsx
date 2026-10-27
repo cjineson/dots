@@ -22,11 +22,13 @@ import {
 } from 'react-native-draggable-flatlist';
 
 import EmptyDashboard from '../components/EmptyDashboard';
+import SongSearchPanel from '../components/SongSearchPanel';
 import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
 import { TAG_COLORS } from '../lib/cueDocument';
 import { hasMapTarget, openInMaps } from '../lib/maps';
 import { BACKUP_REMIND_LATER_DAYS, BACKUP_REMINDER_DAYS } from '../lib/settings';
+import type { SongSearchEntry } from '../lib/songSearch';
 import type { AppTheme } from '../theme';
 import type {
   DashboardExpansionState,
@@ -37,6 +39,9 @@ import type {
   SongTag,
   TagColor,
 } from '../types';
+
+// Picker source id for the standalone Songs list, which is not a setlist.
+const STANDALONE_SOURCE = 'standalone-songs';
 
 type DashboardScreenProps = {
   setlists: SetlistWithSongs[];
@@ -57,11 +62,13 @@ type DashboardScreenProps = {
   onCreateBreak: (setlistId: string, durationMinutes?: number) => void;
   onOpenFlow: (setlist: SetlistWithSongs) => void;
   onOpenSongForEdit: (setlistId?: string, song?: Song) => void;
-  onCreateSong: () => void;
+  onCreateSong: (groupId?: string | null) => void;
   onOpenPerformance: (items: SetlistItem[], index: number) => void;
   onOpenNewSong: (setlistId: string) => void;
   onReorderSetlists: (orderedIds: string[]) => void;
   onReorderItems: (setlistId: string, items: SetlistItem[]) => void;
+  onReorderSongs: (orderedIds: string[]) => void;
+  searchEntries: SongSearchEntry[];
   onOpenSettings: () => void;
   backupReminder?: boolean;
   onSnoozeBackupReminder?: (days: number) => void;
@@ -91,6 +98,8 @@ export default function DashboardScreen({
   onOpenNewSong,
   onReorderSetlists,
   onReorderItems,
+  onReorderSongs,
+  searchEntries,
   onOpenSettings,
   backupReminder = false,
   onSnoozeBackupReminder,
@@ -98,6 +107,13 @@ export default function DashboardScreen({
   const theme = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const styles = useMemo(() => createStyles(theme, screenWidth), [theme, screenWidth]);
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const [highlightKey, setHighlightKey] = React.useState<string | null>(null);
+  // The nestable container forwards its ref to a gesture-handler ScrollView, which wraps the native one.
+  const scrollRef = React.useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const contentRef = React.useRef<React.ComponentRef<typeof View>>(null);
+  const targetRefs = React.useRef<Record<string, React.ComponentRef<typeof View> | null>>({});
+  const highlightTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [addingBreakTo, setAddingBreakTo] = React.useState<string | null>(null);
   const [breakDuration, setBreakDuration] = React.useState('');
   const [menu, setMenu] = React.useState<{
@@ -186,7 +202,7 @@ export default function DashboardScreen({
       options: [
         { label: 'Add new song', icon: 'music-note-plus', onPress: () => onOpenNewSong(setlist.id) },
         {
-          label: 'Copy song from another setlist',
+          label: 'Add existing song',
           icon: 'content-copy',
           onPress: () => setPicker({ kind: 'copy-song', targetSetlistId: setlist.id, sourceSetlistId: null }),
         },
@@ -202,6 +218,48 @@ export default function DashboardScreen({
     });
   };
 
+  const openGroupAddMenu = (group: SetlistGroup) => {
+    setMenu({
+      title: `Add to ${group.name}`,
+      options: [
+        { label: 'Add new setlist', icon: 'playlist-plus', onPress: () => onCreateSetlist(group.id) },
+        { label: 'Add new song', icon: 'music-note-plus', onPress: () => onCreateSong(group.id) },
+      ],
+    });
+  };
+
+  const jumpToSong = (entry: SongSearchEntry) => {
+    setSearchOpen(false);
+    const key = entry.setlistId ? `setlist:${entry.setlistId}:${entry.song.id}` : `song:${entry.song.id}`;
+    const collapsedGroups = { ...expansionState.collapsedGroups };
+    if (entry.groupId) {
+      delete collapsedGroups[entry.groupId];
+    }
+    const expandedSetlists = { ...expansionState.expandedSetlists };
+    if (entry.setlistId) {
+      expandedSetlists[entry.setlistId] = true;
+    }
+    onExpansionStateChange({ expandedSetlists, collapsedGroups });
+    setHighlightKey(key);
+    clearTimeout(highlightTimer.current);
+    highlightTimer.current = setTimeout(() => setHighlightKey(null), 4000);
+    // Give the expanded rows a moment to lay out before measuring.
+    setTimeout(() => {
+      const target = targetRefs.current[key];
+      const content = contentRef.current;
+      if (!target || !content) {
+        return;
+      }
+      target.measureLayout(
+        content,
+        (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true }),
+        () => undefined,
+      );
+    }, 300);
+  };
+
+  React.useEffect(() => () => clearTimeout(highlightTimer.current), []);
+
   const openNewSetlistMenu = () => {
     setMenu({
       title: 'Add setlist',
@@ -212,8 +270,15 @@ export default function DashboardScreen({
     });
   };
 
+  const pickerFromStandalone =
+    picker?.kind === 'copy-song' && picker.sourceSetlistId === STANDALONE_SOURCE;
   const pickerSource = picker?.kind === 'copy-song'
-    ? setlists.find((setlist) => setlist.id === picker.sourceSetlistId)
+    ? pickerFromStandalone
+      ? {
+          name: 'Songs',
+          items: standaloneSongs.map((song): SetlistItem => ({ kind: 'song', song })),
+        }
+      : setlists.find((setlist) => setlist.id === picker.sourceSetlistId)
     : undefined;
 
   const copySongTo = (targetSetlistId: string) => {
@@ -380,10 +445,15 @@ export default function DashboardScreen({
             key: `setlists-${group.id}`,
             setlists: setlists.filter((setlist) => setlist.group_id === group.id),
             indented: true,
+          }, {
+            type: 'songs' as const,
+            key: `songs-${group.id}`,
+            songs: standaloneSongs.filter((song) => song.group_id === group.id),
           }]
         : []),
     ]),
   ];
+  const topLevelSongs = standaloneSongs.filter((song) => !song.group_id);
   const hasAnySetlists = setlists.length > 0 || groups.length > 0;
   const hasAnyContent = hasAnySetlists || standaloneSongs.length > 0;
 
@@ -408,6 +478,92 @@ export default function DashboardScreen({
     }
     onExpansionStateChange({ ...expansionState, collapsedGroups });
   };
+
+  const renderSongRow = (
+    song: Song,
+    siblingCount: number,
+    drag: () => void,
+    isActive: boolean,
+  ) => {
+    const key = `song:${song.id}`;
+    return (
+      <View
+        ref={(node) => { targetRefs.current[key] = node; }}
+        collapsable={false}
+        style={[
+          styles.songRow,
+          isActive && styles.songRowDragging,
+          highlightKey === key && styles.songRowHighlight,
+        ]}
+      >
+        {reorderEnabled && siblingCount > 1 && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Reorder ${song.title}`}
+            onLongPress={drag}
+            delayLongPress={180}
+            style={styles.dragHandle}
+          >
+            <Text style={styles.dragHandleText}>☰</Text>
+          </Pressable>
+        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Play ${song.title}`}
+          style={styles.songHeading}
+          onPress={() => onOpenPerformance([{ kind: 'song', song }], 0)}
+        >
+          <Text style={styles.songTitle}>{song.title}</Text>
+          <SongTags tags={song.tags} compact />
+        </Pressable>
+        <View style={styles.songActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${song.title}`}
+            style={styles.songIconButton}
+            onPress={() => onOpenSongForEdit(undefined, song)}
+          >
+            <MaterialCommunityIcons name="pencil" size={21} color={theme.colors.action_edit} />
+          </Pressable>
+          {setlists.length > 0 && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Add ${song.title} to a setlist`}
+              style={styles.songIconButton}
+              onPress={() => setCopyingSong({ song })}
+            >
+              <MaterialCommunityIcons
+                name="playlist-plus"
+                size={22}
+                color={theme.colors.action_primary}
+              />
+            </Pressable>
+          )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${song.title}`}
+            style={styles.songIconButton}
+            onPress={() => confirmDeleteStandaloneSong(song)}
+          >
+            <MaterialCommunityIcons name="minus-circle" size={24} color={theme.colors.action_danger} />
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
+  const renderSongList = (songs: Song[]) => (
+    <NestableDraggableFlatList
+      data={songs}
+      keyExtractor={(song) => song.id}
+      scrollEnabled={false}
+      activationDistance={reorderEnabled ? 12 : 100000}
+      onDragEnd={({ data }) => onReorderSongs(data.map((song) => song.id))}
+      renderItem={({ item, drag, isActive }) => (
+        <ScaleDecorator>{renderSongRow(item, songs.length, drag, isActive)}</ScaleDecorator>
+      )}
+    />
+  );
 
   const renderSetlistCard = (
     setlist: SetlistWithSongs,
@@ -534,7 +690,15 @@ export default function DashboardScreen({
                   renderItem={({ item, drag, isActive }) => (
                     <ScaleDecorator>
                       {item.kind === 'song' ? (
-                        <View style={[styles.songRow, isActive && styles.songRowDragging]}>
+                        <View
+                          ref={(node) => { targetRefs.current[`setlist:${setlist.id}:${item.song.id}`] = node; }}
+                          collapsable={false}
+                          style={[
+                            styles.songRow,
+                            isActive && styles.songRowDragging,
+                            highlightKey === `setlist:${setlist.id}:${item.song.id}` && styles.songRowHighlight,
+                          ]}
+                        >
                           <Pressable
                             accessibilityRole="button"
                             accessibilityLabel={`Reorder ${item.song.title}`}
@@ -632,6 +796,15 @@ export default function DashboardScreen({
         <View style={styles.headerActions}>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={searchOpen ? 'Close song search' : 'Search songs'}
+            accessibilityState={{ expanded: searchOpen }}
+            onPress={() => setSearchOpen((open) => !open)}
+            style={styles.headerActionButton}
+          >
+            <MaterialCommunityIcons name="text-search" size={22} color={theme.colors.action_edit} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
             accessibilityLabel="Create group"
             onPress={() => onOpenGroupEditor()}
             style={styles.headerActionButton}
@@ -645,18 +818,33 @@ export default function DashboardScreen({
             onPress={openNewSetlistMenu}
             style={styles.headerActionButton}
           >
-            <MaterialCommunityIcons name="plus-circle" size={22} color={theme.colors.action_primary} />
+            <MaterialCommunityIcons name="playlist-plus" size={22} color={theme.colors.action_primary} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Add song"
-            onPress={onCreateSong}
+            onPress={() => onCreateSong()}
             style={styles.headerActionButton}
           >
             <MaterialCommunityIcons name="music-note-plus" size={22} color={theme.colors.action_primary} />
           </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open Settings"
+            onPress={onOpenSettings}
+            style={styles.headerActionButton}
+          >
+            <MaterialCommunityIcons name="cog-outline" size={30} color={theme.colors.accent_highlight} />
+          </Pressable>
         </View>
       </View>
+      {searchOpen && (
+        <SongSearchPanel
+          entries={searchEntries}
+          onClose={() => setSearchOpen(false)}
+          onSelect={jumpToSong}
+        />
+      )}
       {backupReminder && (
         <View style={styles.backupBanner}>
           <Pressable
@@ -691,77 +879,22 @@ export default function DashboardScreen({
         </View>
       )}
 
-      <NestableScrollContainer style={styles.scroll} contentContainerStyle={styles.list}>
+      <NestableScrollContainer ref={scrollRef as never} style={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View ref={contentRef} collapsable={false} style={styles.list}>
         {!hasAnyContent ? (
           <EmptyDashboard
             onCreateSetlist={() => onCreateSetlist(null)}
             onCreateGroup={() => onOpenGroupEditor()}
-            onCreateSong={onCreateSong}
+            onCreateSong={() => onCreateSong()}
           />
         ) : (
           <>
-          {standaloneSongs.length > 0 && (
-            <View style={styles.standaloneSongs}>
-              <View style={styles.standaloneHeader}>
-                <MaterialCommunityIcons
-                  name="music-note"
-                  size={20}
-                  color={theme.colors.accent_highlight}
-                />
-                <Text style={styles.standaloneTitle}>Songs</Text>
-              </View>
-              {standaloneSongs.map((song) => (
-                <View key={song.id} style={styles.songRow}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Play ${song.title}`}
-                    style={styles.songHeading}
-                    onPress={() => onOpenPerformance([{ kind: 'song', song }], 0)}
-                  >
-                    <Text style={styles.songTitle}>{song.title}</Text>
-                    <SongTags tags={song.tags} compact />
-                  </Pressable>
-                  <View style={styles.songActions}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Edit ${song.title}`}
-                      style={styles.songIconButton}
-                      onPress={() => onOpenSongForEdit(undefined, song)}
-                    >
-                      <MaterialCommunityIcons name="pencil" size={21} color={theme.colors.action_edit} />
-                    </Pressable>
-                    {setlists.length > 0 && (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Add ${song.title} to a setlist`}
-                        style={styles.songIconButton}
-                        onPress={() => setCopyingSong({ song })}
-                      >
-                        <MaterialCommunityIcons
-                          name="playlist-plus"
-                          size={22}
-                          color={theme.colors.action_primary}
-                        />
-                      </Pressable>
-                    )}
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Delete ${song.title}`}
-                      style={styles.songIconButton}
-                      onPress={() => confirmDeleteStandaloneSong(song)}
-                    >
-                      <MaterialCommunityIcons name="minus-circle" size={24} color={theme.colors.action_danger} />
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
           {dashboardEntries.map((entry) => {
             if (entry.type === 'group') {
               const group = entry.group;
               const collapsed = Boolean(expansionState.collapsedGroups[group.id]);
               const groupSetlists = setlists.filter((setlist) => setlist.group_id === group.id);
+              const groupSongCount = standaloneSongs.filter((song) => song.group_id === group.id).length;
               return (
                 <View key={entry.key} style={styles.groupBranch}>
                   <View style={styles.groupHeader}>
@@ -784,14 +917,15 @@ export default function DashboardScreen({
                       color={theme.colors.accent_highlight}
                     />
                     <Text numberOfLines={1} style={styles.groupName}>{group.name}</Text>
-                    <Text style={styles.groupCount}>{groupSetlists.length}</Text>
+                    <Text style={styles.groupCount}>{groupSetlists.length + groupSongCount}</Text>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`Add setlist to ${group.name}`}
-                      onPress={() => onCreateSetlist(group.id)}
+                      accessibilityLabel={`Add to ${group.name}`}
+                      accessibilityHint="Choose a new setlist or a new song."
+                      onPress={() => openGroupAddMenu(group)}
                       style={styles.groupAction}
                     >
-                      <MaterialCommunityIcons name="playlist-plus" size={22} color={theme.colors.action_primary} />
+                      <MaterialCommunityIcons name="plus-circle" size={22} color={theme.colors.action_primary} />
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
@@ -813,6 +947,13 @@ export default function DashboardScreen({
                 </View>
               );
             }
+            if (entry.type === 'songs') {
+              return entry.songs.length > 0 ? (
+                <View key={entry.key} style={[styles.standaloneSongs, styles.indentedCard]}>
+                  {renderSongList(entry.songs)}
+                </View>
+              ) : null;
+            }
             return (
               <React.Fragment key={entry.key}>
                 {entry.setlists.length > 0 && (
@@ -833,21 +974,23 @@ export default function DashboardScreen({
               </React.Fragment>
             );
           })}
+          {topLevelSongs.length > 0 && (
+            <View style={styles.standaloneSongs}>
+              <View style={styles.standaloneHeader}>
+                <MaterialCommunityIcons
+                  name="music-note"
+                  size={20}
+                  color={theme.colors.accent_highlight}
+                />
+                <Text style={styles.standaloneTitle}>Songs</Text>
+              </View>
+              {renderSongList(topLevelSongs)}
+            </View>
+          )}
           </>
         )}
+        </View>
       </NestableScrollContainer>
-
-      <View style={styles.bottomBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-          style={styles.bottomBarButton}
-          onPress={onOpenSettings}
-        >
-          <MaterialCommunityIcons name="cog" size={28} color={theme.colors.accent_highlight} />
-          <Text numberOfLines={1} style={styles.settingsLabel}>Settings</Text>
-        </Pressable>
-      </View>
 
       <Modal
         visible={addingBreakTo !== null}
@@ -1047,7 +1190,7 @@ export default function DashboardScreen({
             <Text style={styles.dialogTitle}>
               {picker?.kind === 'copy-setlist'
                 ? 'Copy which setlist?'
-                : pickerSource ? `Copy a song from ${pickerSource.name}` : 'Copy from which setlist?'}
+                : pickerSource ? `Copy a song from ${pickerSource.name}` : 'Copy from where?'}
             </Text>
             <ScrollView style={styles.destinationList}>
               {pickerSource
@@ -1074,8 +1217,13 @@ export default function DashboardScreen({
                       <SongTags tags={song.tags} compact />
                     </Pressable>
                   ))
-                : setlists
-                    .filter((setlist) => picker?.kind === 'copy-setlist' || (
+                : [
+                    ...(picker?.kind === 'copy-song' && standaloneSongs.length > 0
+                      ? [{ id: STANDALONE_SOURCE, name: 'Songs', items: [], standalone: true }]
+                      : []),
+                    ...setlists.map((setlist) => ({ ...setlist, standalone: false })),
+                  ]
+                    .filter((setlist) => setlist.standalone || picker?.kind === 'copy-setlist' || (
                       picker?.kind === 'copy-song' &&
                       setlist.id !== picker.targetSetlistId &&
                       setlist.items.some((item) => item.kind === 'song')
@@ -1088,15 +1236,24 @@ export default function DashboardScreen({
                         onPress={() => {
                           if (picker?.kind === 'copy-setlist') {
                             setPicker(null);
-                            copyEntireSetlist(setlist);
+                            const original = setlists.find((item) => item.id === setlist.id);
+                            if (original) {
+                              copyEntireSetlist(original);
+                            }
                           } else if (picker?.kind === 'copy-song') {
                             setPicker({ ...picker, sourceSetlistId: setlist.id });
                           }
                         }}
                         style={styles.destinationButton}
                       >
-                        <MaterialCommunityIcons name="playlist-music" size={22} color={theme.colors.action_primary} />
-                        <Text numberOfLines={1} style={styles.destinationText}>{setlist.name}</Text>
+                        <MaterialCommunityIcons
+                          name={setlist.standalone ? 'music-note' : 'playlist-music'}
+                          size={22}
+                          color={theme.colors.action_primary}
+                        />
+                        <Text numberOfLines={1} style={styles.destinationText}>
+                          {setlist.standalone ? 'Songs (not in a setlist)' : setlist.name}
+                        </Text>
                       </Pressable>
                     ))}
             </ScrollView>
@@ -1167,7 +1324,7 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
     gap: 6,
   },
   headerActionButton: {
-    width: 40,
+    width: scaleByWidth(screenWidth, 34, 40),
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1182,33 +1339,6 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
   },
   scroll: {
     flex: 1,
-  },
-  bottomBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    minHeight: 64,
-    marginTop: 8,
-    gap: 12,
-  },
-  bottomBarButton: {
-    minWidth: 0,
-    flexShrink: 1,
-    paddingHorizontal: 8,
-    height: 48,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 5,
-  },
-  settingsLabel: {
-    color: theme.colors.accent_highlight,
-    flexShrink: 1,
-    fontSize: 13,
-    lineHeight: 28,
-    fontWeight: theme.typography.font_weight_bold,
-    textAlignVertical: 'center',
-    includeFontPadding: false,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -1283,8 +1413,9 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
     marginBottom: 10,
   },
   setlistExpandButton: {
-    width: 20,
-    marginRight: scaleByWidth(screenWidth, 6, 12),
+    width: 32,
+    flexShrink: 0,
+    marginRight: scaleByWidth(screenWidth, 0, 6),
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1447,6 +1578,12 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
     borderTopWidth: 1,
     borderTopColor: theme.colors.border_contrast,
   },
+  songRowHighlight: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: theme.colors.accent_highlight,
+  },
   songRowDragging: {
     backgroundColor: theme.colors.surface,
     borderRadius: 8,
@@ -1465,7 +1602,8 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
     backgroundColor: theme.colors.overlay,
   },
   setlistDragHandle: {
-    width: 20,
+    width: 24,
+    flexShrink: 0,
     minHeight: 40,
     marginRight: -4,
     justifyContent: 'center',
