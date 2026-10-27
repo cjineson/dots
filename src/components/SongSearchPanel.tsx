@@ -33,6 +33,11 @@ export default function SongSearchPanel({ entries, onSelect, onClose }: SongSear
           placeholder="Search songs"
           placeholderTextColor={theme.colors.text_secondary}
           returnKeyType="search"
+          onBlur={() => {
+            if (!query.trim()) {
+              onClose();
+            }
+          }}
           style={styles.input}
         />
         <Pressable
