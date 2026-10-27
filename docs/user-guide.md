@@ -11,7 +11,7 @@
 - A setlist's + menu has **Add existing song**, which can pick from another setlist or from the standalone **Songs** list (the song then moves out of that list into the setlist).
 - Use the search button in the dashboard header to find a song by title or tag: choosing a result expands its group and setlist, scrolls to it and highlights it. The search button in the performance header opens the chosen song in performance (stepping through its setlist).
 - A **backup banner** appears when you have songs or setlists and have not exported for 30 days (or ever). **Remind me later** hides it for 3 days, **Dismiss** for 30.
-- The bottom bar has the **Settings** button.
+- The **Settings** cog is at the top right of the header, as on every other screen.
 
 ## Removing songs
 Songs can be standalone or linked into one or more setlists. Editing a linked song updates it everywhere it appears.

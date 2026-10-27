@@ -828,6 +828,14 @@ export default function DashboardScreen({
           >
             <MaterialCommunityIcons name="music-note-plus" size={22} color={theme.colors.action_primary} />
           </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open Settings"
+            onPress={onOpenSettings}
+            style={styles.headerActionButton}
+          >
+            <MaterialCommunityIcons name="cog-outline" size={30} color={theme.colors.accent_highlight} />
+          </Pressable>
         </View>
       </View>
       {searchOpen && (
@@ -983,18 +991,6 @@ export default function DashboardScreen({
         )}
         </View>
       </NestableScrollContainer>
-
-      <View style={styles.bottomBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-          style={styles.bottomBarButton}
-          onPress={onOpenSettings}
-        >
-          <MaterialCommunityIcons name="cog" size={28} color={theme.colors.accent_highlight} />
-          <Text numberOfLines={1} style={styles.settingsLabel}>Settings</Text>
-        </Pressable>
-      </View>
 
       <Modal
         visible={addingBreakTo !== null}
@@ -1328,7 +1324,7 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
     gap: 6,
   },
   headerActionButton: {
-    width: 40,
+    width: scaleByWidth(screenWidth, 34, 40),
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1343,33 +1339,6 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
   },
   scroll: {
     flex: 1,
-  },
-  bottomBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    minHeight: 64,
-    marginTop: 8,
-    gap: 12,
-  },
-  bottomBarButton: {
-    minWidth: 0,
-    flexShrink: 1,
-    paddingHorizontal: 8,
-    height: 48,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 5,
-  },
-  settingsLabel: {
-    color: theme.colors.accent_highlight,
-    flexShrink: 1,
-    fontSize: 13,
-    lineHeight: 28,
-    fontWeight: theme.typography.font_weight_bold,
-    textAlignVertical: 'center',
-    includeFontPadding: false,
   },
   card: {
     backgroundColor: theme.colors.surface,
