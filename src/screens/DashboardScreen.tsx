@@ -818,7 +818,7 @@ export default function DashboardScreen({
             onPress={openNewSetlistMenu}
             style={styles.headerActionButton}
           >
-            <MaterialCommunityIcons name="plus-circle" size={22} color={theme.colors.action_primary} />
+            <MaterialCommunityIcons name="playlist-plus" size={22} color={theme.colors.action_primary} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
