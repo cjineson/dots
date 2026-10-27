@@ -7,3 +7,4 @@ dist/
 web-dist/
 test-results/
 playwright-report/
+public/dev-seed.json

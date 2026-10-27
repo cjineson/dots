@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Starts the Expo web dev server and opens the app in a browser.
-# Usage: scripts/dev-web.sh [port]   (default 8081)
+# Starts the Expo web dev server with an empty in-memory database and opens the app in a browser.
+# Usage: scripts/web-dev-clean.sh [port]   (default 8081). See web-dev-live.sh to preload your own library.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

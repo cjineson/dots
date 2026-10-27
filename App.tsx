@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -70,6 +71,7 @@ import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArch
 import { getCommonSongTags } from './src/lib/songTags';
 import { buildSongSearchEntries } from './src/lib/songSearch';
 import { decodeTextFile } from './src/lib/textEncoding';
+import { loadDevSeedArchive } from './src/web/devSeed';
 import { clampTagSize, DEFAULT_TAG_SIZE } from './src/lib/fontSize';
 import { resolveTheme, ThemeProvider } from './src/themeContext';
 import type { ThemePreference } from './src/themeContext';
@@ -152,6 +154,12 @@ export default function App() {
       setThemePreference(getThemePreference());
       setSettings(getAppSettings());
       setStartupError(null);
+      if (Platform.OS === 'web' && __DEV__ && process.env.EXPO_PUBLIC_DEV_SEED === '1' && startupAttempt === 0) {
+        // The web database is in-memory, so optionally reload a local archive for development.
+        void loadDevSeedArchive(getSetlistsWithSongs().length + getStandaloneSongs().length === 0)
+          .then((loaded) => loaded && refreshSetlists())
+          .catch((error) => console.warn('Could not load dev-seed.json.', error));
+      }
     } catch (error) {
       setStartupError(
         error instanceof Error ? error.message : 'An unexpected startup error occurred.',
