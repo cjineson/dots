@@ -30,6 +30,7 @@ import SetlistDetailsScreen from './src/screens/SetlistDetailsScreen';
 import SongEditorScreen from './src/screens/SongEditorScreen';
 import {
   clearAllLibraryData,
+  resetAllSongFontSizes,
   copySetlist,
   copySongToSetlist,
   createBreakForSetlist,
@@ -273,6 +274,11 @@ export default function App() {
   const handleClearAllData = () => {
     clearAllLibraryData();
     setDashboardExpansion(getDashboardExpansionState());
+    refreshSetlists();
+  };
+
+  const handleResetSongSizes = () => {
+    resetAllSongFontSizes();
     refreshSetlists();
   };
 
@@ -609,6 +615,7 @@ export default function App() {
                 onTagSizeChange={handleTagSizeChange}
                 onResetSettings={handleResetSettings}
                 onClearAllData={handleClearAllData}
+                onResetSongSizes={handleResetSongSizes}
                 hasData={setlists.length > 0 || standaloneSongs.length > 0}
               />
             )}

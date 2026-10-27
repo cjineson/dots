@@ -37,6 +37,7 @@ type SettingsScreenProps = {
   onTagSizeChange: (tagSize: number, persist: boolean) => void;
   onResetSettings: () => void;
   onClearAllData: () => void;
+  onResetSongSizes: () => void;
   hasData: boolean;
 };
 
@@ -76,6 +77,7 @@ export default function SettingsScreen({
   onTagSizeChange,
   onResetSettings,
   onClearAllData,
+  onResetSongSizes,
   hasData,
 }: SettingsScreenProps) {
   const theme = useTheme();
@@ -85,6 +87,12 @@ export default function SettingsScreen({
     Alert.alert('Reset settings?', 'Theme, sizes and performance options return to their defaults. Your songs and setlists are kept.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Reset', style: 'destructive', onPress: onResetSettings },
+    ]);
+
+  const confirmResetSizes = () =>
+    Alert.alert('Reset all song text sizes?', 'Every song will use the default text size. Custom sizes on songs and text blocks are removed.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Reset', style: 'destructive', onPress: onResetSongSizes },
     ]);
 
   const confirmClear = () =>
@@ -138,7 +146,6 @@ export default function SettingsScreen({
     hint: string,
     key:
       | 'keepAwake'
-      | 'applyDefaultFontSizeToAll'
       | 'showPosition'
       | 'showPerformanceEditButton'
       | 'showPerformanceSettingsButton'
@@ -232,11 +239,19 @@ export default function SettingsScreen({
             }
           }}
         />
-        {renderSwitch(
-          'Override every song',
-          'Use the default text size for all songs, ignoring sizes set on individual songs.',
-          'applyDefaultFontSizeToAll',
-        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Reset all song text sizes"
+          style={[styles.row, !hasData && styles.disabledRow]}
+          disabled={!hasData}
+          onPress={confirmResetSizes}
+        >
+          <MaterialCommunityIcons name="format-size" size={26} color={theme.colors.action_primary} />
+          <View style={styles.rowBody}>
+            <Text style={styles.rowText}>Reset all song text sizes</Text>
+            <Text style={styles.hint}>Clears sizes set on individual songs and text blocks so every song uses the default.</Text>
+          </View>
+        </Pressable>
         <FontSizeZoomControl
           size={settings.barSize}
           label="Tag size"

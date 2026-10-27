@@ -1073,6 +1073,29 @@ export function importSetlists(library: ImportedLibrary, mode: ImportMode = 'cop
   });
 }
 
+export function resetAllSongFontSizes(): void {
+  const rows = db.getAllSync<{ id: string; cue_document: string | null }>(
+    'SELECT id, cue_document FROM songs',
+  );
+  db.withTransactionSync(() => {
+    db.runSync('UPDATE songs SET font_size = 18');
+    rows.forEach((row) => {
+      if (!row.cue_document) return;
+      try {
+        const parsed = JSON.parse(row.cue_document) as { blocks?: Record<string, unknown>[] };
+        if (!Array.isArray(parsed.blocks)) return;
+        const blocks = parsed.blocks.map(({ font_size: _unused, ...rest }) => rest);
+        db.runSync('UPDATE songs SET cue_document = ? WHERE id = ?', [
+          JSON.stringify({ ...parsed, blocks }),
+          row.id,
+        ]);
+      } catch {
+        // Leave unparseable documents untouched.
+      }
+    });
+  });
+}
+
 export function updateSongFontSize(songId: string, fontSize: number): void {
   db.runSync('UPDATE songs SET font_size = ? WHERE id = ?', [fontSize, songId]);
 }

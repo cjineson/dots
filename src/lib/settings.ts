@@ -12,7 +12,6 @@ const LEGACY_BAR_SIZES: Record<string, BarSize> = { normal: 'm', large: 'l', hug
 export type AppSettings = {
   keepAwake: boolean;
   defaultFontSize: number;
-  applyDefaultFontSizeToAll: boolean;
   showPosition: boolean;
   showPerformanceEditButton: boolean;
   showPerformanceSettingsButton: boolean;
@@ -36,7 +35,6 @@ export const INITIAL_BACKUP_REMINDER_DELAY_DAYS = 7;
 export const DEFAULT_SETTINGS: AppSettings = {
   keepAwake: true,
   defaultFontSize: 18,
-  applyDefaultFontSizeToAll: false,
   showPosition: true,
   showPerformanceEditButton: true,
   showPerformanceSettingsButton: true,
@@ -65,7 +63,6 @@ export const SWIPE_DISTANCE: Record<Exclude<SwipeMode, 'off'>, number> = {
 const SETTING_KEYS = {
   keepAwake: 'keep_awake',
   defaultFontSize: 'default_font_size',
-  applyDefaultFontSizeToAll: 'apply_default_font_size_to_all',
   showPosition: 'show_position',
   showPerformanceEditButton: 'show_performance_edit_button',
   showPerformanceSettingsButton: 'show_performance_settings_button',
@@ -105,10 +102,6 @@ export function parseSettings(raw: Record<string, string>): AppSettings {
       raw[SETTING_KEYS.defaultFontSize],
       DEFAULT_SETTINGS.defaultFontSize,
       clampFontSize,
-    ),
-    applyDefaultFontSizeToAll: parseBoolean(
-      raw[SETTING_KEYS.applyDefaultFontSizeToAll],
-      DEFAULT_SETTINGS.applyDefaultFontSizeToAll,
     ),
     showPosition: parseBoolean(raw[SETTING_KEYS.showPosition], DEFAULT_SETTINGS.showPosition),
     showPerformanceEditButton: parseBoolean(

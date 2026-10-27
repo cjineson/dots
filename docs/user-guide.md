@@ -24,7 +24,7 @@ Songs can be standalone or linked into one or more setlists. Editing a linked so
 - **Notes / checklist**: free text. Lines starting `[ ]` or `[x]` become tickable items in Flow.
 
 ## Song editor
-Title, coloured tags (13 soft colours; with quick picks of tags already in your library), and a cue layout that determines what appears in Performance and Flow. Add a **Section** for a heading such as “Verse,” a **Cue** for lyrics, chords, or stage directions, or a **Table** to align parts in columns. Blocks appear in the order listed and can be styled or edited. Use **Preview performance view** to preview the layout and return to the unsaved editor. Songs follow the **Default text size** from Settings unless you zoom them individually; turn on **Override every song** in Settings to use the default everywhere.
+Title, coloured tags (13 soft colours; with quick picks of tags already in your library), and a cue layout that determines what appears in Performance and Flow. Add a **Section** for a heading such as “Verse,” a **Cue** for lyrics, chords, or stage directions, or a **Table** to align parts in columns. Blocks appear in the order listed and can be styled or edited. Use **Preview performance view** to preview the layout and return to the unsaved editor. Songs follow the **Default text size** from Settings unless you zoom them individually; use **Reset all song text sizes** in Settings to clear every custom song and block size.
 
 Leaving any editor (song, setlist, group) with unsaved changes prompts **Keep editing / Discard / Save**.
 

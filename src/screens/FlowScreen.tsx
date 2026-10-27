@@ -118,11 +118,7 @@ export default function FlowScreen({
     Object.fromEntries(
       items.flatMap((item) => item.kind === 'song' ? [[
         item.song.id,
-        resolveSongFontSize(
-          item.song.font_size,
-          settings.defaultFontSize,
-          settings.applyDefaultFontSizeToAll,
-        ),
+        resolveSongFontSize(item.song.font_size, settings.defaultFontSize),
       ]] : []),
     ),
   );
@@ -150,11 +146,7 @@ export default function FlowScreen({
   };
 
   const songFontSize = (song: Song) =>
-    fontSizeBySong[song.id] ?? resolveSongFontSize(
-      song.font_size,
-      settings.defaultFontSize,
-      settings.applyDefaultFontSizeToAll,
-    );
+    fontSizeBySong[song.id] ?? resolveSongFontSize(song.font_size, settings.defaultFontSize);
   const songs = items.flatMap((item) => item.kind === 'song' ? [item.song] : []);
   const documents = Object.fromEntries(
     songs.map((song) => [
