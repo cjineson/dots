@@ -15,7 +15,7 @@ import { FONT_SIZE_STEP, MAX_FONT_SIZE, MIN_FONT_SIZE } from '../lib/fontSize';
 
 const SLIDER_HORIZONTAL_INSET = 10;
 
-const SIZE_METRICS: Record<BarSize, { button: number; icon: number; track: number; thumb: number; compact?: boolean }> = {
+export const SIZE_METRICS: Record<BarSize, { button: number; icon: number; track: number; thumb: number; compact?: boolean }> = {
   xxs: { button: 24, icon: 16, track: 3, thumb: 11, compact: true },
   xs: { button: 32, icon: 20, track: 4, thumb: 14, compact: true },
   s: { button: 48, icon: 28, track: 5, thumb: 18 },

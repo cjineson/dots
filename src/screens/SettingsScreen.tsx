@@ -146,7 +146,6 @@ export default function SettingsScreen({
     hint: string,
     key:
       | 'keepAwake'
-      | 'showPosition'
       | 'showPerformanceEditButton'
       | 'showPerformanceSettingsButton'
       | 'highContrast',
@@ -182,7 +181,6 @@ export default function SettingsScreen({
 
         <Text style={styles.sectionTitle}>Performance</Text>
         {renderSwitch('Keep screen awake', 'Stops the screen sleeping in Performance and Flow.', 'keepAwake')}
-        {renderSwitch('Show song position', 'Shows "3 of 12" in the Performance header.', 'showPosition')}
         {renderSwitch(
           'Show edit button',
           'Shows the pencil in Performance and Flow headers.',

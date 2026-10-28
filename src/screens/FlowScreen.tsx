@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 
-import FontSizeZoomControl from '../components/FontSizeZoomControl';
+import FontSizeZoomControl, { SIZE_METRICS } from '../components/FontSizeZoomControl';
 import {
   createCueDocumentFromText,
   flattenCueDocument,
@@ -511,11 +511,11 @@ export default function FlowScreen({
             accessibilityRole="button"
             accessibilityLabel={autoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
             onPress={() => setAutoScrolling((current) => !current)}
-            style={styles.scrollPlayButton}
+            style={[styles.scrollPlayButton, { minWidth: SIZE_METRICS[settings.barSize].button, minHeight: SIZE_METRICS[settings.barSize].button }]}
           >
             <MaterialCommunityIcons
               name={autoScrolling ? 'pause' : 'play'}
-              size={30}
+              size={SIZE_METRICS[settings.barSize].icon}
               color={theme.colors.accent_highlight}
             />
           </Pressable>

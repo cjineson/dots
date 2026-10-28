@@ -29,7 +29,6 @@ test('parseSettings reads and clamps stored values', () => {
   const parsed = parseSettings({
     keep_awake: 'false',
     default_font_size: '500',
-    show_position: 'false',
     show_performance_edit_button: 'false',
     show_performance_settings_button: 'true',
     swipe_mode: 'firm',
@@ -41,7 +40,6 @@ test('parseSettings reads and clamps stored values', () => {
   });
   assert.equal(parsed.keepAwake, false);
   assert.equal(parsed.defaultFontSize, 128);
-  assert.equal(parsed.showPosition, false);
   assert.equal(parsed.showPerformanceEditButton, false);
   assert.equal(parsed.showPerformanceSettingsButton, true);
   assert.equal(parsed.swipeMode, 'firm');
