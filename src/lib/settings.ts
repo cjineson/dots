@@ -12,7 +12,6 @@ const LEGACY_BAR_SIZES: Record<string, BarSize> = { normal: 'm', large: 'l', hug
 export type AppSettings = {
   keepAwake: boolean;
   defaultFontSize: number;
-  showPosition: boolean;
   showPerformanceEditButton: boolean;
   showPerformanceSettingsButton: boolean;
   swipeMode: SwipeMode;
@@ -35,7 +34,6 @@ export const INITIAL_BACKUP_REMINDER_DELAY_DAYS = 7;
 export const DEFAULT_SETTINGS: AppSettings = {
   keepAwake: true,
   defaultFontSize: 18,
-  showPosition: true,
   showPerformanceEditButton: true,
   showPerformanceSettingsButton: true,
   swipeMode: 'normal',
@@ -63,7 +61,6 @@ export const SWIPE_DISTANCE: Record<Exclude<SwipeMode, 'off'>, number> = {
 const SETTING_KEYS = {
   keepAwake: 'keep_awake',
   defaultFontSize: 'default_font_size',
-  showPosition: 'show_position',
   showPerformanceEditButton: 'show_performance_edit_button',
   showPerformanceSettingsButton: 'show_performance_settings_button',
   swipeMode: 'swipe_mode',
@@ -103,7 +100,6 @@ export function parseSettings(raw: Record<string, string>): AppSettings {
       DEFAULT_SETTINGS.defaultFontSize,
       clampFontSize,
     ),
-    showPosition: parseBoolean(raw[SETTING_KEYS.showPosition], DEFAULT_SETTINGS.showPosition),
     showPerformanceEditButton: parseBoolean(
       raw[SETTING_KEYS.showPerformanceEditButton],
       DEFAULT_SETTINGS.showPerformanceEditButton,

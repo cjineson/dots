@@ -17,7 +17,7 @@ import {
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
 import SongTags from '../components/SongTags';
-import FontSizeZoomControl from '../components/FontSizeZoomControl';
+import FontSizeZoomControl, { SIZE_METRICS } from '../components/FontSizeZoomControl';
 import PerformanceCueContent from '../components/PerformanceCueContent';
 import SongSearchPanel from '../components/SongSearchPanel';
 import {
@@ -432,11 +432,6 @@ export default function LivePerformanceScreen({
                   </Pressable>
                 )}
               </View>
-              {settings.showPosition && !isEditorPreview && items.length > 1 && (
-                <Text style={styles.positionText}>
-                  {index + 1} of {items.length}
-                </Text>
-              )}
             </View>
             <View style={styles.performanceTags}>
               <SongTags
@@ -608,11 +603,11 @@ export default function LivePerformanceScreen({
             accessibilityRole="button"
             accessibilityLabel={crawling ? 'Pause crawl' : 'Start crawl'}
             onPress={() => setCrawling((current) => !current)}
-            style={styles.crawlPlayButton}
+            style={[styles.crawlPlayButton, { minWidth: SIZE_METRICS[settings.barSize].button, minHeight: SIZE_METRICS[settings.barSize].button }]}
           >
             <MaterialCommunityIcons
               name={crawling ? 'pause' : 'play'}
-              size={30}
+              size={SIZE_METRICS[settings.barSize].icon}
               color={theme.colors.accent_highlight}
             />
           </Pressable>

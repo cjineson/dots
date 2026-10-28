@@ -8,3 +8,4 @@ web-dist/
 test-results/
 playwright-report/
 public/dev-seed.json
+public/owm-base.json

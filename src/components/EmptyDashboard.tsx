@@ -128,9 +128,9 @@ export default function EmptyDashboard({
       </View>
 
       <Animated.View style={{ opacity: entrance, alignItems: 'center' }}>
-        <Text style={styles.title}>Start with anything</Text>
+        <Text style={styles.title}>Add your first song</Text>
         <Text style={styles.subtitle}>
-          Create a group, setlist, or song. You can organize songs into setlists and groups later.
+          Songs work on their own. Setlists and groups are optional, whenever you need them.
         </Text>
       </Animated.View>
 
@@ -142,31 +142,33 @@ export default function EmptyDashboard({
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Create a group"
-          onPress={onCreateGroup}
-          style={[styles.createOption, { borderColor: theme.colors.action_edit }]}
-        >
-          <MaterialCommunityIcons name="folder-plus" size={22} color={theme.colors.action_edit} />
-          <Text style={styles.createOptionText}>Group</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Create a setlist"
-          onPress={onCreateSetlist}
-          style={[styles.createOption, { borderColor: theme.colors.action_primary }]}
-        >
-          <MaterialCommunityIcons name="playlist-plus" size={22} color={theme.colors.action_primary} />
-          <Text style={styles.createOptionText}>Setlist</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
           accessibilityLabel="Create a song"
           onPress={onCreateSong}
-          style={[styles.createOption, { borderColor: theme.colors.action_extra }]}
+          style={[styles.primaryOption, { borderColor: theme.colors.action_extra }]}
         >
-          <MaterialCommunityIcons name="music-note-plus" size={22} color={theme.colors.action_extra} />
-          <Text style={styles.createOptionText}>Song</Text>
+          <MaterialCommunityIcons name="music-note-plus" size={26} color={theme.colors.action_extra} />
+          <Text style={styles.primaryOptionText}>Add a song</Text>
         </Pressable>
+        <View style={styles.secondaryRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Create a setlist"
+            onPress={onCreateSetlist}
+            style={[styles.createOption, { borderColor: theme.colors.action_primary }]}
+          >
+            <MaterialCommunityIcons name="playlist-plus" size={20} color={theme.colors.action_primary} />
+            <Text style={styles.createOptionText}>Setlist</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Create a group"
+            onPress={onCreateGroup}
+            style={[styles.createOption, { borderColor: theme.colors.action_edit }]}
+          >
+            <MaterialCommunityIcons name="folder-plus" size={20} color={theme.colors.action_edit} />
+            <Text style={styles.createOptionText}>Group</Text>
+          </Pressable>
+        </View>
       </Animated.View>
 
       <Text style={styles.hint}>
@@ -211,16 +213,34 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleShe
   createOptions: {
     width: '100%',
     maxWidth: 380,
+    gap: 8,
+  },
+  primaryOption: {
+    minHeight: 72,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
+    borderWidth: 2,
+    borderRadius: 14,
+    backgroundColor: colors.surface_card,
+  },
+  primaryOptionText: {
+    color: colors.text_primary,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  secondaryRow: {
+    flexDirection: 'row',
     gap: 8,
   },
   createOption: {
     flex: 1,
-    minHeight: 64,
+    minHeight: 48,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 6,
     borderWidth: 1,
     borderRadius: 12,
     backgroundColor: colors.surface_card,
