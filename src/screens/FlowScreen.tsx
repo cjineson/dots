@@ -154,6 +154,8 @@ export default function FlowScreen({
         : createCueDocumentFromText(song.notes_raw_text)),
     ]),
   ) as Record<string, CueDocument>;
+  const songHasCue = (song: Song) => getVisibleCueBlocks(documents[song.id]).length > 0;
+  const anySongHasCue = songs.some(songHasCue);
   const draftSnapshot = draftCueDocuments
     ? JSON.stringify(Object.fromEntries(
         Object.entries(draftCueDocuments).map(([songId, document]) => [
@@ -441,6 +443,7 @@ export default function FlowScreen({
                     color={theme.colors.accent_highlight}
                   />
                 </Pressable>
+                {anySongHasCue && (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={flowZoomOpen ? 'Hide setlist zoom controls' : 'Show setlist zoom controls'}
@@ -458,6 +461,7 @@ export default function FlowScreen({
                     color={theme.colors.accent_highlight}
                   />
                 </Pressable>
+                )}
               </>
             )}
             {settings.showPerformanceSettingsButton && (
@@ -490,7 +494,7 @@ export default function FlowScreen({
         />
       )}
 
-      {!isCueEditing && songs.length > 0 && flowZoomOpen && (
+      {!isCueEditing && anySongHasCue && flowZoomOpen && (
         <FontSizeZoomControl
           size={settings.barSize}
           label="Set entire setlist"
@@ -617,7 +621,7 @@ export default function FlowScreen({
                   compact
                   scale={tagSize / DEFAULT_TAG_SIZE}
                 />
-                {!isCueEditing && (
+                {!isCueEditing && songHasCue(song) && (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Toggle zoom controls for ${song.title}`}
@@ -636,7 +640,7 @@ export default function FlowScreen({
                   </Pressable>
                 )}
               </View>
-              {!isCueEditing && openSongZoomIds[song.id] && (
+              {!isCueEditing && songHasCue(song) && openSongZoomIds[song.id] && (
               <FontSizeZoomControl
                 size={settings.barSize}
                 label={`${song.title} text size`}
