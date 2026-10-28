@@ -83,7 +83,6 @@ import type { AppTheme } from './src/theme';
 import type {
   DashboardExpansionState,
   SetlistGroup,
-  SetlistHeaderDetails,
   SetlistItem,
   Song,
   SongTag,
@@ -102,20 +101,10 @@ type RootStackParamList = {
     index: number;
     isEditorPreview?: boolean;
   };
-  Flow: { setlistId: string; setlistName: string; setlistDetails?: string; items: SetlistItem[] };
+  Flow: { setlistId: string; setlistName: string; items: SetlistItem[] };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-
-function formatSetlistDetails(setlist: SetlistHeaderDetails | undefined): string | undefined {
-  if (!setlist) {
-    return undefined;
-  }
-  const details = [setlist.location, setlist.date, setlist.time]
-    .map((value) => value?.trim())
-    .filter((value): value is string => Boolean(value));
-  return details.length > 0 ? details.join(' · ') : undefined;
-}
 
 export default function App() {
   const systemScheme = useColorScheme();
@@ -566,7 +555,6 @@ export default function App() {
                   navigation.navigate('Flow', {
                     setlistId: setlist.id,
                     setlistName: setlist.name,
-                    setlistDetails: formatSetlistDetails(setlist),
                     items: setlist.items,
                   })
                 }
@@ -588,6 +576,7 @@ export default function App() {
                 onReorderSongs={handleReorderSongs}
                 searchEntries={songSearchEntries}
                 onOpenSettings={() => navigation.navigate('Settings')}
+                onImportLibrary={handleImportLibrary}
                 backupReminder={needsBackupReminder(
                   settings.lastExportAt,
                   setlists.length > 0 || standaloneSongs.length > 0,
@@ -712,7 +701,6 @@ export default function App() {
               <FlowScreen
                 setlistId={route.params.setlistId}
                 setlistName={route.params.setlistName}
-                setlistDetails={route.params.setlistDetails}
                 notes={flowSetlist?.notes}
                 onNotesChange={handleToggleSetlistNotes}
                 settings={settings}
