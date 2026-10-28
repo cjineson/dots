@@ -208,7 +208,7 @@ export default function SongEditorScreen({
     <View key={block.id} style={styles.blockCard}>
       <View style={styles.blockHeader}>
         <Text style={styles.blockType}>
-          {block.type === 'section' ? 'SECTION' : block.type === 'table' ? 'TABLE' : 'CUE'}
+          {block.type === 'section' ? 'HEADING' : block.type === 'table' ? 'TABLE' : 'SONG TEXT'}
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -286,7 +286,11 @@ export default function SongEditorScreen({
               current.type === 'text' || current.type === 'section' ? { ...current, text } : current,
             )
           }
-          placeholder={block.type === 'section' ? 'Section title (e.g. Chords)' : 'Type cue text'}
+          placeholder={
+            block.type === 'section'
+              ? 'Heading (e.g. Verse, Solo)'
+              : 'Paste or type lyrics, chords or guitar tabs'
+          }
           placeholderTextColor={theme.colors.text_secondary}
           multiline={block.type === 'text'}
           textAlignVertical="top"
@@ -389,25 +393,40 @@ export default function SongEditorScreen({
         </View>
 
         <View style={styles.cueHeading}>
-          <Text style={styles.label}>Cue layout</Text>
+          <Text style={styles.label}>Song text</Text>
           <Text style={styles.helperText}>
-            Build what appears on the performance screen. Add a Section for a heading like “Verse”,
-            a Cue for lyrics, chords, or stage directions, or a Table to line up parts in columns.
-            Blocks appear in the order you add them.
+            Paste or type your lyrics, chords or guitar tabs. This is what you see on stage.
           </Text>
         </View>
 
         {document.blocks.map(renderBlock)}
 
-        <View style={styles.addBlockActions}>
-          <Pressable onPress={() => addTextBlock('section')} style={styles.addBlockButton}>
-            <Text style={styles.addBlockText}>+ Section</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add song text"
+          onPress={() => addTextBlock('text')}
+          style={styles.addTextButton}
+        >
+          <MaterialCommunityIcons name="plus" size={20} color={theme.colors.text_primary} />
+          <Text style={styles.addTextButtonText}>Add more text</Text>
+        </Pressable>
+        <View style={styles.optionalActions}>
+          <Text style={styles.optionalLabel}>Optional</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add heading"
+            onPress={() => addTextBlock('section')}
+            style={styles.optionalButton}
+          >
+            <Text style={styles.optionalButtonText}>+ Heading</Text>
           </Pressable>
-          <Pressable onPress={() => addTextBlock('text')} style={styles.addBlockButton}>
-            <Text style={styles.addBlockText}>+ Cue</Text>
-          </Pressable>
-          <Pressable onPress={addTable} style={styles.addBlockButton}>
-            <Text style={styles.addBlockText}>+ Table</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add table"
+            onPress={addTable}
+            style={styles.optionalButton}
+          >
+            <Text style={styles.optionalButtonText}>+ Table</Text>
           </Pressable>
         </View>
 
@@ -425,7 +444,7 @@ export default function SongEditorScreen({
               <PerformanceCueContent blocks={previewCueBlocks} />
             </ScrollView>
           ) : (
-            <Text style={styles.previewEmpty}>Add a section, cue, or table to preview it.</Text>
+            <Text style={styles.previewEmpty}>Add some text to preview it.</Text>
           )}
         </View>
         <Pressable
@@ -658,21 +677,44 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.accent_highlight,
     fontWeight: '600',
   },
-  addBlockActions: {
+  addTextButton: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 48,
+    marginTop: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.accent_highlight,
+  },
+  addTextButtonText: {
+    color: theme.colors.text_primary,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  optionalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flexWrap: 'wrap',
     gap: 8,
-    marginVertical: 8,
+    marginVertical: 10,
   },
-  addBlockButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
+  optionalLabel: {
+    color: theme.colors.text_secondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  optionalButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.border_contrast,
   },
-  addBlockText: {
-    color: theme.colors.text_primary,
+  optionalButtonText: {
+    color: theme.colors.text_secondary,
+    fontSize: 13,
     fontWeight: '600',
   },
   previewHeading: {
