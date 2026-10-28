@@ -54,7 +54,6 @@ type FlowScreenProps = {
   settings: AppSettings;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   setlistName: string;
-  setlistDetails?: string;
   items: SetlistItem[];
   onGoToDashboard: () => void;
   onOpenSettings: () => void;
@@ -71,7 +70,6 @@ export default function FlowScreen({
   settings,
   onSettingChange,
   setlistName,
-  setlistDetails,
   items,
   onGoToDashboard,
   onOpenSettings,
@@ -387,10 +385,6 @@ export default function FlowScreen({
           </View>
           {isCueEditing ? (
             <Text style={styles.editingLabel}>Editing cues</Text>
-          ) : setlistDetails ? (
-            <Text numberOfLines={1} style={styles.setlistDetails}>
-              {setlistDetails}
-            </Text>
           ) : null}
         </View>
         {isCueEditing ? (
@@ -785,12 +779,6 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     color: theme.colors.background,
     fontSize: 14,
     fontWeight: '700',
-  },
-  setlistDetails: {
-    flexShrink: 1,
-    color: theme.colors.text_secondary,
-    fontSize: 11,
-    textAlign: 'right',
   },
   content: {
     paddingBottom: 24,
