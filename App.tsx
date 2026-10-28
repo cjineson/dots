@@ -588,6 +588,7 @@ export default function App() {
                 onReorderSongs={handleReorderSongs}
                 searchEntries={songSearchEntries}
                 onOpenSettings={() => navigation.navigate('Settings')}
+                onImportLibrary={handleImportLibrary}
                 backupReminder={needsBackupReminder(
                   settings.lastExportAt,
                   setlists.length > 0 || standaloneSongs.length > 0,

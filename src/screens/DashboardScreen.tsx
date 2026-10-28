@@ -70,6 +70,7 @@ type DashboardScreenProps = {
   onReorderSongs: (orderedIds: string[]) => void;
   searchEntries: SongSearchEntry[];
   onOpenSettings: () => void;
+  onImportLibrary: () => void;
   backupReminder?: boolean;
   onSnoozeBackupReminder?: (days: number) => void;
 };
@@ -101,6 +102,7 @@ export default function DashboardScreen({
   onReorderSongs,
   searchEntries,
   onOpenSettings,
+  onImportLibrary,
   backupReminder = false,
   onSnoozeBackupReminder,
 }: DashboardScreenProps) {
@@ -886,6 +888,7 @@ export default function DashboardScreen({
             onCreateSetlist={() => onCreateSetlist(null)}
             onCreateGroup={() => onOpenGroupEditor()}
             onCreateSong={() => onCreateSong()}
+            onImport={onImportLibrary}
           />
         ) : (
           <>

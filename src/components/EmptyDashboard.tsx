@@ -7,6 +7,7 @@ type Props = {
   onCreateSetlist: () => void;
   onCreateGroup: () => void;
   onCreateSong: () => void;
+  onImport: () => void;
 };
 
 const NOTES = [
@@ -68,6 +69,7 @@ export default function EmptyDashboard({
   onCreateSetlist,
   onCreateGroup,
   onCreateSong,
+  onImport,
 }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme.colors), [theme]);
@@ -128,9 +130,9 @@ export default function EmptyDashboard({
       </View>
 
       <Animated.View style={{ opacity: entrance, alignItems: 'center' }}>
-        <Text style={styles.title}>Add your first song</Text>
+        <Text style={styles.title}>Welcome to GigBox</Text>
         <Text style={styles.subtitle}>
-          Songs work on their own. Setlists and groups are optional, whenever you need them.
+          Keep your songs, cues and setlists ready for the stage. Add songs on their own, or organise them into setlists and groups whenever you like.
         </Text>
       </Animated.View>
 
@@ -171,9 +173,19 @@ export default function EmptyDashboard({
         </View>
       </Animated.View>
 
-      <Text style={styles.hint}>
-        Restoring from a backup? Import it from Settings.
-      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Import a backup"
+        onPress={onImport}
+        style={styles.importButton}
+      >
+        <MaterialCommunityIcons name="file-import-outline" size={22} color={theme.colors.accent_highlight} />
+        <View style={styles.importBody}>
+          <Text style={styles.importTitle}>Restoring from a backup?</Text>
+          <Text style={styles.importSubtitle}>Import a GigBox file</Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={22} color={theme.colors.accent_highlight} />
+      </Pressable>
     </View>
   );
 }
@@ -250,9 +262,29 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleShe
     fontSize: 14,
     fontWeight: '700',
   },
-  hint: {
+  importButton: {
+    width: '100%',
+    maxWidth: 380,
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderRadius: 12,
+    borderColor: colors.accent_highlight,
+    backgroundColor: colors.surface_card,
+  },
+  importBody: {
+    flex: 1,
+  },
+  importTitle: {
+    color: colors.text_primary,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  importSubtitle: {
     color: colors.text_secondary,
     fontSize: 13,
-    textAlign: 'center',
   },
 });
