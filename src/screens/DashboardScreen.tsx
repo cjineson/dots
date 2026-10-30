@@ -836,7 +836,7 @@ export default function DashboardScreen({
             onPress={onOpenSettings}
             style={styles.headerActionButton}
           >
-            <MaterialCommunityIcons name="cog-outline" size={30} color={theme.colors.accent_highlight} />
+            <MaterialCommunityIcons name="cog-outline" size={24} color={theme.colors.accent_highlight} />
           </Pressable>
         </View>
       </View>

@@ -7,6 +7,7 @@ type SongTagsProps = {
   tags?: SongTag[];
   compact?: boolean;
   wrapCompact?: boolean;
+  fullWidth?: boolean;
   scale?: number;
 };
 
@@ -14,6 +15,7 @@ export default function SongTags({
   tags = [],
   compact = false,
   wrapCompact = false,
+  fullWidth = false,
   scale = 1,
 }: SongTagsProps) {
   if (tags.length === 0) {
@@ -46,8 +48,16 @@ export default function SongTags({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={[styles.compactTagsScroll, scale !== 1 && { maxWidth: 220 * scale }]}
-        contentContainerStyle={[styles.tags, styles.compactTags]}
+        style={[
+          styles.compactTagsScroll,
+          scale !== 1 && { maxWidth: 220 * scale },
+          fullWidth && styles.fullWidthTagsScroll,
+        ]}
+        contentContainerStyle={[
+          styles.tags,
+          styles.compactTags,
+          fullWidth && styles.fullWidthTagsContent,
+        ]}
       >
         {tagLabels}
       </ScrollView>
@@ -72,6 +82,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+  },
+  fullWidthTagsScroll: {
+    maxWidth: '100%',
+    flexGrow: 0,
+    flexShrink: 0,
+    alignSelf: 'stretch',
+  },
+  fullWidthTagsContent: {
+    flexGrow: 1,
   },
   compactTagsScroll: {
     maxWidth: 220,

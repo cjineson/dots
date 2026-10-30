@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 
-import FontSizeZoomControl, { SIZE_METRICS } from '../components/FontSizeZoomControl';
+import FontSizeZoomControl, { barMetrics } from '../components/FontSizeZoomControl';
 import {
   createCueDocumentFromText,
   flattenCueDocument,
@@ -86,6 +86,8 @@ export default function FlowScreen({
   const virtualY = useRef(0);
   const contentHeight = useRef(0);
   const viewportHeight = useRef(0);
+  const songYs = useRef<Record<string, number>>({});
+  const scrollAnchor = useRef<{ id: string; offset: number } | null>(null);
   const [scrollOpen, setScrollOpen] = useState(false);
   const [autoScrolling, setAutoScrolling] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(settings.autoScrollSpeed);
@@ -186,6 +188,7 @@ export default function FlowScreen({
       );
       return;
     }
+    captureScrollAnchor();
     setSavedCueDocuments(draftCueDocuments);
     setIsCueEditing(false);
     setDraftCueDocuments(null);
@@ -197,7 +200,34 @@ export default function FlowScreen({
     save: saveCueEdits,
   });
 
+  const captureScrollAnchor = () => {
+    const entries = Object.entries(songYs.current)
+      .filter(([, y]) => y <= scrollY.current + 1)
+      .sort((a, b) => b[1] - a[1]);
+    scrollAnchor.current = entries.length
+      ? { id: entries[0][0], offset: scrollY.current - entries[0][1] }
+      : null;
+  };
+
+  const restoreScrollAnchor = () => {
+    const anchor = scrollAnchor.current;
+    const y = anchor ? songYs.current[anchor.id] : undefined;
+    if (anchor && y !== undefined) {
+      scrollRef.current?.scrollTo({ y: Math.max(0, y + anchor.offset), animated: false });
+    }
+  };
+
+  useEffect(() => {
+    restoreScrollAnchor();
+    const timer = setTimeout(() => {
+      restoreScrollAnchor();
+      scrollAnchor.current = null;
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [isCueEditing]);
+
   const startCueEditing = () => {
+    captureScrollAnchor();
     const initialDocuments = Object.fromEntries(
       songs.map((song) => [song.id, documents[song.id]]),
     );
@@ -217,6 +247,7 @@ export default function FlowScreen({
   };
 
   const cancelCueEditing = () => {
+    captureScrollAnchor();
     setIsCueEditing(false);
     setDraftCueDocuments(null);
     setCueEditBaseline('');
@@ -473,7 +504,7 @@ export default function FlowScreen({
               >
                 <MaterialCommunityIcons
                   name="cog-outline"
-                  size={28}
+                  size={24}
                   color={theme.colors.accent_highlight}
                 />
               </Pressable>
@@ -509,11 +540,11 @@ export default function FlowScreen({
             accessibilityRole="button"
             accessibilityLabel={autoScrolling ? 'Pause auto-scroll' : 'Start auto-scroll'}
             onPress={() => setAutoScrolling((current) => !current)}
-            style={[styles.scrollPlayButton, { minWidth: SIZE_METRICS[settings.barSize].button, minHeight: SIZE_METRICS[settings.barSize].button }]}
+            style={[styles.scrollPlayButton, { minWidth: barMetrics(settings.barSize).button, minHeight: barMetrics(settings.barSize).button }]}
           >
             <MaterialCommunityIcons
               name={autoScrolling ? 'pause' : 'play'}
-              size={SIZE_METRICS[settings.barSize].icon}
+              size={barMetrics(settings.barSize).icon}
               color={theme.colors.accent_highlight}
             />
           </Pressable>
@@ -548,7 +579,10 @@ export default function FlowScreen({
         onScroll={(event) => {
           scrollY.current = event.nativeEvent.contentOffset.y;
         }}
-        onScrollBeginDrag={() => setAutoScrolling(false)}
+        onScrollBeginDrag={() => {
+          scrollAnchor.current = null;
+          setAutoScrolling(false);
+        }}
         onContentSizeChange={(_, height) => {
           contentHeight.current = height;
         }}
@@ -611,7 +645,16 @@ export default function FlowScreen({
           const songZoom = songFontSize(song) /
             theme.typography.box_text_size;
           return (
-            <View key={song.id} style={styles.song}>
+            <View
+              key={song.id}
+              style={styles.song}
+              onLayout={(event) => {
+                songYs.current[song.id] = event.nativeEvent.layout.y;
+                if (scrollAnchor.current?.id === song.id) {
+                  restoreScrollAnchor();
+                }
+              }}
+            >
               <View style={styles.songTitle}>
                 <Text style={styles.songTitleText}>
                   {song.title}

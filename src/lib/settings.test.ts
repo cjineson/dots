@@ -47,10 +47,12 @@ test('parseSettings reads and clamps stored values', () => {
   assert.equal(parsed.palette, 'goth');
   assert.equal(parseSettings({ palette: 'neon' }).palette, 'stage');
   assert.equal(parsed.autoScrollSpeed, 1);
-  assert.equal(parsed.barSize, 'xxs');
-  assert.equal(parseSettings({ bar_size: 'huge' }).barSize, 'xl');
-  assert.equal(parseSettings({ bar_size: 'normal' }).barSize, 'm');
-  assert.equal(parseSettings({ bar_size: 'tiny' }).barSize, 'm');
+  assert.equal(parsed.barSize, 24);
+  assert.equal(parseSettings({ bar_size: 'huge' }).barSize, 92);
+  assert.equal(parseSettings({ bar_size: 'normal' }).barSize, 60);
+  assert.equal(parseSettings({ bar_size: 'tiny' }).barSize, 60);
+  assert.equal(parseSettings({ bar_size: '70' }).barSize, 70);
+  assert.equal(parseSettings({ bar_size: '500' }).barSize, 92);
   assert.equal(parsed.lastExportAt, '2026-01-02T03:04:05.000Z');
 });
 

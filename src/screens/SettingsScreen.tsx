@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import {
@@ -13,14 +13,16 @@ import {
 } from 'react-native';
 
 import FontSizeZoomControl from '../components/FontSizeZoomControl';
-import { MAX_TAG_SIZE, MIN_TAG_SIZE, TAG_SIZE_STEP } from '../lib/fontSize';
+import SongTags from '../components/SongTags';
+import { DEFAULT_TAG_SIZE, MAX_TAG_SIZE, MIN_TAG_SIZE, TAG_SIZE_STEP } from '../lib/fontSize';
 import {
   AUTO_SCROLL_SLIDER_CURVE,
   AUTO_SCROLL_SPEED_STEP,
   MAX_AUTO_SCROLL_SPEED,
   MIN_AUTO_SCROLL_SPEED,
 } from '../lib/settings';
-import type { AppSettings, BarSize, SwipeMode } from '../lib/settings';
+import { BAR_SIZE_STEP, MAX_BAR_SIZE, MIN_BAR_SIZE } from '../lib/settings';
+import type { AppSettings, SwipeMode } from '../lib/settings';
 import { useTheme } from '../themeContext';
 import type { ThemePreference } from '../themeContext';
 import { PALETTE_OPTIONS } from '../theme';
@@ -45,15 +47,6 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: 'dark', label: 'Dark' },
   { value: 'light', label: 'Light' },
   { value: 'system', label: 'System' },
-];
-
-const BAR_SIZE_OPTIONS: Array<{ value: BarSize; label: string }> = [
-  { value: 'xxs', label: 'XXS' },
-  { value: 'xs', label: 'XS' },
-  { value: 's', label: 'S' },
-  { value: 'm', label: 'M' },
-  { value: 'l', label: 'L' },
-  { value: 'xl', label: 'XL' },
 ];
 
 const SWIPE_OPTIONS: Array<{ value: SwipeMode; label: string }> = [
@@ -113,6 +106,8 @@ export default function SettingsScreen({
       ],
     );
 
+  const [barSizeDraft, setBarSizeDraft] = useState<number | null>(null);
+
   const renderSegments = <T extends string>(
     options: Array<{ value: T; label: string }>,
     selectedValue: T,
@@ -167,7 +162,7 @@ export default function SettingsScreen({
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>Appearance</Text>
-        {renderSegments(THEME_OPTIONS, themePreference, onThemePreferenceChange, 'theme')}
+        {renderSegments(THEME_OPTIONS, themePreference, onThemePreferenceChange, 'theme', true)}
         <Text style={styles.label}>Colour palette</Text>
         {renderSegments(
           PALETTE_OPTIONS,
@@ -197,15 +192,32 @@ export default function SettingsScreen({
           settings.swipeMode,
           (value) => onSettingChange('swipeMode', value),
           'swipe',
+          true,
         )}
+
+        <Text style={styles.sectionTitle}>Defaults</Text>
         <Text style={styles.label}>Scroll & zoom bar size</Text>
-        {renderSegments(
-          BAR_SIZE_OPTIONS,
-          settings.barSize,
-          (value) => onSettingChange('barSize', value),
-          'barsize',
-        )}
         <FontSizeZoomControl
+          alwaysShowLabel
+          size={settings.barSize}
+          label="Scroll & zoom bar size"
+          value={barSizeDraft ?? settings.barSize}
+          min={MIN_BAR_SIZE}
+          max={MAX_BAR_SIZE}
+          step={BAR_SIZE_STEP}
+          decreaseIcon="minus"
+          increaseIcon="plus"
+          decreaseLabel="Smaller bars"
+          increaseLabel="Larger bars"
+          onValueChange={(value, persist) => {
+            setBarSizeDraft(persist ? null : value);
+            if (persist) {
+              onSettingChange('barSize', value);
+            }
+          }}
+        />
+        <FontSizeZoomControl
+          alwaysShowLabel
           size={settings.barSize}
           label="Default auto-scroll speed (pts/sec)"
           value={settings.autoScrollSpeed}
@@ -223,42 +235,58 @@ export default function SettingsScreen({
             }
           }}
         />
-
-        <Text style={styles.sectionTitle}>Defaults</Text>
-        <FontSizeZoomControl
-          size={settings.barSize}
-          label="Default text size"
-          value={settings.defaultFontSize}
-          min={10}
-          max={64}
-          onValueChange={(value, persist) => {
-            if (persist) {
-              onSettingChange('defaultFontSize', value);
-            }
-          }}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Reset all song text sizes"
-          style={[styles.row, !hasData && styles.disabledRow]}
-          disabled={!hasData}
-          onPress={confirmResetSizes}
-        >
-          <MaterialCommunityIcons name="format-size" size={26} color={theme.colors.action_primary} />
-          <View style={styles.rowBody}>
-            <Text style={styles.rowText}>Reset all song text sizes</Text>
-            <Text style={styles.hint}>Clears sizes set on individual songs and text blocks so every song uses the default.</Text>
+        <View style={styles.sizeRow}>
+          <View style={styles.sizeControl}>
+            <FontSizeZoomControl
+              alwaysShowLabel
+              size={settings.barSize}
+              label="Default text size"
+              value={settings.defaultFontSize}
+              min={10}
+              max={64}
+              onValueChange={(value, persist) => {
+                if (persist) {
+                  onSettingChange('defaultFontSize', value);
+                }
+              }}
+            />
           </View>
-        </Pressable>
-        <FontSizeZoomControl
-          size={settings.barSize}
-          label="Tag size"
-          value={tagSize}
-          min={MIN_TAG_SIZE}
-          max={MAX_TAG_SIZE}
-          step={TAG_SIZE_STEP}
-          onValueChange={onTagSizeChange}
-        />
+            <View style={styles.previewBox}>
+              <Text style={[styles.previewText, { fontSize: settings.defaultFontSize }]}>Aa</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Reset all song text sizes"
+                accessibilityHint="Clears sizes set on individual songs and text blocks so every song uses the default."
+                style={[styles.resetSizesButton, !hasData && styles.disabledRow]}
+                disabled={!hasData}
+                onPress={confirmResetSizes}
+              >
+                <MaterialCommunityIcons name="format-size" size={16} color={theme.colors.action_primary} />
+                <Text style={styles.resetSizesText}>Reset all</Text>
+              </Pressable>
+            </View>
+        </View>
+        <View style={styles.sizeRow}>
+          <View style={styles.sizeControl}>
+            <FontSizeZoomControl
+              alwaysShowLabel
+              size={settings.barSize}
+              label="Tag size"
+              value={tagSize}
+              min={MIN_TAG_SIZE}
+              max={MAX_TAG_SIZE}
+              step={TAG_SIZE_STEP}
+              onValueChange={onTagSizeChange}
+            />
+          </View>
+          <View style={styles.tagSample}>
+            <SongTags
+              tags={[{ label: 'Aa', color: '#FFB74D' }]}
+              compact
+              scale={tagSize / DEFAULT_TAG_SIZE}
+            />
+          </View>
+        </View>
 
         <Text style={styles.sectionTitle}>Library</Text>
         <Text style={styles.hint}>Last exported: {formatLastExport(settings.lastExportAt)}</Text>
@@ -389,6 +417,51 @@ const createStyles = (theme: AppTheme) =>
     rowBody: {
       flex: 1,
       gap: 2,
+    },
+    sizeRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 8,
+    },
+    sizeControl: {
+      flex: 1,
+    },
+    previewBox: {
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 6,
+      minWidth: 96,
+      marginBottom: 8,
+      padding: 10,
+      borderWidth: 1,
+      borderColor: theme.colors.border_contrast,
+      borderRadius: 12,
+      backgroundColor: theme.colors.surface_card,
+    },
+    previewText: {
+      flexShrink: 1,
+      color: theme.colors.text_primary,
+    },
+    tagSample: {
+      minWidth: 72,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingBottom: 8,
+    },
+    resetSizesButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderWidth: 1,
+      borderColor: theme.colors.border_contrast,
+      borderRadius: 10,
+      backgroundColor: theme.colors.surface,
+    },
+    resetSizesText: {
+      color: theme.colors.text_secondary,
+      fontSize: 11,
     },
     disabledRow: {
       opacity: 0.4,

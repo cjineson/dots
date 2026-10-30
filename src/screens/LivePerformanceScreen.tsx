@@ -17,7 +17,7 @@ import {
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
 import SongTags from '../components/SongTags';
-import FontSizeZoomControl, { SIZE_METRICS } from '../components/FontSizeZoomControl';
+import FontSizeZoomControl, { barMetrics } from '../components/FontSizeZoomControl';
 import PerformanceCueContent from '../components/PerformanceCueContent';
 import SongSearchPanel from '../components/SongSearchPanel';
 import {
@@ -433,14 +433,6 @@ export default function LivePerformanceScreen({
                 )}
               </View>
             </View>
-            <View style={styles.performanceTags}>
-              <SongTags
-                tags={currentTags}
-                compact
-                wrapCompact
-                scale={tagSize / DEFAULT_TAG_SIZE}
-              />
-            </View>
             {song && !isEditorPreview && (
               <>
                 <Pressable
@@ -508,7 +500,7 @@ export default function LivePerformanceScreen({
               >
                 <MaterialCommunityIcons
                   name="cog-outline"
-                  size={30}
+                  size={24}
                   color={theme.colors.accent_highlight}
                 />
               </Pressable>
@@ -603,11 +595,11 @@ export default function LivePerformanceScreen({
             accessibilityRole="button"
             accessibilityLabel={crawling ? 'Pause crawl' : 'Start crawl'}
             onPress={() => setCrawling((current) => !current)}
-            style={[styles.crawlPlayButton, { minWidth: SIZE_METRICS[settings.barSize].button, minHeight: SIZE_METRICS[settings.barSize].button }]}
+            style={[styles.crawlPlayButton, { minWidth: barMetrics(settings.barSize).button, minHeight: barMetrics(settings.barSize).button }]}
           >
             <MaterialCommunityIcons
               name={crawling ? 'pause' : 'play'}
-              size={SIZE_METRICS[settings.barSize].icon}
+              size={barMetrics(settings.barSize).icon}
               color={theme.colors.accent_highlight}
             />
           </Pressable>
@@ -668,6 +660,17 @@ export default function LivePerformanceScreen({
               )}
             </View>
           ) : (
+          <>
+          {currentTags.length > 0 && (
+            <View style={styles.boxTags}>
+              <SongTags
+                tags={currentTags}
+                compact
+                fullWidth
+                scale={tagSize / DEFAULT_TAG_SIZE}
+              />
+            </View>
+          )}
           <ScrollView
             ref={cueScrollRef}
             contentContainerStyle={styles.cueBlocks}
@@ -691,6 +694,7 @@ export default function LivePerformanceScreen({
               onTableCellChange={updateTableCueCell}
             />
           </ScrollView>
+          </>
           )}
         </View>
       </View>
@@ -875,11 +879,8 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  performanceTags: {
-    maxWidth: 220,
-    flexShrink: 1,
-    minWidth: 0,
-    alignItems: 'flex-end',
+  boxTags: {
+    marginBottom: 8,
   },
   breakContent: {
     flex: 1,

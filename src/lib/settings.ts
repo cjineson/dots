@@ -2,12 +2,21 @@ import { clampFontSize } from './fontSize';
 import type { PaletteId } from '../theme';
 
 export type SwipeMode = 'normal' | 'firm' | 'off';
-export type BarSize = 'xxs' | 'xs' | 's' | 'm' | 'l' | 'xl';
+// Bar size is the scroll/zoom control button height in px.
+export type BarSize = number;
 
-export const BAR_SIZES: BarSize[] = ['xxs', 'xs', 's', 'm', 'l', 'xl'];
+export const MIN_BAR_SIZE = 16;
+export const MAX_BAR_SIZE = 92;
+export const BAR_SIZE_STEP = 2;
 
-// Earlier versions stored normal/large/huge.
-const LEGACY_BAR_SIZES: Record<string, BarSize> = { normal: 'm', large: 'l', huge: 'xl' };
+// Earlier versions stored named sizes.
+const LEGACY_BAR_SIZES: Record<string, BarSize> = {
+  xxs: 24, xs: 32, s: 48, m: 60, l: 76, xl: 92, normal: 60, large: 76, huge: 92,
+};
+
+export function clampBarSize(size: number) {
+  return Math.max(MIN_BAR_SIZE, Math.min(MAX_BAR_SIZE, Math.round(size)));
+}
 
 export type AppSettings = {
   keepAwake: boolean;
@@ -40,7 +49,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   highContrast: false,
   palette: 'stage',
   autoScrollSpeed: 40,
-  barSize: 'm',
+  barSize: 60,
   lastExportAt: null,
   backupSnoozedUntil: null,
 };
@@ -116,7 +125,7 @@ export function parseSettings(raw: Record<string, string>): AppSettings {
       DEFAULT_SETTINGS.autoScrollSpeed,
       clampAutoScrollSpeed,
     ),
-    barSize: BAR_SIZES.find((size) => size === bar) ?? LEGACY_BAR_SIZES[bar ?? ''] ?? 'm',
+    barSize: parseNumber(bar, LEGACY_BAR_SIZES[bar ?? ''] ?? DEFAULT_SETTINGS.barSize, clampBarSize),
     lastExportAt: lastExport && !Number.isNaN(Date.parse(lastExport)) ? lastExport : null,
     backupSnoozedUntil: snoozed && !Number.isNaN(Date.parse(snoozed)) ? snoozed : null,
   };
