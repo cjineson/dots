@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { defaultExportFileName, exportFileName } from '../lib/exportFileName';
 import {
   EMPTY_SELECTION,
   countSelection,
@@ -21,13 +22,15 @@ type Props = {
   setlists: SetlistWithSongs[];
   standaloneSongs: Song[];
   groups: SetlistGroup[];
-  onExport: (selection: ExportSelection) => void;
+  onExport: (selection: ExportSelection, fileName: string) => void;
 };
 
 export default function ExportScreen({ setlists, standaloneSongs, groups, onExport }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [selection, setSelection] = useState<ExportSelection>(EMPTY_SELECTION);
+  const [suggestedName] = useState(() => defaultExportFileName());
+  const [fileName, setFileName] = useState(suggestedName);
   const [expanded, setExpanded] = useState<Record<string, true>>({});
   const total = countSelection(selection);
   const allSelected =
@@ -167,6 +170,22 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
         )}
       </ScrollView>
       <View style={styles.footer}>
+        <View style={styles.nameRow}>
+          <TextInput
+            accessibilityLabel="File name"
+            value={fileName}
+            onChangeText={setFileName}
+            onBlur={() => setFileName((current) => (current.trim() ? current : suggestedName))}
+            placeholder={suggestedName}
+            placeholderTextColor={theme.colors.text_secondary}
+            autoCapitalize="none"
+            autoCorrect={false}
+            selectTextOnFocus
+            style={styles.nameInput}
+          />
+          <Text style={styles.nameExtension}>.json</Text>
+        </View>
+        <View style={styles.footerButtons}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={allSelected ? 'Select none' : 'Select all'}
@@ -190,11 +209,12 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
           accessibilityLabel="Export selected"
           accessibilityState={{ disabled: total === 0 }}
           disabled={total === 0}
-          onPress={() => onExport(selection)}
+          onPress={() => onExport(selection, exportFileName(fileName, suggestedName))}
           style={[styles.primaryButton, total === 0 && styles.disabled]}
         >
           <Text style={styles.primaryText}>Export selected</Text>
         </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -228,12 +248,22 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   groupText: { fontWeight: '700' },
   count: { color: theme.colors.text_secondary, fontSize: 12 },
   footer: {
-    flexDirection: 'row',
     gap: 10,
     padding: 12,
     borderTopWidth: 1,
     borderColor: theme.colors.border_contrast,
   },
+  footerButtons: { flexDirection: 'row', gap: 10 },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: theme.colors.surface,
+  },
+  nameInput: { flex: 1, color: theme.colors.text_primary, fontSize: 15, paddingVertical: 10 },
+  nameExtension: { color: theme.colors.text_secondary, fontSize: 15 },
   primaryButton: {
     flex: 1,
     alignItems: 'center',
