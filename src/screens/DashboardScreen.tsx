@@ -236,6 +236,8 @@ export default function DashboardScreen({
     const collapsedGroups = { ...expansionState.collapsedGroups };
     if (entry.groupId) {
       delete collapsedGroups[entry.groupId];
+    } else if (!entry.setlistId) {
+      delete collapsedGroups[STANDALONE_SOURCE];
     }
     const expandedSetlists = { ...expansionState.expandedSetlists };
     if (entry.setlistId) {
@@ -456,6 +458,7 @@ export default function DashboardScreen({
     ]),
   ];
   const topLevelSongs = standaloneSongs.filter((song) => !song.group_id);
+  const songsCollapsed = Boolean(expansionState.collapsedGroups[STANDALONE_SOURCE]);
   const hasAnySetlists = setlists.length > 0 || groups.length > 0;
   const hasAnyContent = hasAnySetlists || standaloneSongs.length > 0;
 
@@ -987,16 +990,34 @@ export default function DashboardScreen({
             );
           })}
           {topLevelSongs.length > 0 && (
-            <View style={styles.standaloneSongs}>
-              <View style={styles.standaloneHeader}>
-                <MaterialCommunityIcons
-                  name="music-note"
-                  size={20}
-                  color={theme.colors.accent_highlight}
-                />
-                <Text style={styles.standaloneTitle}>Songs</Text>
+            <View style={styles.songsSection}>
+              <View style={styles.groupHeader}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${songsCollapsed ? 'Expand' : 'Collapse'} Songs`}
+                  accessibilityState={{ expanded: !songsCollapsed }}
+                  onPress={() => toggleGroup(STANDALONE_SOURCE)}
+                  style={styles.songsToggle}
+                >
+                  <MaterialCommunityIcons
+                    name={songsCollapsed ? 'chevron-right' : 'chevron-down'}
+                    size={22}
+                    color={theme.colors.text_secondary}
+                  />
+                  <MaterialCommunityIcons
+                    name="music-note"
+                    size={20}
+                    color={theme.colors.accent_highlight}
+                  />
+                  <Text style={styles.groupName}>Songs</Text>
+                  <Text style={styles.groupCount}>{topLevelSongs.length}</Text>
+                </Pressable>
               </View>
-              {renderSongList(topLevelSongs)}
+              {!songsCollapsed && (
+                <View style={[styles.standaloneSongs, styles.indentedCard]}>
+                  {renderSongList(topLevelSongs)}
+                </View>
+              )}
             </View>
           )}
           </>
@@ -1368,16 +1389,19 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
     borderColor: theme.colors.border_contrast,
     backgroundColor: theme.colors.surface,
   },
-  standaloneHeader: {
-    minHeight: 36,
+  songsSection: {
+    marginLeft: 10,
+    paddingLeft: 10,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border_contrast,
+  },
+  songsToggle: {
+    flex: 1,
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  standaloneTitle: {
-    color: theme.colors.text_primary,
-    fontSize: 17,
-    fontWeight: theme.typography.font_weight_bold,
+    gap: 6,
   },
   indentedCard: {
     marginLeft: 24,
