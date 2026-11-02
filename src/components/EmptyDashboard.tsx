@@ -132,7 +132,7 @@ export default function EmptyDashboard({
       </View>
 
       <Animated.View style={{ opacity: entrance, alignItems: 'center' }}>
-        <Text style={styles.title}>Welcome to Dots</Text>
+        <Text style={styles.title}>Let's get started!</Text>
         <Text style={styles.subtitle}>
           Keep your songs, cues and setlists ready for the stage. Add songs on their own, or organise them into setlists and groups whenever you like.
         </Text>
@@ -208,8 +208,8 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleShe
     overflow: 'hidden',
   },
   logo: {
-    width: 220,
-    height: 63,
+    width: 150,
+    height: 46,
   },
   title: {
     color: colors.text_primary,
