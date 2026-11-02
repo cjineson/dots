@@ -116,7 +116,54 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.footer}>
+        <View style={styles.nameRow}>
+          <TextInput
+            accessibilityLabel="File name"
+            value={fileName}
+            onChangeText={setFileName}
+            onBlur={() => setFileName((current) => (current.trim() ? current : suggestedName))}
+            placeholder={suggestedName}
+            placeholderTextColor={theme.colors.text_secondary}
+            autoCapitalize="none"
+            autoCorrect={false}
+            selectTextOnFocus
+            style={styles.nameInput}
+          />
+          <Text style={styles.nameExtension}>.json</Text>
+        </View>
+        <View style={styles.footerButtons}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={allSelected ? 'Select none' : 'Select all'}
+          onPress={() =>
+            setSelection(
+              allSelected
+                ? EMPTY_SELECTION
+                : {
+                    groupIds: new Set(groups.map((group) => group.id)),
+                    setlistIds: new Set(setlists.map((setlist) => setlist.id)),
+                    songIds: new Set(standaloneSongs.map((song) => song.id)),
+                  },
+            )
+          }
+          style={styles.secondaryButton}
+        >
+          <Text style={styles.secondaryText}>{allSelected ? 'Select none' : 'Select all'}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Export selected"
+          accessibilityState={{ disabled: total === 0 }}
+          disabled={total === 0}
+          onPress={() => onExport(selection, exportFileName(fileName, suggestedName))}
+          style={[styles.primaryButton, total === 0 && styles.disabled]}
+        >
+          <Text style={styles.primaryText}>Export selected</Text>
+        </Pressable>
+        </View>
+      </View>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <Text style={styles.hint}>
           Choose groups, setlists or individual songs. Picking only some songs of a setlist exports
           just those songs.
@@ -169,53 +216,6 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
           </>
         )}
       </ScrollView>
-      <View style={styles.footer}>
-        <View style={styles.nameRow}>
-          <TextInput
-            accessibilityLabel="File name"
-            value={fileName}
-            onChangeText={setFileName}
-            onBlur={() => setFileName((current) => (current.trim() ? current : suggestedName))}
-            placeholder={suggestedName}
-            placeholderTextColor={theme.colors.text_secondary}
-            autoCapitalize="none"
-            autoCorrect={false}
-            selectTextOnFocus
-            style={styles.nameInput}
-          />
-          <Text style={styles.nameExtension}>.json</Text>
-        </View>
-        <View style={styles.footerButtons}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={allSelected ? 'Select none' : 'Select all'}
-          onPress={() =>
-            setSelection(
-              allSelected
-                ? EMPTY_SELECTION
-                : {
-                    groupIds: new Set(groups.map((group) => group.id)),
-                    setlistIds: new Set(setlists.map((setlist) => setlist.id)),
-                    songIds: new Set(standaloneSongs.map((song) => song.id)),
-                  },
-            )
-          }
-          style={styles.secondaryButton}
-        >
-          <Text style={styles.secondaryText}>{allSelected ? 'Select none' : 'Select all'}</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Export selected"
-          accessibilityState={{ disabled: total === 0 }}
-          disabled={total === 0}
-          onPress={() => onExport(selection, exportFileName(fileName, suggestedName))}
-          style={[styles.primaryButton, total === 0 && styles.disabled]}
-        >
-          <Text style={styles.primaryText}>Export selected</Text>
-        </Pressable>
-        </View>
-      </View>
     </SafeAreaView>
   );
 }
@@ -250,7 +250,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   footer: {
     gap: 10,
     padding: 12,
-    borderTopWidth: 1,
+    borderBottomWidth: 1,
     borderColor: theme.colors.border_contrast,
   },
   footerButtons: { flexDirection: 'row', gap: 10 },
