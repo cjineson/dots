@@ -696,8 +696,6 @@ export default function DashboardScreen({
                   keyExtractor={(item) => `${item.kind}-${item.kind === 'song' ? item.song.id : item.id}`}
                   scrollEnabled={false}
                   activationDistance={24}
-                  autoscrollSpeed={40}
-                  autoscrollThreshold={60}
                   onDragEnd={({ data }) => onReorderItems(setlist.id, data)}
                   renderItem={({ item, drag, isActive }) => (
                     <ScaleDecorator>

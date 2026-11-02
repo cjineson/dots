@@ -8,7 +8,7 @@
 | `songs` | `title, notes_raw_text, font_size, cue_document, tags` (JSON); songs can be standalone |
 | `setlist_songs` | Links songs to setlists with `sort_order`; a song may be standalone or in several setlists |
 | `setlist_breaks` | Breaks with `sort_order` and optional `duration_minutes` |
-| `dashboard_preferences` | Expanded setlists / collapsed groups |
+| `dashboard_preferences` | Expanded setlists / collapsed groups (and the standalone Songs block, key `standalone-songs`) |
 | `app_settings` | Key/value settings, see [settings.md](settings.md) |
 
 Migrations are additive `ALTER TABLE` checks in `initializeDatabase`. Never drop or rewrite existing columns; existing songs must keep working.

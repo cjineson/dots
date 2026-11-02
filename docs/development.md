@@ -47,7 +47,7 @@ The suite in `e2e/` runs against the Expo **web** export (`web-dist/`, served by
 `./etc/agent-context.sh` prints a compact repo snapshot; see [`../etc/agent-handoff.md`](../etc/agent-handoff.md) and [`../etc/agent-project-guide.md`](../etc/agent-project-guide.md).
 
 ## Ideas not yet built
-Open in Maps from the dashboard, real drag-and-drop for setlists, local P2P sync, checking light-mode contrast of fixed accent colours.
+Local P2P sync, checking light-mode contrast of fixed accent colours, and an up/down fallback for reordering long setlists if drag auto-scroll stays unreliable on iOS. Open in Maps from the dashboard and drag-and-drop reordering already exist.
 
 ## Web dev server with your own library
 

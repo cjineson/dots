@@ -33,3 +33,26 @@ Where things live: listing copy in [`store/`](../store/listing.md), the public f
 ## Submit
 - [ ] `eas submit --platform ios`, select the build in App Store Connect, submit for review.
 - [ ] Once live, add the App Store link to `site/index.html`.
+
+## Sharing with someone over Expo Go
+For quick testing without a store build. The app stays Expo Go compatible, so no TestFlight or Apple account is needed for the tester.
+
+**Tester set-up**
+- Install **Expo Go** from the App Store (iOS) or Google Play. It must support the SDK this repo uses (`expo` in `package.json`); the store version normally tracks the latest SDK, so update it if the app refuses to open.
+- Their data is local to their device. They start with an empty library; send them an archive (Settings, Export) to import if you want them to have songs.
+
+**Option 1: a published update (works when your machine is off)**
+1. Log in once: `npx eas-cli login`.
+2. Publish: `npx eas-cli update --branch preview --message "Describe the change"`. Pushes to `main` also publish to the `main` branch through `.github/workflows/deploy.yml`.
+3. Open the project's **Updates** page on expo.dev (owner `chrisineson`, project `dots`), pick the branch and its latest update, and use the QR code or link there.
+4. The tester scans the QR code with the iOS Camera app (or Expo Go on Android) and the app opens in Expo Go. For a private project they must be signed in to Expo Go with an Expo account you have invited to the project (expo.dev, project or organisation settings, Members).
+5. Re-publish to push changes; testers get them next time they open the app.
+
+**Option 2: live from your machine (development server)**
+1. `npx expo start --tunnel` (the tunnel works across networks; plain `npx expo start` only works on the same Wi-Fi).
+2. Send the tester the QR code or the `exp://` URL shown in the terminal.
+3. It only works while the dev server is running, so use it for short sessions.
+
+**Limitations**
+- Expo Go runs the app under Expo's own identity, so there is no custom icon or splash, and only modules bundled in Expo Go work.
+- Nothing here replaces a TestFlight or store build for wider testing; see the checklist above.
