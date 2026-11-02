@@ -208,8 +208,8 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleShe
     overflow: 'hidden',
   },
   logo: {
-    width: 150,
-    height: 46,
+    width: 120,
+    height: 37,
   },
   title: {
     color: colors.text_primary,

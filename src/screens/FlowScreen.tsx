@@ -776,8 +776,9 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     justifyContent: 'center',
   },
   logo: {
-    width: 62,
-    height: 19,
+    width: 50,
+    height: 15,
+    marginLeft: 10,
   },
   setlistTitle: {
     flexShrink: 1,

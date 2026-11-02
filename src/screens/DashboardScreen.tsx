@@ -1335,8 +1335,9 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
     justifyContent: 'center',
   },
   logo: {
-    width: 72,
-    height: 22,
+    width: 58,
+    height: 18,
+    marginLeft: 10,
   },
   list: {
     paddingBottom: 24,
