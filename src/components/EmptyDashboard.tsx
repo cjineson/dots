@@ -113,6 +113,8 @@ export default function EmptyDashboard({
         ))}
         <Animated.View
           style={{
+            width: '100%',
+            alignItems: 'center',
             opacity: entrance,
             transform: [
               { scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) },
@@ -208,8 +210,8 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleShe
     overflow: 'hidden',
   },
   logo: {
-    width: 120,
-    height: 37,
+    width: '85%',
+    aspectRatio: 120 / 37,
   },
   title: {
     color: colors.text_primary,
