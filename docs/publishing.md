@@ -49,9 +49,9 @@ For quick testing without a store build. The app stays Expo Go compatible, so no
 3. Check it worked: `npx eas-cli whoami` prints your username.
 
 *Each time you want to share a version (you)*
-1. Run `npx eas-cli update --branch preview --message "What changed"`. Wait for it to finish; it prints a link to the update.
-2. Open that link (or expo.dev, project `dots`, **Updates**, branch `preview`). It shows a QR code and a link to open the update in Expo Go.
-3. Send the person that link or QR code, plus the instructions below. Pushes to `main` also publish to the `main` branch via `.github/workflows/deploy.yml`, so you can share that branch instead.
+- **Merged work:** nothing to run. Every push to `main` (including a PR merge) is published to the `main` branch automatically by `.github/workflows/deploy.yml`. Check the run succeeded in the repo's Actions tab, then open expo.dev, project `dots`, **Updates**, branch `main`, and use the QR code or link there.
+- **Unmerged work (optional):** publish it yourself with `npx eas-cli update --branch preview --message "What changed"` and use the link it prints (or branch `preview` on the Updates page). This is the only case that needs the manual command.
+- Send the person that link or QR code, plus the instructions below.
 
 *First time with a new person (you)*
 - Ask for the email address of their free Expo account (they can create one at expo.dev), then invite them at expo.dev, your account or organisation, **Members**. This is needed while the project is private.
