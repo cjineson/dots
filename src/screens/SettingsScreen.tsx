@@ -14,6 +14,7 @@ import {
 
 import FontSizeZoomControl from '../components/FontSizeZoomControl';
 import SongTags from '../components/SongTags';
+import { formatBuildTime, readBuildInfo } from '../lib/buildInfo';
 import { DEFAULT_TAG_SIZE, MAX_TAG_SIZE, MIN_TAG_SIZE, TAG_SIZE_STEP } from '../lib/fontSize';
 import {
   AUTO_SCROLL_SLIDER_CURVE,
@@ -75,6 +76,8 @@ export default function SettingsScreen({
 }: SettingsScreenProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const buildInfo = readBuildInfo(Constants.expoConfig);
+  const builtAtLabel = formatBuildTime(buildInfo.builtAt);
 
   const confirmReset = () =>
     Alert.alert('Reset settings?', 'Theme, sizes and performance options return to their defaults. Your songs and setlists are kept.', [
@@ -333,7 +336,11 @@ export default function SettingsScreen({
 
         <Text style={styles.sectionTitle}>About</Text>
         <Text style={styles.hint}>
-          Dots version {Constants.expoConfig?.version ?? 'unknown'}
+          Dots version {buildInfo.version}
+          {buildInfo.commit ? ` (${buildInfo.commit})` : ''}
+        </Text>
+        <Text style={styles.hint}>
+          {builtAtLabel ? `Built ${builtAtLabel}` : 'Development build (not published)'}
         </Text>
       </ScrollView>
     </SafeAreaView>

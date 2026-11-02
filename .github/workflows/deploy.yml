@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -12,6 +15,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -48,9 +54,23 @@ jobs:
           echo "app.json expo block:"
           node -e "try{console.log(require('./app.json').expo)}catch(e){console.log('no app.json or parse error')}" || true
 
+      - name: Work out version and stamp build info
+        id: version
+        run: npx tsx scripts/release-version.ts
+
       - name: Publish OTA update
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           CI: '1'
         run: |
-          eas update --branch main --message "CI update from GitHub Actions" --platform all --non-interactive
+          eas update --branch main --message "v${{ steps.version.outputs.version }} (${GITHUB_SHA::7})" --platform all --non-interactive
+
+      - name: Tag release
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "$TAG already exists; skipping tag"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
