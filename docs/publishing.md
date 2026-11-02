@@ -48,7 +48,7 @@ For quick testing without a store build. The app stays Expo Go compatible, so no
 *Sharing with a new person*
 1. Send them **message 1** below.
 2. When they reply with the email or username of their Expo account, invite them at expo.dev under **Members** (needed while the project is private).
-3. Merge to `main` if needed; the workflow publishes automatically (check the run in the Actions tab). On expo.dev open project `dots`, **Updates**, branch `main`, and copy the QR code or link.
+3. Merge to `main` if needed; the workflow publishes automatically (check the run in the Actions tab). Open the run's "Publish OTA update" step in the Actions tab and follow its "EAS Dashboard" link (`expo.dev/accounts/chrisineson/projects/dots/updates/<id>`) while signed in to expo.dev; copy the QR code or link from that page. The menu name for updates on expo.dev changes, so use this link rather than navigating. Expo Go must support the SDK in the log's runtime version (currently `exposdk:58.0.0`).
 4. Send them **message 2** with the link or QR code.
 
 *Message 1 (to send them)*
