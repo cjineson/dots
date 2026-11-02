@@ -47,7 +47,7 @@ For quick testing without a store build. The app stays Expo Go compatible, so no
 
 *Sharing with a new person*
 1. Send them **message 1** below.
-2. When they reply with the email or username of their Expo account, invite them at expo.dev under **Members** (needed while the project is private).
+2. When they reply with the email or username of their Expo account, invite them at expo.dev: sign in as `chrisineson`, open your **account** (not the project) and go to **Members**, then invite their email. Without this they get a "not a member" error when opening the link. Expo's docs describe a **Viewer** role as view-only through Expo Go, so choose it if offered.
 3. Merge to `main` if needed; the workflow publishes automatically (check the run in the Actions tab). The run's "Publish OTA update" step prints the update's **Update group ID** and an **EAS Dashboard** link (`https://expo.dev/accounts/chrisineson/projects/dots/updates/<group-id>`). Open that link while signed in to expo.dev for the update page, or build the Expo Go link yourself: `exp://u.expo.dev/9c7ffafd-f82c-46be-9759-325330234554/group/<group-id>` (project ID from `app.json`). Send either link.
 4. Send them **message 2** with the link or QR code.
 
