@@ -864,7 +864,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   logo: {
     width: 56,
     height: 17,
-    marginLeft: 10,
+    marginLeft: 28,
   },
   songTitle: {
     flex: 1,

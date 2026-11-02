@@ -1337,7 +1337,7 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
   logo: {
     width: 58,
     height: 18,
-    marginLeft: 10,
+    marginLeft: 28,
   },
   list: {
     paddingBottom: 24,
