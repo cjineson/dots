@@ -42,11 +42,28 @@ For quick testing without a store build. The app stays Expo Go compatible, so no
 - Their data is local to their device. They start with an empty library; send them an archive (Settings, Export) to import if you want them to have songs.
 
 **Option 1: a published update (works when your machine is off)**
-1. Log in once: `npx eas-cli login`.
-2. Publish: `npx eas-cli update --branch preview --message "Describe the change"`. Pushes to `main` also publish to the `main` branch through `.github/workflows/deploy.yml`.
-3. Open the project's **Updates** page on expo.dev (owner `chrisineson`, project `dots`), pick the branch and its latest update, and use the QR code or link there.
-4. The tester scans the QR code with the iOS Camera app (or Expo Go on Android) and the app opens in Expo Go. For a private project they must be signed in to Expo Go with an Expo account you have invited to the project (expo.dev, project or organisation settings, Members).
-5. Re-publish to push changes; testers get them next time they open the app.
+
+*One-time set-up (you)*
+1. Make sure you can sign in at expo.dev with the account that owns the project (`chrisineson`).
+2. In the repo run `npm install`, then `npx eas-cli login` and sign in with that account.
+3. Check it worked: `npx eas-cli whoami` prints your username.
+
+*Each time you want to share a version (you)*
+1. Run `npx eas-cli update --branch preview --message "What changed"`. Wait for it to finish; it prints a link to the update.
+2. Open that link (or expo.dev, project `dots`, **Updates**, branch `preview`). It shows a QR code and a link to open the update in Expo Go.
+3. Send the person that link or QR code, plus the instructions below. Pushes to `main` also publish to the `main` branch via `.github/workflows/deploy.yml`, so you can share that branch instead.
+
+*First time with a new person (you)*
+- Ask for the email address of their free Expo account (they can create one at expo.dev), then invite them at expo.dev, your account or organisation, **Members**. This is needed while the project is private.
+
+*Instructions to send them*
+> 1. Install **Expo Go** from the App Store (iPhone) or Google Play (Android), and open it.
+> 2. Sign in to Expo Go (Profile tab) with the Expo account I invited.
+> 3. Open the link I sent on your phone, or scan the QR code with your camera. Dots opens inside Expo Go.
+> 4. To get a newer version later, close Dots fully and reopen it from Expo Go (it may need a second open to pick up the update).
+> If it says the project is incompatible, update Expo Go in the store.
+
+Their library starts empty. To give them songs, send an export (Settings, Export) and ask them to import it.
 
 **Option 2: live from your machine (development server)**
 1. `npx expo start --tunnel` (the tunnel works across networks; plain `npx expo start` only works on the same Wi-Fi).
