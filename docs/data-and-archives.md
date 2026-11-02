@@ -17,7 +17,7 @@ On first startup after standalone songs are introduced, the old **Ungrouped song
 The database filename remains `gigbox.db` so existing local libraries continue to open after the rebrand.
 
 ## JSON archives
-Export (Settings → Export) opens a checklist where you tick groups, setlists and individual songs, then writes `dots-library-YYYY-MM-DD_HHmm.json` and opens the share sheet. Standalone songs appear under **Songs** in the checklist. Ticking only some songs of a setlist exports a setlist marked `partial`. The current format is **version 6**; imports accept versions **1–6**.
+Export (Settings → Export) opens a checklist where you tick groups, setlists and individual songs, then writes a `.json` file and opens the share sheet. The file name defaults to `dots-export-ddmmyyyy-hhmm` and can be edited in the box above the buttons (`.json` is added automatically; illegal characters are stripped). Standalone songs appear under **Songs** in the checklist. Ticking only some songs of a setlist exports a setlist marked `partial`. The current format is **version 6**; imports accept versions **1–6**.
 
 The archive discriminator remains `gigbox-setlists` for compatibility; existing archives, including version 1 files, remain importable regardless of their filename.
 

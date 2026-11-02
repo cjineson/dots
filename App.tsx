@@ -334,7 +334,11 @@ export default function App() {
     refreshSetlists();
   };
 
-  const handleExportSelection = async (selection: ExportSelection, onDone: () => void) => {
+  const handleExportSelection = async (
+    selection: ExportSelection,
+    fileName: string,
+    onDone: () => void,
+  ) => {
     try {
       const content = selectArchiveContent(setlists, groups, selection, standaloneSongs);
       if (content.setlists.length === 0 && content.groups.length === 0 && content.songs.length === 0) {
@@ -348,10 +352,7 @@ export default function App() {
         throw new Error('The temporary file directory is not available.');
       }
 
-      const now = new Date();
-      const pad = (value: number) => String(value).padStart(2, '0');
-      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
-      const fileUri = `${FileSystem.cacheDirectory}dots-library-${timestamp}.json`;
+      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
       const archive = createSetlistArchive(content.setlists, content.groups, content.songs);
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(archive, null, 2));
       await Sharing.shareAsync(fileUri, {
@@ -615,8 +616,8 @@ export default function App() {
                 setlists={setlists}
                 standaloneSongs={standaloneSongs}
                 groups={groups}
-                onExport={(selection) =>
-                  void handleExportSelection(selection, () => navigation.goBack())
+                onExport={(selection, fileName) =>
+                  void handleExportSelection(selection, fileName, () => navigation.goBack())
                 }
               />
             )}
