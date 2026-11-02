@@ -4,7 +4,7 @@ Where things live: listing copy in [`store/`](../store/listing.md), the public f
 
 ## Accounts
 - [ ] Apple Developer Program (US$99/year; individual is quick, organisation needs a D-U-N-S number). Two-factor auth on the Apple ID.
-- [ ] Expo account (owner is `chrisineson` in `app.json`).
+- [ ] Expo account (owner is the `chrisinesons-team` organisation in `app.json`).
 - [ ] Optional: Google Play Console (one-off US$25; new personal accounts need a closed test with 12 testers for 14 days).
 - [ ] Contact email for support and the privacy policy.
 
@@ -43,12 +43,12 @@ For quick testing without a store build. The app stays Expo Go compatible, so no
 
 **Option 1: a published update (works when your machine is off)**
 
-*Already set up if* you can sign in at expo.dev as the project owner (`chrisineson`) and the repo has the `EXPO_TOKEN` secret, so `.github/workflows/deploy.yml` publishes on every push to `main`. Nothing else is needed for merged work.
+*Already set up if* you can sign in at expo.dev as a member of the owning organisation (`chrisinesons-team`) and the repo has the `EXPO_TOKEN` secret, so `.github/workflows/deploy.yml` publishes on every push to `main`. Nothing else is needed for merged work.
 
 *Sharing with a new person*
 1. Send them **message 1** below.
 2. When they reply with the email or username of their Expo account, invite them at expo.dev: open the **account that owns the `dots` project** (the `owner` in `app.json`) and go to **Members**, then invite their email. Members only appear for that owning account, so an invite to a different account or org (for example one holding an old project) does nothing. Without the invite they get a "not a member" error when opening the link. If they can accept the invite but still do not see the project or get an old version, have them sign out of Expo Go and sign back in. Expo's docs describe a **Viewer** role as view-only through Expo Go, so choose it if offered.
-3. Merge to `main` if needed; the workflow publishes automatically (check the run in the Actions tab). The run's "Publish OTA update" step prints the update's **Update group ID** and an **EAS Dashboard** link (`https://expo.dev/accounts/chrisineson/projects/dots/updates/<group-id>`). Open that link while signed in to expo.dev for the update page, or build the Expo Go link yourself: `exp://u.expo.dev/9c7ffafd-f82c-46be-9759-325330234554/group/<group-id>` (project ID from `app.json`). Send either link.
+3. Merge to `main` if needed; the workflow publishes automatically (check the run in the Actions tab). The run's "Publish OTA update" step prints the update's **Update group ID** and an **EAS Dashboard** link (`https://expo.dev/accounts/chrisinesons-team/projects/dots/updates/<group-id>`). Open that link while signed in to expo.dev for the update page, or build the Expo Go link yourself: `exp://u.expo.dev/9c7ffafd-f82c-46be-9759-325330234554/group/<group-id>` (project ID from `app.json`). Send either link.
 4. Send them **message 2** with the link or QR code.
 
 *Message 1 (to send them)*
