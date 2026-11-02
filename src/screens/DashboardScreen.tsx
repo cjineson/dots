@@ -687,6 +687,8 @@ export default function DashboardScreen({
                 <Text style={styles.songHint}>No songs or breaks in this setlist yet.</Text>
               ) : expanded ? (
                 <NestableDraggableFlatList
+                  // Remount after a reorder so cached row measurements can't go stale (rows overlapping after a drop).
+                  key={setlist.items.map((item) => (item.kind === 'song' ? item.song.id : item.id)).join('|')}
                   data={setlist.items}
                   keyExtractor={(item) => `${item.kind}-${item.kind === 'song' ? item.song.id : item.id}`}
                   scrollEnabled={false}
