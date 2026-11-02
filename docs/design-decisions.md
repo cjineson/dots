@@ -34,7 +34,7 @@ PR numbers (`#n`) refer to the old `cjineson/gigbox` repo. The full PR descripti
 
 ## Views and interaction
 
-- **Dashboard**: collapsible groups and setlists; their expanded/collapsed state persists. Reordering (drag handle) is only offered when all visible setlists are collapsed, because dragging inside expanded lists fought with scrolling. The nested drag activation distance was raised for the same reason (#14, #38, #37).
+- **Dashboard**: collapsible groups and setlists; their expanded/collapsed state persists. Reordering (drag handle) is only offered when all visible setlists are collapsed, because dragging inside expanded lists fought with scrolling. The nested drag activation distance was raised for the same reason (#14, #38, #37). The top-level standalone **Songs** block has a collapsible header (chevron, icon, count) aligned with group headers; its collapsed state is stored in the same `collapsedGroups` preference under the key `standalone-songs`, and it is deliberately not a real group. Draggable lists remount when their membership or order changes (setlist items, standalone songs), and the setlist item list uses `scrollEnabled={false}` and gentler auto-scroll, to avoid iOS freezes and stale row layout after a drop (#4, #7); untested on device.
 - **One "+" menu per level** instead of many buttons: top level (song, group, setlist, setlist from existing), group (setlist, song) and setlist (new song, copy song, existing song, break) (#38, #52, #53). Tapping a song title opens Performance (no separate play button on songs); setlists have a play-circle button, breaks have none (#38, #41, #44).
 - **Flow** (whole setlist, vertical) and **Performance** (one song, swipe between) are distinct on purpose. Flow carries the setlist notes/checklist and auto-scroll; Performance focuses on the current song, so setlist and event details were removed from it (#19, #32).
 - **Zoom and tag-size controls are on demand**, mutually exclusive header panels. A visible always-on slider cost too much screen (#20, #21, #23, #26). Zoom is hidden when no song has cue text (#56).
@@ -73,7 +73,7 @@ Useful so they are not repeated blindly:
 
 - Nothing has been verified on a physical device or in Expo Go for most recent work; say so in PR descriptions.
 - Guitar-tab alignment needs a monospace font, which is not used (#56).
-- Not built: Open in Maps from the dashboard card beyond the pin, local peer-to-peer sync, light-mode contrast checks for fixed accent colours (see [development.md](development.md)).
+- Not built: local peer-to-peer sync, light-mode contrast checks for fixed accent colours (see [development.md](development.md)).
 - Publishing prerequisites: square app icon and splash, `userInterfaceStyle` set to `automatic`, `eas.json` production and submit profiles (see [publishing.md](publishing.md)).
 
 ## Validation habits that held up

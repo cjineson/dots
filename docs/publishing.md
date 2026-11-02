@@ -33,3 +33,45 @@ Where things live: listing copy in [`store/`](../store/listing.md), the public f
 ## Submit
 - [ ] `eas submit --platform ios`, select the build in App Store Connect, submit for review.
 - [ ] Once live, add the App Store link to `site/index.html`.
+
+## Sharing with someone over Expo Go
+For quick testing without a store build. The app stays Expo Go compatible, so no TestFlight or Apple account is needed for the tester.
+
+**Tester set-up**
+- Install **Expo Go** from the App Store (iOS) or Google Play. It must support the SDK this repo uses (`expo` in `package.json`); the store version normally tracks the latest SDK, so update it if the app refuses to open.
+- Their data is local to their device. They start with an empty library; send them an archive (Settings, Export) to import if you want them to have songs.
+
+**Option 1: a published update (works when your machine is off)**
+
+*Already set up if* you can sign in at expo.dev as the project owner (`chrisineson`) and the repo has the `EXPO_TOKEN` secret, so `.github/workflows/deploy.yml` publishes on every push to `main`. Nothing else is needed for merged work.
+
+*Sharing with a new person*
+1. Send them **message 1** below.
+2. When they reply with the email or username of their Expo account, invite them at expo.dev under **Members** (needed while the project is private).
+3. Merge to `main` if needed; the workflow publishes automatically (check the run in the Actions tab). On expo.dev open project `dots`, **Updates**, branch `main`, and copy the QR code or link.
+4. Send them **message 2** with the link or QR code.
+
+*Message 1 (to send them)*
+> 1. Install **Expo Go** from the App Store (iPhone) or Google Play (Android) and open it.
+> 2. Create a free Expo account in Expo Go (or at expo.dev) and sign in.
+> 3. Reply with the email and username you used.
+
+*Message 2 (to send them, with the link or QR code)*
+> 1. Open the link on your phone, or scan the QR code with your camera. Dots opens inside Expo Go.
+> 2. To get a newer version later, close Dots fully and reopen it from Expo Go (it may need a second open to pick up the update).
+> If it says the project is incompatible, update Expo Go in the store.
+
+Their library starts empty. To give them songs, send an export (Settings, Export) and ask them to import it.
+
+*Sharing again later*: just merge and resend the link, or tell them to reopen the app.
+
+*Unmerged work (optional)*: run `npm install`, `npx eas-cli login` (check with `npx eas-cli whoami`), then `npx eas-cli update --branch preview --message "What changed"`, and share the link it prints (or branch `preview` on the Updates page).
+
+**Option 2: live from your machine (development server)**
+1. `npx expo start --tunnel` (the tunnel works across networks; plain `npx expo start` only works on the same Wi-Fi).
+2. Send the tester the QR code or the `exp://` URL shown in the terminal.
+3. It only works while the dev server is running, so use it for short sessions.
+
+**Limitations**
+- Expo Go runs the app under Expo's own identity, so there is no custom icon or splash, and only modules bundled in Expo Go work.
+- Nothing here replaces a TestFlight or store build for wider testing; see the checklist above.
