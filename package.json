@@ -14,12 +14,12 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~58.0.15",
+    "@expo/metro-runtime": "~58.0.16",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-community/datetimepicker": "9.2.1",
     "@react-navigation/native": "^7.5.0",
     "@react-navigation/native-stack": "^7.20.0",
-    "expo": "~58.0.21",
+    "expo": "~58.0.22",
     "expo-clipboard": "~58.0.4",
     "expo-constants": "~58.0.13",
     "expo-document-picker": "~58.0.4",
@@ -28,7 +28,7 @@
     "expo-keep-awake": "~58.0.3",
     "expo-location": "~58.0.20",
     "expo-sharing": "~58.0.21",
-    "expo-sqlite": "~58.0.14",
+    "expo-sqlite": "~58.0.15",
     "expo-status-bar": "~58.0.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -37,7 +37,7 @@
     "react-native-gesture-handler": "~3.3.0",
     "react-native-reanimated": "4.7.1",
     "react-native-safe-area-context": "~5.10.1",
-    "react-native-screens": "~4.30.0",
+    "react-native-screens": "~4.30.1",
     "react-native-web": "^0.21.2",
     "react-native-worklets": "0.13.0"
   },
