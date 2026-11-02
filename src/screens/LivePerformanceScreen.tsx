@@ -862,8 +862,9 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     fontWeight: '700',
   },
   logo: {
-    width: 70,
-    height: 21,
+    width: 56,
+    height: 17,
+    marginLeft: 28,
   },
   songTitle: {
     flex: 1,
