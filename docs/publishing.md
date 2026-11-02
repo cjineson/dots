@@ -35,43 +35,23 @@ Where things live: listing copy in [`store/`](../store/listing.md), the public f
 - [ ] Once live, add the App Store link to `site/index.html`.
 
 ## Sharing with someone over Expo Go
-For quick testing without a store build. The app stays Expo Go compatible, so no TestFlight or Apple account is needed for the tester.
+For quick testing without a store build. The app stays Expo Go compatible, so the tester needs no Apple account or TestFlight.
 
-**Tester set-up**
-- Install **Expo Go** from the App Store (iOS) or Google Play. It must support the SDK this repo uses (`expo` in `package.json`); the store version normally tracks the latest SDK, so update it if the app refuses to open.
-- Their data is local to their device. They start with an empty library; send them an archive (Settings, Export) to import if you want them to have songs.
+Expo Go loads the app from your running development server. Published EAS updates (the `Deploy` workflow) are **not** a way to open the app in Expo Go: `expo-updates` is not installed, and Expo's docs only describe updates for development or preview builds. Use the tunnel below.
 
-**Option 1: a published update (works when your machine is off)**
+*You (each session)*
+1. `npm install` if needed, then `npx expo start --tunnel`. The tunnel works across networks; plain `npx expo start` only works on the same Wi-Fi.
+2. Keep the terminal running. Copy the QR code or the `exp://` URL it prints and send it to the tester.
+3. Stop the server (Ctrl+C) when you are done; the link stops working.
 
-*Already set up if* you can sign in at expo.dev as the project owner (`chrisineson`) and the repo has the `EXPO_TOKEN` secret, so `.github/workflows/deploy.yml` publishes on every push to `main`. Nothing else is needed for merged work.
-
-*Sharing with a new person*
-1. Send them **message 1** below.
-2. When they reply with the email or username of their Expo account, invite them at expo.dev under **Members** (needed while the project is private).
-3. Merge to `main` if needed; the workflow publishes automatically (check the run in the Actions tab). Open the run's "Publish OTA update" step in the Actions tab and follow its "EAS Dashboard" link (`expo.dev/accounts/chrisineson/projects/dots/updates/<id>`) while signed in to expo.dev; copy the QR code or link from that page. The menu name for updates on expo.dev changes, so use this link rather than navigating. Expo Go must support the SDK in the log's runtime version (currently `exposdk:58.0.0`).
-4. Send them **message 2** with the link or QR code.
-
-*Message 1 (to send them)*
-> 1. Install **Expo Go** from the App Store (iPhone) or Google Play (Android) and open it.
-> 2. Create a free Expo account in Expo Go (or at expo.dev) and sign in.
-> 3. Reply with the email and username you used.
-
-*Message 2 (to send them, with the link or QR code)*
-> 1. Open the link on your phone, or scan the QR code with your camera. Dots opens inside Expo Go.
-> 2. To get a newer version later, close Dots fully and reopen it from Expo Go (it may need a second open to pick up the update).
-> If it says the project is incompatible, update Expo Go in the store.
+*Tester*
+1. Install **Expo Go** from the App Store (iPhone) or Google Play (Android).
+2. Open the `exp://` link on the phone, or scan the QR code with the camera (iPhone) or inside Expo Go (Android). Dots opens in Expo Go.
+3. If it says the project is incompatible, update Expo Go in the store.
 
 Their library starts empty. To give them songs, send an export (Settings, Export) and ask them to import it.
 
-*Sharing again later*: just merge and resend the link, or tell them to reopen the app.
-
-*Unmerged work (optional)*: run `npm install`, `npx eas-cli login` (check with `npx eas-cli whoami`), then `npx eas-cli update --branch preview --message "What changed"`, and share the link it prints (or branch `preview` on the Updates page).
-
-**Option 2: live from your machine (development server)**
-1. `npx expo start --tunnel` (the tunnel works across networks; plain `npx expo start` only works on the same Wi-Fi).
-2. Send the tester the QR code or the `exp://` URL shown in the terminal.
-3. It only works while the dev server is running, so use it for short sessions.
-
 **Limitations**
+- It only works while your dev server is running, so it suits short sessions.
 - Expo Go runs the app under Expo's own identity, so there is no custom icon or splash, and only modules bundled in Expo Go work.
-- Nothing here replaces a TestFlight or store build for wider testing; see the checklist above.
+- For testers who need the app without your machine on, use TestFlight (iOS) or an internal build (Android); see the checklist above.
