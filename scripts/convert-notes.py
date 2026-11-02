@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert Apple Notes Markdown exports to GigBox's JSON setlist archive."""
+"""Convert Apple Notes Markdown exports to Dots' JSON setlist archive."""
 
 import argparse
 import json
@@ -244,13 +244,13 @@ def read_markdown(path: Path) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Convert a plain Markdown or ZIP-wrapped Apple Notes export to GigBox JSON."
+        description="Convert a plain Markdown or ZIP-wrapped Apple Notes export to Dots JSON."
     )
     parser.add_argument("input", help="Apple Notes ZIP export or plain Markdown file")
     parser.add_argument(
         "output",
         nargs="?",
-        help="output JSON path (defaults to <input-name>.gigbox.json beside the input)",
+        help="output JSON path (defaults to <input-name>.dots.json beside the input)",
     )
     args = parser.parse_args()
 
@@ -258,7 +258,7 @@ def main() -> int:
     output_path = (
         Path(args.output).expanduser().resolve()
         if args.output
-        else input_path.with_name(input_path.stem + ".gigbox.json")
+        else input_path.with_name(input_path.stem + ".dots.json")
     )
     if not input_path.is_file():
         raise ValueError("Input file does not exist: {}".format(input_path))

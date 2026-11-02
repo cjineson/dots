@@ -22,7 +22,8 @@ Where things live: listing copy in [`store/`](../store/listing.md), the public f
 - [ ] Install through TestFlight and test on a real iPhone: Performance and Flow, auto-scroll and crawl, swipe, keep-awake, location, Maps links, export and import, every palette in dark and light, small and large screens. Nothing has been verified on a physical device yet.
 
 ## Listing
-- [ ] Check the name "GigBox" is available and not confusingly similar to an existing app.
+- [ ] Check the name "Dots" is available and not confusingly similar to an existing app.
+- [ ] Add final square app icon and splash assets; the supplied transparent Dots wordmark has dark- and light-theme variants in `assets/branding/`.
 - [ ] Fill in the placeholders in `store/listing.md` and `site/` (`[SITE_URL]`, `[CONTACT_EMAIL]`, `[DATE]`, `[YEAR] [YOUR NAME]`).
 - [ ] Publish `site/` (for example GitHub Pages) and confirm the privacy and support URLs load.
 - [ ] Screenshots for 6.9" iPhone (and iPad if supported) and the 1024 icon.

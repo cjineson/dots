@@ -263,7 +263,7 @@ test('parseSetlistArchive rejects unsupported formats and versions', () => {
     JSON.stringify({ format: 'gigbox-setlists', version: 7, setlists: [] }),
   ]) {
     assert.throws(() => parseSetlistArchive(archive), {
-      message: 'This file is not a supported GigBox setlist export.',
+      message: 'This file is not a supported Dots setlist export.',
     });
   }
 });
@@ -293,7 +293,7 @@ test('standalone songs round-trip in version 6 archives', () => {
       groups: [],
       setlists: [],
     })),
-    { message: 'The GigBox export has an invalid standalone songs list.' },
+    { message: 'The Dots export has an invalid standalone songs list.' },
   );
 });
 
@@ -342,7 +342,7 @@ test('parseSetlistArchive rejects missing or empty setlist collections', () => {
   const base = { format: 'gigbox-setlists', version: 1 };
 
   assert.throws(() => parseSetlistArchive(JSON.stringify(base)), {
-    message: 'The GigBox export is missing its setlists.',
+    message: 'The Dots export is missing its setlists.',
   });
   assert.throws(() => parseSetlistArchive(JSON.stringify({ ...base, setlists: [] })), {
     message: 'This export does not contain any setlists.',

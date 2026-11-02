@@ -121,16 +121,18 @@ export default function EmptyDashboard({
           }}
         >
           <Image
-            source={require('../../assets/branding/gigbox-logo.png')}
+            source={theme.mode === 'dark'
+              ? require('../../assets/branding/dots-logo.png')
+              : require('../../assets/branding/dots-logo-light.png')}
             style={styles.logo}
             resizeMode="contain"
-            accessibilityLabel="GigBox"
+            accessibilityLabel="Dots"
           />
         </Animated.View>
       </View>
 
       <Animated.View style={{ opacity: entrance, alignItems: 'center' }}>
-        <Text style={styles.title}>Welcome to GigBox</Text>
+        <Text style={styles.title}>Welcome to Dots</Text>
         <Text style={styles.subtitle}>
           Keep your songs, cues and setlists ready for the stage. Add songs on their own, or organise them into setlists and groups whenever you like.
         </Text>
@@ -182,7 +184,7 @@ export default function EmptyDashboard({
         <MaterialCommunityIcons name="file-import-outline" size={22} color={theme.colors.accent_highlight} />
         <View style={styles.importBody}>
           <Text style={styles.importTitle}>Restoring from a backup?</Text>
-          <Text style={styles.importSubtitle}>Import a GigBox file</Text>
+          <Text style={styles.importSubtitle}>Import a Dots backup</Text>
         </View>
         <MaterialCommunityIcons name="chevron-right" size={22} color={theme.colors.accent_highlight} />
       </Pressable>

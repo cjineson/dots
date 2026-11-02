@@ -2,10 +2,17 @@
 
 ## Setup
 ```sh
+git clone https://github.com/cjineson/dots.git
+cd dots
 npm install
 npx expo start
 ```
 Open in Expo Go, a simulator or the web build.
+
+The Expo display name and project slug are now `Dots`/`dots`, with new iOS and Android
+application identifiers `com.cjineson.dots`. The SQLite filename and archive discriminator
+are intentionally retained so existing local libraries and backups remain compatible; see
+[Data and archives](data-and-archives.md).
 
 ## Validation
 Run before opening a PR:
@@ -51,7 +58,7 @@ The web build keeps its database in memory, so it starts empty on every page loa
 
 To preload your own setlists:
 
-1. In the real GigBox app, go to Settings → Export and save the JSON archive to your computer.
+1. In the real Dots app, go to Settings → Export and save the JSON archive to your computer.
 2. Put it at `public/dev-seed.json` in the repository, creating `public/` if needed. The file is git-ignored, so it is never committed or pushed.
    - Locally: copy or save the file to that path.
    - In a Codespace: in the VS Code Explorer, right-click the `public` folder and choose **Upload…**, pick the file, then rename it to `dev-seed.json` (F2). Drag and drop may not work; alternatively right-click `public` → **New File…**, name it `dev-seed.json` and paste the JSON contents.

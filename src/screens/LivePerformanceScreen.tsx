@@ -404,10 +404,12 @@ export default function LivePerformanceScreen({
                 style={styles.dashboardButton}
               >
                 <Image
-                  source={require('../../assets/branding/gigbox-logo.png')}
+                  source={theme.mode === 'dark'
+                    ? require('../../assets/branding/dots-logo.png')
+                    : require('../../assets/branding/dots-logo-light.png')}
                   style={styles.logo}
                   resizeMode="contain"
-                  accessibilityLabel="GigBox"
+                  accessibilityLabel="Dots"
                 />
               </Pressable>
             )}

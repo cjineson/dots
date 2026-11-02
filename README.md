@@ -1,42 +1,48 @@
-# GigBox
+# Dots
 
-Local-first dark-mode live setlist app for musicians.
+Dots is a local-first setlist and cue app for musicians. It keeps songs, setlists and gig
+details organised, then puts the right lyrics, chords and cues on screen when it is time
+to play. It works offline and stores the library on the device.
 
-## Stack
-- React Native + Expo + TypeScript
-- expo-sqlite for local storage
+## What Dots does
 
-## Features
-- Dashboard with collapsible setlists, groups, drag-to-reorder songs, drag-to-reorder setlists (when all are collapsed), a + menu to add or copy songs, breaks and setlists and a backup reminder
-- Setlist details with date/time pickers, location (with map position and Open in Maps) and a notes/checklist
-- Song editor with cue sections, styled blocks, tables and coloured tags
-- Flow view (whole setlist) and Performance view (one song at a time) with zoom, tag size, auto-scroll and swipe navigation
-- Settings: dark/light/system theme, high contrast, keep awake, defaults, export/import, reset
-- Unsaved-changes prompts in the editors
+- **Build a library:** create songs on their own or organise them into setlists and groups.
+- **Prepare a gig:** add a venue, date, time and notes/checklist to each setlist; reuse songs
+  and add breaks wherever they belong.
+- **Read on stage:** use Flow to scan a whole set or Performance to focus on one song, with
+  readable cues, tags, swipe navigation, auto-scroll and keep-awake controls.
+- **Keep control of your data:** everything is stored locally. Export JSON backups, restore
+  them on another device, or convert an Apple Notes setlist export.
 
-See the [user guide](docs/user-guide.md) for details.
+## Project direction
 
-## Documentation
-Start at [docs/README.md](docs/README.md): [user guide](docs/user-guide.md), [settings](docs/settings.md), [architecture](docs/architecture.md), [data and archives](docs/data-and-archives.md), [importing Apple Notes](docs/import-apple-notes.md), [development](docs/development.md) and [CI and releases](docs/ci-and-releases.md).
+The foundation is a dependable, stage-focused app that works without an account or
+network connection. Changes should keep libraries safe, preserve backward-compatible
+archive imports, and remain usable in Expo Go. Local peer-to-peer sync is a future
+direction; it should build on the local library rather than make a cloud account a
+requirement.
 
-## Getting started
+## Development
 
-1. Install project dependencies:
-   npm install
-2. Start the Expo app:
-   npx expo start
-3. In the Expo UI, select a simulator or run on a device.
-
-## Testing
-
-Run the unit tests with (see [development](docs/development.md) for the full validation checklist):
+The app uses React Native, Expo, TypeScript and SQLite.
 
 ```sh
-npm test
+git clone https://github.com/cjineson/dots.git
+cd dots
+npm install
+npx expo start
 ```
 
-## Database behavior
-The app stores everything locally in SQLite and exports JSON archives (version 6; imports accept versions 1 through 6). See [Data and archives](docs/data-and-archives.md).
+In the Expo UI, select a simulator or run on a device. See [Development](docs/development.md)
+for validation commands and [the project guide](etc/agent-project-guide.md) for the
+architecture and implementation conventions.
 
-## Future phases
-- Local P2P sync pathing
+## Documentation
+
+Start at [docs/README.md](docs/README.md) for the [user guide](docs/user-guide.md),
+[settings](docs/settings.md), [architecture](docs/architecture.md),
+[data and archives](docs/data-and-archives.md), [Apple Notes importing](docs/import-apple-notes.md),
+[development](docs/development.md), [CI and releases](docs/ci-and-releases.md) and
+[publishing](docs/publishing.md).
+
+Run `npm run typecheck` and `npm test` to validate TypeScript and unit tests.

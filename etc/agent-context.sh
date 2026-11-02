@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-printf '%s\n' '# GigBox agent context'
+printf '%s\n' '# Dots agent context'
 printf '\n%s\n' '## Repository state'
 printf 'Branch: %s\n' "$(git branch --show-current)"
 printf 'Latest commit: %s\n' "$(git log -1 --format='%h %s')"

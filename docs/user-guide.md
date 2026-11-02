@@ -35,7 +35,7 @@ Header buttons (panels are mutually exclusive):
 - **Tag** – global tag size slider.
 - **Zoom** – "set entire setlist" text size; each song header has its own zoom button.
 
-Tap the pencil next to the setlist title to edit cue text and table cells inline. Save to keep changes or Cancel to discard them; editing pauses auto-scroll and hides the size controls. Use the gear icon to open Settings. Pencil and gear visibility can be changed independently in Settings. The GigBox logo is the "home" button and fills the header height.
+Tap the pencil next to the setlist title to edit cue text and table cells inline. Save to keep changes or Cancel to discard them; editing pauses auto-scroll and hides the size controls. Use the gear icon to open Settings. Pencil and gear visibility can be changed independently in Settings. The Dots logo is the "home" button and fills the header height.
 
 ## Performance view
 One cue box per song; long lines scale down to fit unless you set a manual size. Swipe left/right for next/previous (sensitivity configurable). The header shows the song title, tags and optionally "3 of 12". Tag size and zoom buttons work as in Flow, and the screen can stay awake. Tap the pencil beside the song title to enter deliberate inline edit mode for cue text and table cells. In edit mode the header shows the song's tags: tap a tag to remove it, or tap the tag-plus button to add one (name, colour, or a quick pick of tags already in your library). Tag changes are saved or discarded along with the cue edits. Save to keep changes or Cancel to discard them; swipe navigation and crawl controls are unavailable while editing. Use the gear icon to open Settings; pencil and gear visibility can be changed independently in Settings.

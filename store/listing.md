@@ -5,7 +5,7 @@ Draft text for App Store Connect. Character limits are Apple's. Replace `[PLACEH
 ## Basics
 | Field | Value | Limit |
 | --- | --- | --- |
-| Name | GigBox: Setlists & Cues | 30 |
+| Name | Dots: Setlists & Cues | 30 |
 | Subtitle | Lyrics, cues, setlists live | 30 |
 | Category | Music (secondary: Productivity) | |
 | Keywords | setlist,lyrics,chord,cue,gig,band,teleprompter,stage,musician,performance,autoscroll,notes | 100 |
@@ -17,10 +17,10 @@ Draft text for App Store Connect. Character limits are Apple's. Replace `[PLACEH
 Check the name is free in the App Store before committing to it.
 
 ## Promotional text (170, editable without a new review)
-Your whole gig in one box. Setlists, lyrics and cues you can read from across the stage, with no account and no signal needed.
+Your set, ready for the stage. Setlists, lyrics and cues you can read at a glance, offline and without an account.
 
 ## Description
-GigBox is a stage-ready setlist and cue viewer for working musicians.
+Dots is a local-first setlist and cue app for working musicians.
 
 Build your setlists, drop in your lyrics, chords and notes, then tap a title to go live. Big, clear text, swipe between songs, and a screen that stays awake.
 
@@ -66,10 +66,10 @@ Sizes: 6.9" iPhone (1320 x 2868) is required, 6.5" optional, iPad only if iPad s
 Optional: a 15-30 second app preview video of auto-scroll in performance view.
 
 ## Icon
-1024 x 1024 PNG, no transparency, no rounded corners (iOS rounds it). Suggested concept: a stage-lit box or a setlist page with a spotlight, using the existing GigBox logo colours.
+1024 x 1024 PNG, no transparency, no rounded corners (iOS rounds it). New Dots branding assets are pending; replace the temporary GigBox PNGs before creating final store artwork.
 
 ## App Review notes
-GigBox needs no login. It works entirely offline and stores data on the device. To test, tap "Create your first setlist", add a song, then tap the setlist title's play button to open Performance view. Location is optional and is only used to fill in a venue name when the user taps "Use current location".
+Dots needs no login. It works entirely offline and stores data on the device. To test, tap "Create your first setlist", add a song, then tap the setlist title's play button to open Performance view. Location is optional and is only used to fill in a venue name when the user taps "Use current location".
 
 ## Privacy answers (App Store Connect)
 Verify these against the final build before submitting.

@@ -333,7 +333,7 @@ export default function SettingsScreen({
 
         <Text style={styles.sectionTitle}>About</Text>
         <Text style={styles.hint}>
-          GigBox version {Constants.expoConfig?.version ?? 'unknown'}
+          Dots version {Constants.expoConfig?.version ?? 'unknown'}
         </Text>
       </ScrollView>
     </SafeAreaView>

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
-const KEEP_AWAKE_TAG = 'gigbox-performance';
+const KEEP_AWAKE_TAG = 'dots-performance';
 
 export function useScreenAwake(enabled: boolean) {
   useEffect(() => {

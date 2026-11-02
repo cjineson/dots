@@ -55,7 +55,7 @@ function main(): void {
     outputPath ??
       path.join(
         path.dirname(resolvedInputPath),
-        `${path.parse(resolvedInputPath).name}.gigbox.json`,
+        `${path.parse(resolvedInputPath).name}.dots.json`,
       ),
   );
   if (existsSync(resolvedOutputPath)) {

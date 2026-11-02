@@ -790,10 +790,12 @@ export default function DashboardScreen({
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
         <Image
-          source={require('../../assets/branding/gigbox-logo.png')}
+          source={theme.mode === 'dark'
+            ? require('../../assets/branding/dots-logo.png')
+            : require('../../assets/branding/dots-logo-light.png')}
           style={styles.logo}
           resizeMode="contain"
-          accessibilityLabel="GigBox"
+          accessibilityLabel="Dots"
         />
         <View style={styles.headerActions}>
           <Pressable

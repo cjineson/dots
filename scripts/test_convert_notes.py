@@ -63,10 +63,27 @@ class ConvertNotesTests(unittest.TestCase):
         )
         self.assertEqual(result["version"], 2)
 
+    def test_default_output_uses_dots_suffix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            input_path = Path(directory) / "Apple Notes Export.md"
+            input_path.write_text(SAMPLE, encoding="utf-8")
+
+            subprocess.run(
+                [sys.executable, str(CONVERTER_PATH), str(input_path)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            output_path = Path(directory) / "Apple Notes Export.dots.json"
+            self.assertTrue(output_path.is_file())
+            result = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(len(result["setlists"]), 2)
+
     def test_converts_zip_input_without_requiring_a_markdown_filename(self):
         with tempfile.TemporaryDirectory() as directory:
             input_path = Path(directory) / "Apple Notes Export.zip"
-            output_path = Path(directory) / "gigbox.json"
+            output_path = Path(directory) / "dots.json"
             with zipfile.ZipFile(str(input_path), "w") as archive:
                 archive.writestr("Export/Notes.md", SAMPLE)
 

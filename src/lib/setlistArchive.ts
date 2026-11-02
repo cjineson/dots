@@ -151,11 +151,11 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
       value.version !== 5 &&
       value.version !== 6)
   ) {
-    throw new Error('This file is not a supported GigBox setlist export.');
+    throw new Error('This file is not a supported Dots setlist export.');
   }
 
   if (!Array.isArray(value.setlists)) {
-    throw new Error('The GigBox export is missing its setlists.');
+    throw new Error('The Dots export is missing its setlists.');
   }
 
   const groups: string[] = [];
@@ -164,14 +164,14 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
       !Array.isArray(value.groups) ||
       value.groups.some((group) => typeof group !== 'string' || !group.trim())
     ) {
-      throw new Error('The GigBox export has an invalid groups list.');
+      throw new Error('The Dots export has an invalid groups list.');
     }
     const normalizedGroups = new Set<string>();
     for (const group of value.groups) {
       const cleanedGroup = (group as string).trim();
       const normalizedGroup = cleanedGroup.toLocaleLowerCase();
       if (normalizedGroups.has(normalizedGroup)) {
-        throw new Error('The GigBox export contains duplicate group names.');
+        throw new Error('The Dots export contains duplicate group names.');
       }
       normalizedGroups.add(normalizedGroup);
       groups.push(cleanedGroup);
@@ -266,7 +266,7 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
   let songs: ArchiveSong[] | undefined;
   if (value.version === 6) {
     if (!Array.isArray(value.songs)) {
-      throw new Error('The GigBox export has an invalid standalone songs list.');
+      throw new Error('The Dots export has an invalid standalone songs list.');
     }
     songs = value.songs.map((song, songIndex) => {
       const parsed = parseSong(song, 'Standalone songs', songIndex);

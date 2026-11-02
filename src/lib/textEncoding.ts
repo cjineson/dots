@@ -63,16 +63,16 @@ function findBytes(bytes: Uint8Array, value: string): number {
   return -1;
 }
 
-function extractGigBoxJsonFromBinaryPlist(bytes: Uint8Array): string {
+function extractDotsJsonFromBinaryPlist(bytes: Uint8Array): string {
   const markerIndex = findBytes(bytes, '"format"');
   if (markerIndex < 0) {
-    throw new Error('This Apple binary property list does not contain a GigBox JSON archive.');
+    throw new Error('This Apple binary property list does not contain a Dots JSON archive.');
   }
 
   let start = markerIndex;
   while (start >= 0 && bytes[start] !== 0x7b) start -= 1;
   if (start < 0) {
-    throw new Error('Could not locate the embedded GigBox JSON object in the property list.');
+    throw new Error('Could not locate the embedded Dots JSON object in the property list.');
   }
 
   let depth = 0;
@@ -94,7 +94,7 @@ function extractGigBoxJsonFromBinaryPlist(bytes: Uint8Array): string {
     }
   }
 
-  throw new Error('The embedded GigBox JSON object is incomplete.');
+  throw new Error('The embedded Dots JSON object is incomplete.');
 }
 
 export function decodeTextFile(bytes: Uint8Array): string {
@@ -109,12 +109,12 @@ export function decodeTextFile(bytes: Uint8Array): string {
     bytes[6] === 0x30 &&
     bytes[7] === 0x30
   ) {
-    return extractGigBoxJsonFromBinaryPlist(bytes);
+    return extractDotsJsonFromBinaryPlist(bytes);
   }
 
   if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b) {
     throw new Error(
-      'This file appears to be a ZIP archive, not a GigBox JSON file. Convert the Notes ZIP to a .gigbox.json file before importing.',
+      'This file appears to be a ZIP archive, not a Dots JSON file. Convert the Notes ZIP to a .dots.json file before importing.',
     );
   }
 

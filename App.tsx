@@ -155,7 +155,7 @@ export default function App() {
       setStartupError(
         error instanceof Error ? error.message : 'An unexpected startup error occurred.',
       );
-      console.error('GigBox failed to initialize its local database.', error);
+      console.error('Dots failed to initialize its local database.', error);
     }
 
     setIsReady(true);
@@ -351,12 +351,12 @@ export default function App() {
       const now = new Date();
       const pad = (value: number) => String(value).padStart(2, '0');
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
-      const fileUri = `${FileSystem.cacheDirectory}gigbox-library-${timestamp}.json`;
+      const fileUri = `${FileSystem.cacheDirectory}dots-library-${timestamp}.json`;
       const archive = createSetlistArchive(content.setlists, content.groups, content.songs);
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(archive, null, 2));
       await Sharing.shareAsync(fileUri, {
         mimeType: 'application/json',
-        dialogTitle: 'Export GigBox library',
+        dialogTitle: 'Export Dots library',
         UTI: 'public.json',
       });
       // Only a full export counts as a backup for the reminder.
@@ -451,7 +451,7 @@ export default function App() {
     return (
       <GestureHandlerRootView style={styles.root}>
         <SafeAreaView style={styles.startupErrorContainer}>
-          <Text style={styles.startupErrorTitle}>GigBox couldn’t start</Text>
+          <Text style={styles.startupErrorTitle}>Dots couldn’t start</Text>
           <Text style={styles.startupErrorMessage}>{startupError}</Text>
           <Pressable
             accessibilityRole="button"

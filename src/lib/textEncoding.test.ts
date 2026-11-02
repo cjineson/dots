@@ -30,7 +30,7 @@ test('decodeTextFile decodes UTF-16 in either byte order with and without a BOM'
   assert.equal(decodeTextFile(utf16leWithoutBom), json);
 });
 
-test('decodeTextFile extracts an embedded GigBox archive from a binary plist', () => {
+test('decodeTextFile extracts an embedded Dots archive from a binary plist', () => {
   const json = '{"format":"gigbox-setlists","version":2,"setlists":[]}';
   const prefix = new TextEncoder().encode(
     'bplist00\x00\x01NSKeyedArchiver\x00attributedStringData\x00NS.data\x00',
@@ -44,10 +44,10 @@ test('decodeTextFile extracts an embedded GigBox archive from a binary plist', (
   assert.equal(decodeTextFile(bytes), json);
 });
 
-test('decodeTextFile rejects binary plists without an embedded GigBox archive', () => {
+test('decodeTextFile rejects binary plists without an embedded Dots archive', () => {
   assert.throws(
     () => decodeTextFile(new TextEncoder().encode('bplist00\x00NSKeyedArchiver')),
-    { message: 'This Apple binary property list does not contain a GigBox JSON archive.' },
+    { message: 'This Apple binary property list does not contain a Dots JSON archive.' },
   );
 });
 
@@ -63,7 +63,7 @@ test('decodeTextFile diagnoses non-text input and rejects malformed UTF-16', () 
     () => decodeTextFile(new Uint8Array([0x50, 0x4b, 0x03, 0x04])),
     {
       message:
-        'This file appears to be a ZIP archive, not a GigBox JSON file. Convert the Notes ZIP to a .gigbox.json file before importing.',
+        'This file appears to be a ZIP archive, not a Dots JSON file. Convert the Notes ZIP to a .dots.json file before importing.',
     },
   );
   assert.throws(() => decodeTextFile(new Uint8Array([0xff, 0xfe, 0x7b])));

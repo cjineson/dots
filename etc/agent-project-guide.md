@@ -1,6 +1,14 @@
-# GigBox project guide
+# Dots project guide
 
 Read the section relevant to the current task rather than treating this as a second always-loaded instruction file.
+
+## Product direction
+
+Dots helps musicians prepare setlists and read songs, lyrics, chords and cues during a
+performance. It is local-first and stage-focused: prioritize readable live views,
+reliable offline operation, and safe handling of the user's library. Preserve existing
+songs and backward-compatible JSON imports. Future sync should complement the local
+library rather than require an account or cloud service.
 
 ## Architecture
 
