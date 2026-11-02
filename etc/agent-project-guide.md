@@ -10,6 +10,10 @@ reliable offline operation, and safe handling of the user's library. Preserve ex
 songs and backward-compatible JSON imports. Future sync should complement the local
 library rather than require an account or cloud service.
 
+## Design history
+
+See [`docs/design-decisions.md`](../docs/design-decisions.md) for rationale, reversed experiments and known gaps before changing established behaviour. Add an entry there when you make a decision future agents would need.
+
 ## Architecture
 
 - Expo 57 / React Native 0.86 app. UI screens are in `src/screens/`; app-wide navigation and data handling are in `App.tsx`.

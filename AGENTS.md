@@ -19,5 +19,6 @@ Before editing, read the relevant part of `README.md` and inspect only the files
 
 - Human-facing docs are in [`docs/`](docs/README.md).
 - Read [`etc/agent-project-guide.md`](etc/agent-project-guide.md) for the project map, implementation conventions, and validation commands.
+- Read [`docs/design-decisions.md`](docs/design-decisions.md) before changing existing behaviour: it records why things work as they do and what was tried and reversed. Raw PR history from the original GigBox repo is in [`docs/history/`](docs/history/gigbox-pr-archive.md).
 - Run [`etc/agent-context.sh`](etc/agent-context.sh) to prepare a compact repository snapshot for a handoff.
 - See [`etc/agent-handoff.md`](etc/agent-handoff.md) for efficient handoff and task-prompt guidance.
