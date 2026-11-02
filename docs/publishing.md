@@ -45,22 +45,27 @@ For quick testing without a store build. The app stays Expo Go compatible, so no
 
 *Already set up if* you can sign in at expo.dev as the project owner (`chrisineson`) and the repo has the `EXPO_TOKEN` secret, so `.github/workflows/deploy.yml` publishes on every push to `main`. Nothing else is needed for merged work.
 
-*Sharing a version (you)*
-1. Merge to `main`. The workflow publishes automatically; check the run succeeded in the repo's Actions tab.
-2. On expo.dev open project `dots`, **Updates**, branch `main`, and copy the QR code or link.
-3. First time with this person only: ask for their free Expo account email (they can sign up at expo.dev) and invite them under **Members**. This is needed while the project is private.
-4. Send them the link or QR code plus the instructions below.
+*Sharing with a new person*
+1. Send them **message 1** below.
+2. When they reply with the email or username of their Expo account, invite them at expo.dev under **Members** (needed while the project is private).
+3. Merge to `main` if needed; the workflow publishes automatically (check the run in the Actions tab). On expo.dev open project `dots`, **Updates**, branch `main`, and copy the QR code or link.
+4. Send them **message 2** with the link or QR code.
 
-*Unmerged work (optional)*: run `npm install`, `npx eas-cli login` (check with `npx eas-cli whoami`), then `npx eas-cli update --branch preview --message "What changed"`, and share the link it prints (or branch `preview` on the Updates page).
+*Message 1 (to send them)*
+> 1. Install **Expo Go** from the App Store (iPhone) or Google Play (Android) and open it.
+> 2. Create a free Expo account in Expo Go (or at expo.dev) and sign in.
+> 3. Reply with the email and username you used.
 
-*Instructions to send them*
-> 1. Install **Expo Go** from the App Store (iPhone) or Google Play (Android), and open it.
-> 2. Sign in to Expo Go (Profile tab) with the Expo account I invited.
-> 3. Open the link I sent on your phone, or scan the QR code with your camera. Dots opens inside Expo Go.
-> 4. To get a newer version later, close Dots fully and reopen it from Expo Go (it may need a second open to pick up the update).
+*Message 2 (to send them, with the link or QR code)*
+> 1. Open the link on your phone, or scan the QR code with your camera. Dots opens inside Expo Go.
+> 2. To get a newer version later, close Dots fully and reopen it from Expo Go (it may need a second open to pick up the update).
 > If it says the project is incompatible, update Expo Go in the store.
 
 Their library starts empty. To give them songs, send an export (Settings, Export) and ask them to import it.
+
+*Sharing again later*: just merge and resend the link, or tell them to reopen the app.
+
+*Unmerged work (optional)*: run `npm install`, `npx eas-cli login` (check with `npx eas-cli whoami`), then `npx eas-cli update --branch preview --message "What changed"`, and share the link it prints (or branch `preview` on the Updates page).
 
 **Option 2: live from your machine (development server)**
 1. `npx expo start --tunnel` (the tunnel works across networks; plain `npx expo start` only works on the same Wi-Fi).
