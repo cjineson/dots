@@ -44,9 +44,8 @@ For quick testing without a store build. The app stays Expo Go compatible, so no
 **Option 1: a published update (works when your machine is off)**
 
 *One-time set-up (you)*
-1. Make sure you can sign in at expo.dev with the account that owns the project (`chrisineson`).
-2. In the repo run `npm install`, then `npx eas-cli login` and sign in with that account.
-3. Check it worked: `npx eas-cli whoami` prints your username.
+1. Make sure you can sign in at expo.dev with the account that owns the project (`chrisineson`). That is all you need for merged work, because the `EXPO_TOKEN` secret lets GitHub Actions publish for you.
+2. Only for the optional manual `preview` publish below: run `npm install`, then `npx eas-cli login`, then check `npx eas-cli whoami` prints your username.
 
 *Each time you want to share a version (you)*
 - **Merged work:** nothing to run. Every push to `main` (including a PR merge) is published to the `main` branch automatically by `.github/workflows/deploy.yml`. Check the run succeeded in the repo's Actions tab, then open expo.dev, project `dots`, **Updates**, branch `main`, and use the QR code or link there.
