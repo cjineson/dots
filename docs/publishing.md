@@ -43,17 +43,15 @@ For quick testing without a store build. The app stays Expo Go compatible, so no
 
 **Option 1: a published update (works when your machine is off)**
 
-*One-time set-up (you)*
-1. Make sure you can sign in at expo.dev with the account that owns the project (`chrisineson`). That is all you need for merged work, because the `EXPO_TOKEN` secret lets GitHub Actions publish for you.
-2. Only for the optional manual `preview` publish below: run `npm install`, then `npx eas-cli login`, then check `npx eas-cli whoami` prints your username.
+*Already set up if* you can sign in at expo.dev as the project owner (`chrisineson`) and the repo has the `EXPO_TOKEN` secret, so `.github/workflows/deploy.yml` publishes on every push to `main`. Nothing else is needed for merged work.
 
-*Each time you want to share a version (you)*
-- **Merged work:** nothing to run. Every push to `main` (including a PR merge) is published to the `main` branch automatically by `.github/workflows/deploy.yml`. Check the run succeeded in the repo's Actions tab, then open expo.dev, project `dots`, **Updates**, branch `main`, and use the QR code or link there.
-- **Unmerged work (optional):** publish it yourself with `npx eas-cli update --branch preview --message "What changed"` and use the link it prints (or branch `preview` on the Updates page). This is the only case that needs the manual command.
-- Send the person that link or QR code, plus the instructions below.
+*Sharing a version (you)*
+1. Merge to `main`. The workflow publishes automatically; check the run succeeded in the repo's Actions tab.
+2. On expo.dev open project `dots`, **Updates**, branch `main`, and copy the QR code or link.
+3. First time with this person only: ask for their free Expo account email (they can sign up at expo.dev) and invite them under **Members**. This is needed while the project is private.
+4. Send them the link or QR code plus the instructions below.
 
-*First time with a new person (you)*
-- Ask for the email address of their free Expo account (they can create one at expo.dev), then invite them at expo.dev, your account or organisation, **Members**. This is needed while the project is private.
+*Unmerged work (optional)*: run `npm install`, `npx eas-cli login` (check with `npx eas-cli whoami`), then `npx eas-cli update --branch preview --message "What changed"`, and share the link it prints (or branch `preview` on the Updates page).
 
 *Instructions to send them*
 > 1. Install **Expo Go** from the App Store (iPhone) or Google Play (Android), and open it.
