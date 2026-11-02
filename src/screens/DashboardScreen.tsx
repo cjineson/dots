@@ -556,6 +556,8 @@ export default function DashboardScreen({
 
   const renderSongList = (songs: Song[]) => (
     <NestableDraggableFlatList
+      // Remount when membership changes: growing this list in place while a setlist list shrinks crashed on iOS.
+      key={songs.map((song) => song.id).join('|')}
       data={songs}
       keyExtractor={(song) => song.id}
       scrollEnabled={false}
