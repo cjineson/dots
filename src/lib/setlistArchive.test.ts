@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { createSetlistArchive, parseSetlistArchive, restoreOmittedCues } from './setlistArchive';
-import type { CueDocument, SetlistWithSongs } from '../types';
+import type { CueDocument, SetlistWithSongs, SongTag } from '../types';
 
 const setlists: SetlistWithSongs[] = [
   {
@@ -468,7 +468,7 @@ test('song tags accept the extended tag colours', () => {
   );
 });
 
-test('createSetlistArchive without cues keeps titles, tags and sizes but drops cue content', () => {
+test('createSetlistArchive without cues keeps titles and sizes but drops cues and tags', () => {
   const archive = createSetlistArchive(setlists, [{ id: 'group-1', name: 'The Band', order_index: 0 }], [], { includeCues: false });
   assert.equal(archive.cues, false);
   const first = archive.setlists[0].items[0];
@@ -478,7 +478,7 @@ test('createSetlistArchive without cues keeps titles, tags and sizes but drops c
     assert.equal(first.notes_raw_text, '');
     assert.equal(first.cue_document, undefined);
     assert.equal(first.font_size, 24);
-    assert.equal(first.tags?.length, 2);
+    assert.equal(first.tags, undefined);
   }
   assert.equal(archive.setlists[0].items[1].type, 'break');
 });
@@ -503,14 +503,20 @@ test('restoreOmittedCues copies cues from the matching existing song, once each'
     blocks: [{ id: 'b', type: 'section', text: 'Chords', color: '#FFCC00' }],
   });
   const sources = [
-    { title: 'First Song', notes_raw_text: 'Verse', cue_document: cueDocument },
+    {
+      title: 'First Song',
+      notes_raw_text: 'Verse',
+      cue_document: cueDocument,
+      tags: JSON.stringify([{ label: 'loud', color: '#FF8A80' }]),
+    },
     { title: 'first song', notes_raw_text: 'Second copy', cue_document: null },
   ];
   const used = new Set<(typeof sources)[number]>();
-  const first = restoreOmittedCues<{ title: string; notes_raw_text: string; cue_document?: CueDocument }>({ title: ' First Song ', notes_raw_text: '' }, sources, used);
+  const first = restoreOmittedCues<{ title: string; notes_raw_text: string; cue_document?: CueDocument; tags?: SongTag[] }>({ title: ' First Song ', notes_raw_text: '' }, sources, used);
   assert.equal(first.notes_raw_text, 'Verse');
   assert.equal(first.cue_document?.blocks.length, 1);
-  const second = restoreOmittedCues<{ title: string; notes_raw_text: string; cue_document?: CueDocument }>({ title: 'First Song', notes_raw_text: '' }, sources, used);
+  assert.equal(first.tags?.[0].label, 'loud');
+  const second = restoreOmittedCues<{ title: string; notes_raw_text: string; cue_document?: CueDocument; tags?: SongTag[] }>({ title: 'First Song', notes_raw_text: '' }, sources, used);
   assert.equal(second.notes_raw_text, 'Second copy');
   assert.equal(second.cue_document, undefined);
   const none = restoreOmittedCues({ title: 'Other', notes_raw_text: '' }, sources, used);

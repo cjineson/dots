@@ -136,14 +136,12 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
         <View style={styles.optionRow}>
           <View style={styles.optionText}>
             <Text style={styles.optionTitle}>Setlist only (no cues)</Text>
-            <Text style={styles.optionHint}>
-              Song titles, order and tags only. Importing it keeps the cues already on matching songs.
-            </Text>
           </View>
           <Switch
             accessibilityLabel="Setlist only, no cues"
             value={setlistOnly}
             onValueChange={setSetlistOnly}
+            style={styles.optionSwitch}
           />
         </View>
         <View style={styles.footerButtons}>
@@ -271,17 +269,17 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 44,
-    paddingHorizontal: 12,
+    minHeight: 56,
+    paddingHorizontal: 14,
     borderRadius: 10,
     backgroundColor: theme.colors.surface,
   },
-  optionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4 },
+  optionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
   optionText: { flex: 1 },
-  optionTitle: { color: theme.colors.text_primary, fontSize: 15, fontWeight: '600' },
-  optionHint: { color: theme.colors.text_secondary, fontSize: 12, marginTop: 2 },
-  nameInput: { flex: 1, color: theme.colors.text_primary, fontSize: 15, paddingVertical: 10 },
-  nameExtension: { color: theme.colors.text_secondary, fontSize: 15 },
+  optionSwitch: { transform: [{ scale: 0.75 }] },
+  optionTitle: { color: theme.colors.text_primary, fontSize: 13, fontWeight: '600' },
+  nameInput: { flex: 1, color: theme.colors.text_primary, fontSize: 18, paddingVertical: 14 },
+  nameExtension: { color: theme.colors.text_secondary, fontSize: 18 },
   primaryButton: {
     flex: 1,
     alignItems: 'center',

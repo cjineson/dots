@@ -931,8 +931,9 @@ function mergePartialSetlist(setlistId: string, setlist: ImportedSetlist, keepCu
     title: string;
     notes_raw_text: string;
     cue_document: string | null;
+    tags: string | null;
   }>(
-    `SELECT songs.id, songs.title, songs.notes_raw_text, songs.cue_document FROM songs
+    `SELECT songs.id, songs.title, songs.notes_raw_text, songs.cue_document, songs.tags FROM songs
      JOIN setlist_songs ON setlist_songs.song_id = songs.id
      WHERE setlist_songs.setlist_id = ?`,
     [setlistId],
@@ -967,7 +968,7 @@ function mergePartialSetlist(setlistId: string, setlist: ImportedSetlist, keepCu
         keepCues
           ? match.cue_document
           : item.cue_document ? JSON.stringify(item.cue_document) : null,
-        JSON.stringify(item.tags ?? []),
+        keepCues ? match.tags ?? '[]' : JSON.stringify(item.tags ?? []),
         match.id,
       ],
     );
@@ -1034,7 +1035,7 @@ export function importSetlists(library: ImportedLibrary, mode: ImportMode = 'cop
       if (existingId) {
         if (library.cuesOmitted) {
           cueSources = db.getAllSync<CueSource>(
-            `SELECT songs.title, songs.notes_raw_text, songs.cue_document FROM songs
+            `SELECT songs.title, songs.notes_raw_text, songs.cue_document, songs.tags FROM songs
              JOIN setlist_songs ON setlist_songs.song_id = songs.id
              WHERE setlist_songs.setlist_id = ?`,
             [existingId],
@@ -1094,7 +1095,9 @@ export function importSetlists(library: ImportedLibrary, mode: ImportMode = 'cop
           library.cuesOmitted
             ? existing.cue_document ?? null
             : song.cue_document ? JSON.stringify(song.cue_document) : null,
-          JSON.stringify(song.tags ?? []),
+          library.cuesOmitted
+            ? JSON.stringify(existing.tags ?? [])
+            : JSON.stringify(song.tags ?? []),
           existing.id,
         ],
       );

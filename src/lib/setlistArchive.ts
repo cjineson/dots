@@ -8,10 +8,11 @@ import type {
   SetlistItem,
   SetlistWithSongs,
   Song,
+  SongTag,
 } from '../types';
 import { parseCueDocument, validateCueDocument } from './cueDocument';
 import { MAX_FONT_SIZE, MIN_FONT_SIZE } from './fontSize';
-import { validateSongTags } from './songTags';
+import { parseStoredSongTags, validateSongTags } from './songTags';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -25,7 +26,7 @@ function exportSong(song: Song, includeCues: boolean): ArchiveSong {
     ...(includeCues && song.cue_document
       ? { cue_document: parseCueDocument(song.cue_document) }
       : {}),
-    ...(song.tags?.length ? { tags: song.tags } : {}),
+    ...(includeCues && song.tags?.length ? { tags: song.tags } : {}),
   };
 }
 
@@ -291,13 +292,18 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
   };
 }
 
-export type CueSource = { title: string; notes_raw_text: string; cue_document?: string | null };
+export type CueSource = {
+  title: string;
+  notes_raw_text: string;
+  cue_document?: string | null;
+  tags?: string | null;
+};
 
 const normalizeTitle = (title: string) => title.trim().toLocaleLowerCase();
 
-// For cue-less archives: gives an imported song the cues of the existing song with the same title.
+// For cue-less archives: gives an imported song the cues and tags of the existing song with the same title.
 export function restoreOmittedCues<
-  T extends { title: string; notes_raw_text: string; cue_document?: CueDocument },
+  T extends { title: string; notes_raw_text: string; cue_document?: CueDocument; tags?: SongTag[] },
 >(item: T, sources: CueSource[], used: Set<CueSource>): T {
   const key = normalizeTitle(item.title);
   const match = sources.find((source) => !used.has(source) && normalizeTitle(source.title) === key);
@@ -309,5 +315,6 @@ export function restoreOmittedCues<
     ...item,
     notes_raw_text: match.notes_raw_text,
     cue_document: match.cue_document ? parseCueDocument(match.cue_document) : undefined,
+    tags: parseStoredSongTags(match.tags ?? null),
   };
 }
