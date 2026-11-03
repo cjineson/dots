@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { createSetlistArchive, parseSetlistArchive } from './setlistArchive';
-import type { SetlistWithSongs } from '../types';
+import { createSetlistArchive, parseSetlistArchive, restoreOmittedCues } from './setlistArchive';
+import type { CueDocument, SetlistWithSongs } from '../types';
 
 const setlists: SetlistWithSongs[] = [
   {
@@ -466,4 +466,53 @@ test('song tags accept the extended tag colours', () => {
     parsed.setlists[0].items[0].type === 'song' && parsed.setlists[0].items[0].tags,
     [{ label: 'ballad', color: '#B39DDB' }],
   );
+});
+
+test('createSetlistArchive without cues keeps titles, tags and sizes but drops cue content', () => {
+  const archive = createSetlistArchive(setlists, [{ id: 'group-1', name: 'The Band', order_index: 0 }], [], { includeCues: false });
+  assert.equal(archive.cues, false);
+  const first = archive.setlists[0].items[0];
+  assert.equal(first.type, 'song');
+  if (first.type === 'song') {
+    assert.equal(first.title, 'First Song');
+    assert.equal(first.notes_raw_text, '');
+    assert.equal(first.cue_document, undefined);
+    assert.equal(first.font_size, 24);
+    assert.equal(first.tags?.length, 2);
+  }
+  assert.equal(archive.setlists[0].items[1].type, 'break');
+});
+
+test('a cue-less archive round-trips and flags that cues were omitted', () => {
+  const parsed = parseSetlistArchive(
+    JSON.stringify(createSetlistArchive(setlists, [{ id: 'group-1', name: 'The Band', order_index: 0 }], [], { includeCues: false })),
+  );
+  assert.equal(parsed.cuesOmitted, true);
+  assert.equal(parsed.setlists[0].items.length, 4);
+});
+
+test('a normal archive does not carry the cues marker', () => {
+  const archive = createSetlistArchive(setlists, [{ id: 'group-1', name: 'The Band', order_index: 0 }]);
+  assert.equal('cues' in archive, false);
+  assert.equal(parseSetlistArchive(JSON.stringify(archive)).cuesOmitted, undefined);
+});
+
+test('restoreOmittedCues copies cues from the matching existing song, once each', () => {
+  const cueDocument = JSON.stringify({
+    version: 1,
+    blocks: [{ id: 'b', type: 'section', text: 'Chords', color: '#FFCC00' }],
+  });
+  const sources = [
+    { title: 'First Song', notes_raw_text: 'Verse', cue_document: cueDocument },
+    { title: 'first song', notes_raw_text: 'Second copy', cue_document: null },
+  ];
+  const used = new Set<(typeof sources)[number]>();
+  const first = restoreOmittedCues<{ title: string; notes_raw_text: string; cue_document?: CueDocument }>({ title: ' First Song ', notes_raw_text: '' }, sources, used);
+  assert.equal(first.notes_raw_text, 'Verse');
+  assert.equal(first.cue_document?.blocks.length, 1);
+  const second = restoreOmittedCues<{ title: string; notes_raw_text: string; cue_document?: CueDocument }>({ title: 'First Song', notes_raw_text: '' }, sources, used);
+  assert.equal(second.notes_raw_text, 'Second copy');
+  assert.equal(second.cue_document, undefined);
+  const none = restoreOmittedCues({ title: 'Other', notes_raw_text: '' }, sources, used);
+  assert.equal(none.notes_raw_text, '');
 });

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { defaultExportFileName, exportFileName } from '../lib/exportFileName';
@@ -22,7 +22,7 @@ type Props = {
   setlists: SetlistWithSongs[];
   standaloneSongs: Song[];
   groups: SetlistGroup[];
-  onExport: (selection: ExportSelection, fileName: string) => void;
+  onExport: (selection: ExportSelection, fileName: string, includeCues: boolean) => void;
 };
 
 export default function ExportScreen({ setlists, standaloneSongs, groups, onExport }: Props) {
@@ -31,6 +31,7 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
   const [selection, setSelection] = useState<ExportSelection>(EMPTY_SELECTION);
   const [suggestedName] = useState(() => defaultExportFileName());
   const [fileName, setFileName] = useState(suggestedName);
+  const [setlistOnly, setSetlistOnly] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, true>>({});
   const total = countSelection(selection);
   const allSelected =
@@ -132,6 +133,19 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
           />
           <Text style={styles.nameExtension}>.json</Text>
         </View>
+        <View style={styles.optionRow}>
+          <View style={styles.optionText}>
+            <Text style={styles.optionTitle}>Setlist only (no cues)</Text>
+            <Text style={styles.optionHint}>
+              Song titles, order and tags only. Importing it keeps the cues already on matching songs.
+            </Text>
+          </View>
+          <Switch
+            accessibilityLabel="Setlist only, no cues"
+            value={setlistOnly}
+            onValueChange={setSetlistOnly}
+          />
+        </View>
         <View style={styles.footerButtons}>
         <Pressable
           accessibilityRole="button"
@@ -156,7 +170,7 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
           accessibilityLabel="Export selected"
           accessibilityState={{ disabled: total === 0 }}
           disabled={total === 0}
-          onPress={() => onExport(selection, exportFileName(fileName, suggestedName))}
+          onPress={() => onExport(selection, exportFileName(fileName, suggestedName), !setlistOnly)}
           style={[styles.primaryButton, total === 0 && styles.disabled]}
         >
           <Text style={styles.primaryText}>Export selected</Text>
@@ -262,6 +276,10 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     borderRadius: 10,
     backgroundColor: theme.colors.surface,
   },
+  optionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4 },
+  optionText: { flex: 1 },
+  optionTitle: { color: theme.colors.text_primary, fontSize: 15, fontWeight: '600' },
+  optionHint: { color: theme.colors.text_secondary, fontSize: 12, marginTop: 2 },
   nameInput: { flex: 1, color: theme.colors.text_primary, fontSize: 15, paddingVertical: 10 },
   nameExtension: { color: theme.colors.text_secondary, fontSize: 15 },
   primaryButton: {
