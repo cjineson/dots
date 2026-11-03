@@ -1,7 +1,20 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { AccessibilityInfo, Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useTheme } from '../themeContext';
+
+const LOGO_MAX_WIDTH = 260;
+const LOGO_ASPECT = 845 / 259;
 
 type Props = {
   onCreateSetlist: () => void;
@@ -73,6 +86,10 @@ export default function EmptyDashboard({
 }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme.colors), [theme]);
+  const { width: windowWidth } = useWindowDimensions();
+  // Explicit pixel size: a percentage width with aspectRatio rendered the image oversized on iOS.
+  const logoWidth = Math.round(Math.min(LOGO_MAX_WIDTH, windowWidth * 0.7));
+  const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
   const [animate, setAnimate] = React.useState(true);
   const entrance = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
@@ -126,7 +143,7 @@ export default function EmptyDashboard({
             source={theme.mode === 'dark'
               ? require('../../assets/branding/dots-logo.png')
               : require('../../assets/branding/dots-logo-light.png')}
-            style={styles.logo}
+            style={{ width: logoWidth, height: logoHeight }}
             resizeMode="contain"
             accessibilityLabel="Dots"
           />
@@ -208,10 +225,6 @@ const createStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleShe
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  logo: {
-    width: '85%',
-    aspectRatio: 120 / 37,
   },
   title: {
     color: colors.text_primary,
