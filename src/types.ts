@@ -92,6 +92,7 @@ export type SetlistArchive = {
   format: 'gigbox-setlists';
   version: 5 | 6;
   exportedAt: string;
+  cues?: false;
   groups: string[];
   songs?: ArchiveSong[];
   setlists: Array<{
@@ -153,6 +154,7 @@ export type ImportedLibrary = {
   groups: string[];
   setlists: ImportedSetlist[];
   songs?: ArchiveSong[];
+  cuesOmitted?: true;
 };
 
 export type DashboardExpansionState = {

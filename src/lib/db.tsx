@@ -8,6 +8,8 @@ import {
   INITIAL_BACKUP_REMINDER_DELAY_DAYS,
 } from './settings';
 import type { AppSettings } from './settings';
+import { restoreOmittedCues } from './setlistArchive';
+import type { CueSource } from './setlistArchive';
 import { UNGROUPED_SONGS_SETLIST_NAME } from './ungrouped';
 import { parseStoredSongTags } from './songTags';
 import { findVariantConflict } from './songCopy';
@@ -923,9 +925,14 @@ function setlistHeaderValues(setlist: ImportedSetlist) {
 }
 
 // Updates the songs whose titles match and appends the rest, leaving other songs untouched.
-function mergePartialSetlist(setlistId: string, setlist: ImportedSetlist): void {
-  const existing = db.getAllSync<{ id: string; title: string }>(
-    `SELECT songs.id, songs.title FROM songs
+function mergePartialSetlist(setlistId: string, setlist: ImportedSetlist, keepCues: boolean): void {
+  const existing = db.getAllSync<{
+    id: string;
+    title: string;
+    notes_raw_text: string;
+    cue_document: string | null;
+  }>(
+    `SELECT songs.id, songs.title, songs.notes_raw_text, songs.cue_document FROM songs
      JOIN setlist_songs ON setlist_songs.song_id = songs.id
      WHERE setlist_songs.setlist_id = ?`,
     [setlistId],
@@ -955,9 +962,11 @@ function mergePartialSetlist(setlistId: string, setlist: ImportedSetlist): void 
       'UPDATE songs SET title = ?, notes_raw_text = ?, font_size = ?, cue_document = ?, tags = ? WHERE id = ?',
       [
         item.title.trim() || 'Untitled Song',
-        item.notes_raw_text,
+        keepCues ? match.notes_raw_text : item.notes_raw_text,
         item.font_size ?? 18,
-        item.cue_document ? JSON.stringify(item.cue_document) : null,
+        keepCues
+          ? match.cue_document
+          : item.cue_document ? JSON.stringify(item.cue_document) : null,
         JSON.stringify(item.tags ?? []),
         match.id,
       ],
@@ -1016,12 +1025,21 @@ export function importSetlists(library: ImportedLibrary, mode: ImportMode = 'cop
         : undefined;
 
       if (existingId && setlist.partial) {
-        mergePartialSetlist(existingId, setlist);
+        mergePartialSetlist(existingId, setlist, library.cuesOmitted === true);
         continue;
       }
 
       let setlistId = existingId;
+      let cueSources: CueSource[] = [];
       if (existingId) {
+        if (library.cuesOmitted) {
+          cueSources = db.getAllSync<CueSource>(
+            `SELECT songs.title, songs.notes_raw_text, songs.cue_document FROM songs
+             JOIN setlist_songs ON setlist_songs.song_id = songs.id
+             WHERE setlist_songs.setlist_id = ?`,
+            [existingId],
+          );
+        }
         db.runSync(
           'UPDATE setlists SET name = ?, location = ?, latitude = ?, longitude = ?, notes = ?, date = ?, time = ? WHERE id = ?',
           [...setlistHeaderValues(setlist), existingId],
@@ -1040,7 +1058,16 @@ export function importSetlists(library: ImportedLibrary, mode: ImportMode = 'cop
         );
       }
 
-      setlist.items.forEach((item, index) => insertImportedItem(setlistId as string, item, index));
+      const usedCueSources = new Set<CueSource>();
+      setlist.items.forEach((item, index) =>
+        insertImportedItem(
+          setlistId as string,
+          item.type === 'song' && library.cuesOmitted
+            ? restoreOmittedCues(item, cueSources, usedCueSources)
+            : item,
+          index,
+        ),
+      );
     }
 
     const claimedStandaloneIds = new Set<string>();
@@ -1062,9 +1089,11 @@ export function importSetlists(library: ImportedLibrary, mode: ImportMode = 'cop
         'UPDATE songs SET title = ?, notes_raw_text = ?, font_size = ?, cue_document = ?, tags = ? WHERE id = ?',
         [
           song.title.trim() || 'Untitled Song',
-          song.notes_raw_text,
+          library.cuesOmitted ? existing.notes_raw_text : song.notes_raw_text,
           song.font_size ?? 18,
-          song.cue_document ? JSON.stringify(song.cue_document) : null,
+          library.cuesOmitted
+            ? existing.cue_document ?? null
+            : song.cue_document ? JSON.stringify(song.cue_document) : null,
           JSON.stringify(song.tags ?? []),
           existing.id,
         ],

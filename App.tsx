@@ -337,6 +337,7 @@ export default function App() {
   const handleExportSelection = async (
     selection: ExportSelection,
     fileName: string,
+    includeCues: boolean,
     onDone: () => void,
   ) => {
     try {
@@ -353,7 +354,7 @@ export default function App() {
       }
 
       const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
-      const archive = createSetlistArchive(content.setlists, content.groups, content.songs);
+      const archive = createSetlistArchive(content.setlists, content.groups, content.songs, { includeCues });
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(archive, null, 2));
       await Sharing.shareAsync(fileUri, {
         mimeType: 'application/json',
@@ -362,6 +363,7 @@ export default function App() {
       });
       // Only a full export counts as a backup for the reminder.
       const exportedEverything =
+        includeCues &&
         content.groups.length === groups.length &&
         content.setlists.length === setlists.length &&
         content.songs.length === standaloneSongs.length &&
@@ -616,8 +618,8 @@ export default function App() {
                 setlists={setlists}
                 standaloneSongs={standaloneSongs}
                 groups={groups}
-                onExport={(selection, fileName) =>
-                  void handleExportSelection(selection, fileName, () => navigation.goBack())
+                onExport={(selection, fileName, includeCues) =>
+                  void handleExportSelection(selection, fileName, includeCues, () => navigation.goBack())
                 }
               />
             )}

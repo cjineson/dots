@@ -17,12 +17,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function exportSong(song: Song): ArchiveSong {
+function exportSong(song: Song, includeCues: boolean): ArchiveSong {
   return {
     title: song.title,
-    notes_raw_text: song.notes_raw_text,
+    notes_raw_text: includeCues ? song.notes_raw_text : '',
     font_size: song.font_size,
-    ...(song.cue_document
+    ...(includeCues && song.cue_document
       ? { cue_document: parseCueDocument(song.cue_document) }
       : {}),
     ...(song.tags?.length ? { tags: song.tags } : {}),
@@ -33,13 +33,17 @@ export function createSetlistArchive(
   setlists: Array<SetlistWithSongs & { partial?: boolean }>,
   groups: SetlistGroup[] = [],
   songs: Song[] = [],
+  options: { includeCues?: boolean } = {},
 ): SetlistArchive {
+  const includeCues = options.includeCues ?? true;
   return {
     format: 'gigbox-setlists',
     version: 6,
     exportedAt: new Date().toISOString(),
+    // Importers use this to keep the cues they already have instead of blanking them.
+    ...(includeCues ? {} : { cues: false as const }),
     groups: groups.map(({ name }) => name),
-    songs: songs.map(exportSong),
+    songs: songs.map((song) => exportSong(song, includeCues)),
     setlists: setlists.map(({ name, group_name, location, latitude, longitude, notes, date, time, items, partial }) => ({
       name,
       ...(partial ? { partial: true as const } : {}),
@@ -51,7 +55,7 @@ export function createSetlistArchive(
       ...(time ? { time } : {}),
       items: items.map((item) =>
         item.kind === 'song'
-          ? { type: 'song' as const, ...exportSong(item.song) }
+          ? { type: 'song' as const, ...exportSong(item.song, includeCues) }
           : {
               type: 'break' as const,
               ...(item.duration_minutes !== undefined
@@ -279,5 +283,31 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
     throw new Error('This export does not contain any setlists.');
   }
 
-  return { groups, setlists, ...(songs ? { songs } : {}) };
+  return {
+    groups,
+    setlists,
+    ...(songs ? { songs } : {}),
+    ...(value.cues === false ? { cuesOmitted: true as const } : {}),
+  };
+}
+
+export type CueSource = { title: string; notes_raw_text: string; cue_document?: string | null };
+
+const normalizeTitle = (title: string) => title.trim().toLocaleLowerCase();
+
+// For cue-less archives: gives an imported song the cues of the existing song with the same title.
+export function restoreOmittedCues<
+  T extends { title: string; notes_raw_text: string; cue_document?: CueDocument },
+>(item: T, sources: CueSource[], used: Set<CueSource>): T {
+  const key = normalizeTitle(item.title);
+  const match = sources.find((source) => !used.has(source) && normalizeTitle(source.title) === key);
+  if (!match) {
+    return item;
+  }
+  used.add(match);
+  return {
+    ...item,
+    notes_raw_text: match.notes_raw_text,
+    cue_document: match.cue_document ? parseCueDocument(match.cue_document) : undefined,
+  };
 }
