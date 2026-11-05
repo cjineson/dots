@@ -13,6 +13,7 @@ import type { CueSource } from './setlistArchive';
 import { UNGROUPED_SONGS_SETLIST_NAME } from './ungrouped';
 import { parseStoredSongTags } from './songTags';
 import { findVariantConflict } from './songCopy';
+import { deriveNoteTitle } from './noteTitle';
 import { makeId } from './uuid';
 import type {
   DashboardExpansionState,
@@ -103,6 +104,10 @@ export function initializeDatabase(): void {
   if (!songColumns.some((column) => column.name === 'sort_order')) {
     db.execSync('ALTER TABLE songs ADD COLUMN sort_order INTEGER');
   }
+  if (!songColumns.some((column) => column.name === 'is_note')) {
+    db.execSync('ALTER TABLE songs ADD COLUMN is_note INTEGER NOT NULL DEFAULT 0');
+  }
+  db.runSync("UPDATE songs SET title = '' WHERE is_note = 1 AND title LIKE 'untitled-%'");
   const setlistColumns = db.getAllSync<{ name: string }>('PRAGMA table_info(setlists)');
   for (const column of ['location', 'date', 'time', 'group_id']) {
     if (!setlistColumns.some((existing) => existing.name === column)) {
@@ -425,7 +430,26 @@ export function deleteSetlist(setlistId: string): void {
     db.runSync('DELETE FROM setlist_songs WHERE setlist_id = ?', [setlistId]);
     db.runSync('DELETE FROM setlist_breaks WHERE setlist_id = ?', [setlistId]);
     db.runSync('DELETE FROM setlists WHERE id = ?', [setlistId]);
+    deleteOrphanedNotes();
   });
+}
+
+// Notes only exist inside setlists, so one that loses its last setlist is removed.
+function deleteOrphanedNotes(): void {
+  db.runSync(
+    'DELETE FROM songs WHERE is_note = 1 AND NOT EXISTS (SELECT 1 FROM setlist_songs WHERE setlist_songs.song_id = songs.id)',
+  );
+}
+
+// Notes without their own title are named after their first line at read time.
+function songTitleFields(
+  isNote: boolean,
+  storedTitle: string,
+  notesRawText: string,
+): Pick<Song, 'title' | 'title_derived'> {
+  return isNote && !storedTitle.trim()
+    ? { title: deriveNoteTitle(notesRawText), title_derived: true }
+    : { title: storedTitle };
 }
 
 export function copySetlist(setlistId: string): Setlist {
@@ -509,13 +533,18 @@ export function copySongToSetlist(
     [targetSetlistId, source.id],
   );
   if (link) {
+    if (source.is_note) {
+      return duplicateSongInSetlist(source, targetSetlistId, link.sort_order);
+    }
     if (!variantTag) {
       throw new Error('This song is already in the setlist. Add a tag to make a separate version.');
     }
     return duplicateSongInSetlist(source, targetSetlistId, link.sort_order, variantTag);
   }
 
-  assertNoVariantConflict(targetSetlistId, source.title, source.tags ?? [], source.id);
+  if (!source.is_note) {
+    assertNoVariantConflict(targetSetlistId, source.title, source.tags ?? [], source.id);
+  }
   db.runSync(
     'INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
     [targetSetlistId, source.id, getNextSortOrderForSetlist(targetSetlistId)],
@@ -554,17 +583,19 @@ function duplicateSongInSetlist(
   source: Song,
   setlistId: string,
   afterSortOrder: number,
-  variantTag: SongTag,
+  variantTag?: SongTag,
 ): Song {
-  const label = variantTag.label.trim();
-  if (!label) {
-    throw new Error('Enter a tag so the new version can be told apart.');
+  let tags = source.tags ?? [];
+  if (variantTag) {
+    const label = variantTag.label.trim();
+    if (!label) {
+      throw new Error('Enter a tag so the new version can be told apart.');
+    }
+    if (!tags.some((tag) => tag.label.toLocaleLowerCase() === label.toLocaleLowerCase())) {
+      tags = [...tags, { label, color: variantTag.color }];
+    }
+    assertNoVariantConflict(setlistId, source.title, tags);
   }
-  const sourceTags = source.tags ?? [];
-  const tags = sourceTags.some((tag) => tag.label.toLocaleLowerCase() === label.toLocaleLowerCase())
-    ? sourceTags
-    : [...sourceTags, { label, color: variantTag.color }];
-  assertNoVariantConflict(setlistId, source.title, tags);
 
   const copy: Song = { ...source, id: makeId(), tags };
   db.withTransactionSync(() => {
@@ -577,14 +608,15 @@ function duplicateSongInSetlist(
       [setlistId, afterSortOrder],
     );
     db.runSync(
-      'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags, is_note) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [
         copy.id,
-        copy.title,
+        copy.title_derived ? '' : copy.title,
         copy.notes_raw_text,
         copy.font_size ?? 18,
         copy.cue_document ?? null,
         JSON.stringify(tags),
+        copy.is_note ? 1 : 0,
       ],
     );
     db.runSync(
@@ -613,15 +645,16 @@ export function getSetlistsWithSongs(): SetlistWithSongs[] {
       font_size: number | null;
       cue_document: string | null;
       tags: string | null;
+      is_note: number | null;
       duration_minutes: number | null;
     }>(
       `SELECT 'song' AS kind, s.id, ss.sort_order, s.title, s.notes_raw_text,
-              s.font_size, s.cue_document, s.tags, NULL AS duration_minutes
+              s.font_size, s.cue_document, s.tags, s.is_note, NULL AS duration_minutes
        FROM songs s
        INNER JOIN setlist_songs ss ON ss.song_id = s.id
        WHERE ss.setlist_id = ?
        UNION ALL
-       SELECT 'break' AS kind, id, sort_order, NULL, NULL, NULL, NULL, NULL, duration_minutes
+       SELECT 'break' AS kind, id, sort_order, NULL, NULL, NULL, NULL, NULL, NULL, duration_minutes
        FROM setlist_breaks
        WHERE setlist_id = ?
        ORDER BY sort_order ASC`,
@@ -645,11 +678,12 @@ export function getSetlistsWithSongs(): SetlistWithSongs[] {
         kind: 'song',
         song: {
           id: row.id,
-          title: row.title,
+          ...songTitleFields(row.is_note === 1, row.title, row.notes_raw_text),
           notes_raw_text: row.notes_raw_text,
           font_size: row.font_size ?? undefined,
           cue_document: row.cue_document ?? undefined,
           tags: parseStoredSongTags(row.tags),
+          ...(row.is_note ? { is_note: true } : {}),
         },
       };
     });
@@ -684,7 +718,7 @@ export function getStandaloneSongs(): Song[] {
      FROM songs
      WHERE NOT EXISTS (
        SELECT 1 FROM setlist_songs WHERE setlist_songs.song_id = songs.id
-     )
+     ) AND songs.is_note = 0
      ORDER BY songs.sort_order IS NULL, songs.sort_order ASC, songs.title COLLATE NOCASE ASC`,
   );
   return rows.map((row) => ({
@@ -731,6 +765,11 @@ export function deleteSongFromSetlist(setlistId: string, songId: string): void {
     ]);
     const remaining = db.getFirstSync('SELECT 1 FROM setlist_songs WHERE song_id = ?', [songId]);
     if (!remaining) {
+      const isNote = db.getFirstSync('SELECT 1 FROM songs WHERE id = ? AND is_note = 1', [songId]);
+      if (isNote) {
+        db.runSync('DELETE FROM songs WHERE id = ?', [songId]);
+        return;
+      }
       // A song leaving its last setlist becomes an ungrouped song at the bottom of the list.
       db.runSync('UPDATE songs SET group_id = NULL, sort_order = ? WHERE id = ?', [
         getNextStandaloneSongOrder(),
@@ -762,15 +801,17 @@ export function getSongById(songId: string): Song | null {
     font_size: number | null;
     cue_document: string | null;
     tags: string | null;
+    is_note: number | null;
   }>('SELECT * FROM songs WHERE id = ?', [songId]);
   return row
     ? {
         id: row.id,
-        title: row.title,
+        ...songTitleFields(row.is_note === 1, row.title, row.notes_raw_text),
         notes_raw_text: row.notes_raw_text,
         font_size: row.font_size ?? undefined,
         cue_document: row.cue_document ?? undefined,
         tags: parseStoredSongTags(row.tags),
+        ...(row.is_note ? { is_note: true } : {}),
       }
     : null;
 }
@@ -784,21 +825,27 @@ export function saveSongForSetlist({
   cue_document,
   tags,
   font_size,
+  is_note,
 }: {
   setlistId?: string;
   groupId?: string | null;
   songId?: string;
   font_size?: number;
+  is_note?: boolean;
   title: string;
   notes_raw_text: string;
   cue_document: string;
   tags: Song['tags'];
 }): Song {
   const id = songId ?? makeId();
-  const cleanedTitle = title.trim() || 'Untitled Song';
-
   const existing = getSongById(id);
-  if (setlistId) {
+  const isNote = existing ? existing.is_note === true : is_note === true;
+  if (isNote && !setlistId && !existing) {
+    throw new Error('A note must be added to a setlist.');
+  }
+  const cleanedTitle = isNote ? title.trim() : title.trim() || 'Untitled Song';
+
+  if (setlistId && !isNote) {
     assertNoVariantConflict(setlistId, cleanedTitle, tags ?? [], id);
   }
 
@@ -818,7 +865,7 @@ export function saveSongForSetlist({
       }
     }
     db.runSync(
-      'INSERT INTO songs (id, title, notes_raw_text, cue_document, tags, font_size, group_id, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO songs (id, title, notes_raw_text, cue_document, tags, font_size, group_id, sort_order, is_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         id,
         cleanedTitle,
@@ -828,6 +875,7 @@ export function saveSongForSetlist({
         font_size ?? 18,
         setlistId ? null : groupId ?? null,
         setlistId ? null : getNextStandaloneSongOrder(),
+        isNote ? 1 : 0,
       ],
     );
   }
@@ -841,10 +889,11 @@ export function saveSongForSetlist({
 
   return {
     id,
-    title: cleanedTitle,
+    ...songTitleFields(isNote, cleanedTitle, notes_raw_text),
     notes_raw_text,
     cue_document,
     tags: tags ?? [],
+    ...(isNote ? { is_note: true } : {}),
   };
 }
 
@@ -873,15 +922,17 @@ type ImportedItem = ImportedSetlist['items'][number];
 function insertImportedItem(setlistId: string, item: ImportedItem, sortOrder: number): void {
   if (item.type === 'song') {
     const songId = makeId();
+    const isNote = item.note === true;
     db.runSync(
-      'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags, is_note) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [
         songId,
-        item.title.trim() || 'Untitled Song',
+        item.title.trim() || (isNote ? '' : 'Untitled Song'),
         item.notes_raw_text,
         item.font_size ?? 18,
         item.cue_document ? JSON.stringify(item.cue_document) : null,
         JSON.stringify(item.tags ?? []),
+        isNote ? 1 : 0,
       ],
     );
     db.runSync(
@@ -932,8 +983,9 @@ function mergePartialSetlist(setlistId: string, setlist: ImportedSetlist, keepCu
     notes_raw_text: string;
     cue_document: string | null;
     tags: string | null;
+    is_note: number;
   }>(
-    `SELECT songs.id, songs.title, songs.notes_raw_text, songs.cue_document, songs.tags FROM songs
+    `SELECT songs.id, songs.title, songs.notes_raw_text, songs.cue_document, songs.tags, songs.is_note FROM songs
      JOIN setlist_songs ON setlist_songs.song_id = songs.id
      WHERE setlist_songs.setlist_id = ?`,
     [setlistId],
@@ -952,7 +1004,11 @@ function mergePartialSetlist(setlistId: string, setlist: ImportedSetlist, keepCu
     }
     const title = item.title.trim().toLocaleLowerCase();
     const match = existing.find(
-      (song) => !claimed.has(song.id) && (song.title ?? '').trim().toLocaleLowerCase() === title,
+      (song) =>
+        !claimed.has(song.id) &&
+        (song.is_note === 1) === (item.note === true) &&
+        (item.note !== true || title !== '') &&
+        (song.title ?? '').trim().toLocaleLowerCase() === title,
     );
     if (!match) {
       insertImportedItem(setlistId, item, nextSort++);

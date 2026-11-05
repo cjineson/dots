@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd /workspaces/dots && git add -A && git commit -q -F - <<'EOF'\nfeat: add notes between songs in setlists\n\nNotes are song-like items \\(is_note\\) for chat prompts and reminders\\. They\nare named after their first line unless titled, are copied between\nsetlists like songs, and export with note: true in v6 archives\\. Also stops\nthe OS double-space full stop corrupting chord entry\\.\n\nCo-authored-by: Copilot <223556219\\+Copilot@users\\.noreply\\.github\\.com>\nEOF\ngit log --oneline -1 && git push -u origin feat/setlist-notes 2>&1 \\| tail -3; command -v gh$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

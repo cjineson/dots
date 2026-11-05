@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useTheme } from '../themeContext';
+import { undoAutoPeriod } from '../lib/autoPeriod';
 import type { AppTheme } from '../theme';
 import type { CueBlock } from '../types';
 
@@ -52,9 +53,12 @@ export default function PerformanceCueContent({
                         accessibilityLabel={`Edit table cell ${rowIndex + 1}, ${columnIndex + 1}`}
                         value={cell}
                         onChangeText={(value) =>
-                          onTableCellChange(block.id, rowIndex, columnIndex, value)
+                          onTableCellChange(block.id, rowIndex, columnIndex, undoAutoPeriod(cell, value))
                         }
                         multiline
+                        autoCorrect={false}
+                        spellCheck={false}
+                        autoCapitalize="none"
                         textAlign="center"
                         textAlignVertical="center"
                         style={[
@@ -93,8 +97,11 @@ export default function PerformanceCueContent({
             key={block.id}
             accessibilityLabel={`Edit ${block.type} cue`}
             value={block.text}
-            onChangeText={(text) => onTextChange(block.id, text)}
+            onChangeText={(text) => onTextChange(block.id, undoAutoPeriod(block.text, text))}
             multiline
+            autoCorrect={false}
+            spellCheck={false}
+            autoCapitalize="none"
             textAlign="center"
             textAlignVertical="center"
             style={[textStyle, styles.editableCueInput]}

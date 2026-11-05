@@ -28,6 +28,10 @@ export type Song = {
   cue_document?: string;
   tags?: SongTag[];
   group_id?: string | null;
+  /** A general note between songs (chat, reminders); stored and formatted like a song. */
+  is_note?: boolean;
+  /** For notes without their own title: `title` is the first line of text, and views hide it. */
+  title_derived?: boolean;
 };
 
 export type SongTag = {
@@ -113,6 +117,7 @@ export type SetlistArchive = {
           font_size?: number;
           cue_document?: CueDocument;
           tags?: SongTag[];
+          note?: true;
         }
       | { type: 'break'; duration_minutes?: number }
     >;
@@ -122,6 +127,7 @@ export type SetlistArchive = {
 export type ArchiveSong = {
   title: string;
   notes_raw_text: string;
+  note?: true;
   font_size?: number;
   cue_document?: CueDocument;
   tags?: SongTag[];
@@ -145,6 +151,7 @@ export type ImportedSetlist = {
         font_size?: number;
         cue_document?: CueDocument;
         tags?: SongTag[];
+        note?: true;
       }
     | { type: 'break'; duration_minutes?: number }
   >;
