@@ -20,8 +20,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function exportSong(song: Song, includeCues: boolean): ArchiveSong {
   return {
-    title: song.title,
+    title: song.title_derived ? '' : song.title,
     notes_raw_text: includeCues ? song.notes_raw_text : '',
+    ...(song.is_note ? { note: true as const } : {}),
     font_size: song.font_size,
     ...(includeCues && song.cue_document
       ? { cue_document: parseCueDocument(song.cue_document) }
@@ -73,6 +74,7 @@ function parseSong(song: unknown, setlistName: string, songIndex: number) {
     !isRecord(song) ||
     typeof song.title !== 'string' ||
     typeof song.notes_raw_text !== 'string' ||
+    (song.note !== undefined && song.note !== true) ||
     (song.font_size !== undefined &&
       (typeof song.font_size !== 'number' ||
         song.font_size < MIN_FONT_SIZE ||
@@ -107,6 +109,7 @@ function parseSong(song: unknown, setlistName: string, songIndex: number) {
     type: 'song' as const,
     title: song.title,
     notes_raw_text: song.notes_raw_text,
+    ...(song.note === true ? { note: true as const } : {}),
     font_size: song.font_size,
     ...(cueDocument ? { cue_document: cueDocument } : {}),
     ...(tags?.length ? { tags } : {}),

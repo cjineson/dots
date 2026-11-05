@@ -33,6 +33,7 @@ import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
 import { useScreenAwake } from '../lib/keepAwake';
+import { NOTE_ICON, SONG_ICON } from '../lib/noteTitle';
 import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
 import { parseNotes, toggleChecklistLine } from '../lib/notes';
 import {
@@ -649,7 +650,7 @@ export default function FlowScreen({
           return (
             <View
               key={song.id}
-              style={styles.song}
+              style={[styles.song, song.is_note && styles.noteCard]}
               onLayout={(event) => {
                 songYs.current[song.id] = event.nativeEvent.layout.y;
                 if (scrollAnchor.current?.id === song.id) {
@@ -658,9 +659,18 @@ export default function FlowScreen({
               }}
             >
               <View style={styles.songTitle}>
-                <Text style={styles.songTitleText}>
-                  {song.title}
-                </Text>
+                <MaterialCommunityIcons
+                  name={song.is_note ? NOTE_ICON : SONG_ICON}
+                  size={22}
+                  color={theme.colors.text_secondary}
+                />
+                {song.title_derived ? (
+                  <View style={styles.songTitleText} />
+                ) : (
+                  <Text style={styles.songTitleText}>
+                    {song.title}
+                  </Text>
+                )}
                 <SongTags
                   tags={song.tags}
                   compact
@@ -840,6 +850,10 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     borderRadius: 16,
     padding: theme.layout.box_padding,
     marginBottom: 14,
+  },
+  noteCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
   },
   break: {
     flexDirection: 'row',

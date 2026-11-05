@@ -38,6 +38,7 @@ import {
   TAG_SIZE_STEP,
 } from '../lib/fontSize';
 import { useScreenAwake } from '../lib/keepAwake';
+import { NOTE_ICON, SONG_ICON } from '../lib/noteTitle';
 import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
 import {
   AUTO_SCROLL_SLIDER_CURVE,
@@ -334,7 +335,16 @@ export default function LivePerformanceScreen({
           <>
             <View style={styles.performanceHeading}>
               <View style={styles.performanceTitleRow}>
-                <Text numberOfLines={1} style={styles.songTitle}>{song?.title ?? 'Break'}</Text>
+                {song && (
+                  <MaterialCommunityIcons
+                    name={song.is_note ? NOTE_ICON : SONG_ICON}
+                    size={22}
+                    color={theme.colors.text_secondary}
+                  />
+                )}
+                {!song?.title_derived && (
+                  <Text numberOfLines={1} style={styles.songTitle}>{song?.title ?? 'Break'}</Text>
+                )}
                 <Text style={styles.positionText}>Editing cues</Text>
               </View>
             </View>
@@ -415,9 +425,18 @@ export default function LivePerformanceScreen({
             )}
             <View style={styles.performanceHeading}>
               <View style={styles.performanceTitleRow}>
-                <Text numberOfLines={1} style={styles.songTitle}>
-                  {song?.title ?? 'Break'}
-                </Text>
+                {song && (
+                  <MaterialCommunityIcons
+                    name={song.is_note ? NOTE_ICON : SONG_ICON}
+                    size={22}
+                    color={theme.colors.text_secondary}
+                  />
+                )}
+                {!song?.title_derived && (
+                  <Text numberOfLines={1} style={styles.songTitle}>
+                    {song?.title ?? 'Break'}
+                  </Text>
+                )}
                 {song && !isEditorPreview && settings.showPerformanceEditButton && (
                   <Pressable
                     accessibilityRole="button"

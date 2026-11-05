@@ -22,6 +22,8 @@ import {
 import PerformanceCueContent from '../components/PerformanceCueContent';
 import SongTagsView from '../components/SongTags';
 import { makeId } from '../lib/uuid';
+import { undoAutoPeriod } from '../lib/autoPeriod';
+import { deriveNoteTitle } from '../lib/noteTitle';
 import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
@@ -29,6 +31,7 @@ import type { CueBlock, CueDocument, CueTextColor, Song, SongTag, TagColor } fro
 
 type SongEditorScreenProps = {
   initialSong?: Song;
+  isNote?: boolean;
   commonTags: SongTag[];
   onCancel: () => void;
   onSave: (payload: {
@@ -47,6 +50,7 @@ const FONT_SIZE_STEP = 2;
 
 export default function SongEditorScreen({
   initialSong,
+  isNote = false,
   commonTags,
   onCancel,
   onSave,
@@ -54,7 +58,7 @@ export default function SongEditorScreen({
 }: SongEditorScreenProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [title, setTitle] = useState(initialSong?.title ?? '');
+  const [title, setTitle] = useState(initialSong?.title_derived ? '' : initialSong?.title ?? '');
   const [document, setDocument] = useState<CueDocument>(() =>
     initialSong?.cue_document
       ? parseCueDocument(initialSong.cue_document)
@@ -64,17 +68,19 @@ export default function SongEditorScreen({
   const [tagName, setTagName] = useState('');
   const [tagColor, setTagColor] = useState<TagColor>(TAG_COLORS[1]);
 
-  const currentSong = useMemo(
-    () => ({
+  const currentSong = useMemo(() => {
+    const notesRawText = flattenCueDocument(document);
+    return {
       id: initialSong?.id ?? 'new-song',
-      title: title.trim() || 'Untitled Song',
-      notes_raw_text: flattenCueDocument(document),
+      title: title.trim() || (isNote ? deriveNoteTitle(notesRawText) : 'Untitled Song'),
+      ...(isNote && !title.trim() ? { title_derived: true } : {}),
+      notes_raw_text: notesRawText,
       cue_document: serializeCueDocument(document),
       font_size: initialSong?.font_size ?? theme.typography.box_text_size,
       tags,
-    }),
-    [document, tags, title, initialSong],
-  );
+      ...(isNote ? { is_note: true } : {}),
+    };
+  }, [document, tags, title, initialSong, isNote]);
   const savePayload = () => ({
     title,
     notesRawText: currentSong.notes_raw_text,
@@ -233,10 +239,15 @@ export default function SongEditorScreen({
                 <TextInput
                   key={`${block.id}-cell-${rowIndex}-${columnIndex}`}
                   value={cell}
-                  onChangeText={(value) => updateTableCell(block, rowIndex, columnIndex, value)}
+                  onChangeText={(value) =>
+                    updateTableCell(block, rowIndex, columnIndex, undoAutoPeriod(cell, value))
+                  }
                   placeholder={rowIndex === 0 ? `Column ${columnIndex + 1}` : 'Cue'}
                   placeholderTextColor={theme.colors.text_secondary}
                   multiline
+                  autoCorrect={false}
+                  spellCheck={false}
+                  autoCapitalize="none"
                   textAlignVertical="top"
                   style={[
                     styles.tableCell,
@@ -283,7 +294,9 @@ export default function SongEditorScreen({
           value={block.text}
           onChangeText={(text) =>
             updateBlock(block.id, (current) =>
-              current.type === 'text' || current.type === 'section' ? { ...current, text } : current,
+              current.type === 'text' || current.type === 'section'
+                ? { ...current, text: undoAutoPeriod(current.text, text) }
+                : current,
             )
           }
           placeholder={
@@ -293,6 +306,9 @@ export default function SongEditorScreen({
           }
           placeholderTextColor={theme.colors.text_secondary}
           multiline={block.type === 'text'}
+          autoCorrect={false}
+          spellCheck={false}
+          autoCapitalize="none"
           textAlignVertical="top"
           style={[
             styles.input,
@@ -314,10 +330,15 @@ export default function SongEditorScreen({
         <TextInput
           value={title}
           onChangeText={setTitle}
-          placeholder="Song title"
+          placeholder={isNote ? 'Note title (optional)' : 'Song title'}
           placeholderTextColor={theme.colors.text_secondary}
           style={styles.input}
         />
+        {isNote && (
+          <Text style={styles.helperText}>
+            Optional. Without a title the note is named after its first line, and that name is hidden in the dashboard, Flow and performance headers.
+          </Text>
+        )}
 
         <Text style={styles.label}>Tags</Text>
         <View style={styles.tagEditor}>
@@ -393,9 +414,11 @@ export default function SongEditorScreen({
         </View>
 
         <View style={styles.cueHeading}>
-          <Text style={styles.label}>Song text</Text>
+          <Text style={styles.label}>{isNote ? 'Note text' : 'Song text'}</Text>
           <Text style={styles.helperText}>
-            Paste or type your lyrics, chords or guitar tabs. This is what you see on stage.
+            {isNote
+              ? 'Reminders, announcements or chat prompts. This is what you see on stage.'
+              : 'Paste or type your lyrics, chords or guitar tabs. This is what you see on stage.'}
           </Text>
         </View>
 

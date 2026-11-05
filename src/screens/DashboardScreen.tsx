@@ -27,6 +27,7 @@ import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
 import { TAG_COLORS } from '../lib/cueDocument';
 import { hasMapTarget, openInMaps } from '../lib/maps';
+import { NOTE_ICON, SONG_ICON } from '../lib/noteTitle';
 import { BACKUP_REMIND_LATER_DAYS, BACKUP_REMINDER_DAYS } from '../lib/settings';
 import type { SongSearchEntry } from '../lib/songSearch';
 import type { AppTheme } from '../theme';
@@ -65,6 +66,7 @@ type DashboardScreenProps = {
   onCreateSong: (groupId?: string | null) => void;
   onOpenPerformance: (items: SetlistItem[], index: number) => void;
   onOpenNewSong: (setlistId: string) => void;
+  onOpenNewNote: (setlistId: string) => void;
   onReorderSetlists: (orderedIds: string[]) => void;
   onReorderItems: (setlistId: string, items: SetlistItem[]) => void;
   onReorderSongs: (orderedIds: string[]) => void;
@@ -97,6 +99,7 @@ export default function DashboardScreen({
   onCreateSong,
   onOpenPerformance,
   onOpenNewSong,
+  onOpenNewNote,
   onReorderSetlists,
   onReorderItems,
   onReorderSongs,
@@ -124,7 +127,7 @@ export default function DashboardScreen({
   } | null>(null);
   const [picker, setPicker] = React.useState<
     | { kind: 'copy-setlist' }
-    | { kind: 'copy-song'; targetSetlistId: string; sourceSetlistId: string | null }
+    | { kind: 'copy-song'; targetSetlistId: string; sourceSetlistId: string | null; notes?: boolean }
     | null
   >(null);
   const [copyingSong, setCopyingSong] = React.useState<{
@@ -216,6 +219,13 @@ export default function DashboardScreen({
             setAddingBreakTo(setlist.id);
           },
         },
+        { label: 'Add new note', icon: NOTE_ICON, onPress: () => onOpenNewNote(setlist.id) },
+        {
+          label: 'Add existing note',
+          icon: NOTE_ICON,
+          onPress: () =>
+            setPicker({ kind: 'copy-song', targetSetlistId: setlist.id, sourceSetlistId: null, notes: true }),
+        },
       ],
     });
   };
@@ -275,7 +285,7 @@ export default function DashboardScreen({
   };
 
   const pickerFromStandalone =
-    picker?.kind === 'copy-song' && picker.sourceSetlistId === STANDALONE_SOURCE;
+    picker?.kind === 'copy-song' && !picker.notes && picker.sourceSetlistId === STANDALONE_SOURCE;
   const pickerSource = picker?.kind === 'copy-song'
     ? pickerFromStandalone
       ? {
@@ -289,7 +299,7 @@ export default function DashboardScreen({
     if (!copyingSong) {
       return;
     }
-    if (copyingSong.sourceSetlistId && targetSetlistId === copyingSong.sourceSetlistId) {
+    if (copyingSong.sourceSetlistId && targetSetlistId === copyingSong.sourceSetlistId && !copyingSong.song.is_note) {
       // Same-title songs in one setlist must differ by tag, so ask for one.
       setVariantFor({ song: copyingSong.song, setlistId: targetSetlistId });
       setVariantName('');
@@ -342,13 +352,25 @@ export default function DashboardScreen({
         setlist.items.some((item) => item.kind === 'song' && item.song.id === song.id),
     );
     if (usedElsewhere) {
-      Alert.alert('Remove song from setlist?', `"${song.title}" stays in your other setlists.`, [
+      Alert.alert(
+        `Remove ${song.is_note ? 'note' : 'song'} from setlist?`,
+        `"${song.title}" stays in your other setlists.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: run(() => onDeleteSong(setlistId, song.id)),
+          },
+        ],
+      );
+      return;
+    }
+
+    if (song.is_note) {
+      Alert.alert('Delete note?', `Delete "${song.title}"? It isn't in any other setlist.`, [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: run(() => onDeleteSong(setlistId, song.id)),
-        },
+        { text: 'Delete', style: 'destructive', onPress: run(() => onDeleteSong(setlistId, song.id)) },
       ]);
       return;
     }
@@ -729,7 +751,18 @@ export default function DashboardScreen({
                               ),
                             )}
                           >
-                            <Text style={styles.songTitle}>{item.song.title}</Text>
+                            <MaterialCommunityIcons
+                              name={item.song.is_note ? NOTE_ICON : SONG_ICON}
+                              size={18}
+                              color={theme.colors.text_secondary}
+                            />
+                            {item.song.is_note ? (
+                              <Text numberOfLines={1} style={[styles.songTitle, styles.untitledNotePreview]}>
+                                {item.song.title}
+                              </Text>
+                            ) : (
+                              <Text style={styles.songTitle}>{item.song.title}</Text>
+                            )}
                             <SongTags tags={item.song.tags} compact />
                           </Pressable>
                           <View style={styles.songActions}>
@@ -1149,7 +1182,7 @@ export default function DashboardScreen({
           >
             <View style={styles.renameDialog}>
               <Text style={styles.dialogTitle}>
-                {copyingSong?.sourceSetlistId ? 'Copy song to setlist' : 'Add song to setlist'}
+                {copyingSong?.sourceSetlistId ? 'Copy' : 'Add'} {copyingSong?.song.is_note ? 'note' : 'song'} to setlist
               </Text>
               <Text style={styles.copyHint}>
                 Choose a destination for “{copyingSong?.song.title}”.
@@ -1221,11 +1254,17 @@ export default function DashboardScreen({
             <Text style={styles.dialogTitle}>
               {picker?.kind === 'copy-setlist'
                 ? 'Copy which setlist?'
-                : pickerSource ? `Copy a song from ${pickerSource.name}` : 'Copy from where?'}
+                : pickerSource ? `Copy a ${picker?.kind === 'copy-song' && picker.notes ? 'note' : 'song'} from ${pickerSource.name}` : 'Copy from where?'}
             </Text>
             <ScrollView style={styles.destinationList}>
               {pickerSource
-                ? pickerSource.items.flatMap((item) => (item.kind === 'song' ? [item.song] : [])).map((song) => (
+                ? pickerSource.items
+                    .flatMap((item) => (
+                      item.kind === 'song' && Boolean(item.song.is_note) === Boolean(picker?.kind === 'copy-song' && picker.notes)
+                        ? [item.song]
+                        : []
+                    ))
+                    .map((song) => (
                     <Pressable
                       key={song.id}
                       accessibilityRole="button"
@@ -1243,13 +1282,17 @@ export default function DashboardScreen({
                       }}
                       style={styles.destinationButton}
                     >
-                      <MaterialCommunityIcons name="music-note" size={22} color={theme.colors.action_primary} />
+                      <MaterialCommunityIcons
+                        name={song.is_note ? NOTE_ICON : SONG_ICON}
+                        size={22}
+                        color={theme.colors.action_primary}
+                      />
                       <Text numberOfLines={1} style={styles.destinationText}>{song.title}</Text>
                       <SongTags tags={song.tags} compact />
                     </Pressable>
                   ))
                 : [
-                    ...(picker?.kind === 'copy-song' && standaloneSongs.length > 0
+                    ...(picker?.kind === 'copy-song' && !picker.notes && standaloneSongs.length > 0
                       ? [{ id: STANDALONE_SOURCE, name: 'Songs', items: [], standalone: true }]
                       : []),
                     ...setlists.map((setlist) => ({ ...setlist, standalone: false })),
@@ -1257,7 +1300,9 @@ export default function DashboardScreen({
                     .filter((setlist) => setlist.standalone || picker?.kind === 'copy-setlist' || (
                       picker?.kind === 'copy-song' &&
                       setlist.id !== picker.targetSetlistId &&
-                      setlist.items.some((item) => item.kind === 'song')
+                      setlist.items.some((item) =>
+                        item.kind === 'song' && Boolean(item.song.is_note) === Boolean(picker.notes),
+                      )
                     ))
                     .map((setlist) => (
                       <Pressable
@@ -1650,6 +1695,10 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
   dragHandleText: {
     color: theme.colors.text_secondary,
     fontSize: 18,
+  },
+  untitledNotePreview: {
+    color: theme.colors.text_secondary,
+    fontStyle: 'italic',
   },
   songTitle: {
     color: theme.colors.text_primary,

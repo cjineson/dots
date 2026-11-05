@@ -93,7 +93,7 @@ type RootStackParamList = {
   Dashboard: undefined;
   Settings: undefined;
   Export: undefined;
-  Editor: { setlistId?: string; song?: Song; groupId?: string | null };
+  Editor: { setlistId?: string; song?: Song; groupId?: string | null; isNote?: boolean };
   SetlistDetails: { setlistId: string; isNew?: boolean };
   GroupEditor: { groupId?: string };
   Performance: {
@@ -165,6 +165,7 @@ export default function App() {
     setlistId: string | undefined,
     groupId: string | null | undefined,
     existingSong: Song | undefined,
+    isNote: boolean | undefined,
     {
       title,
       notesRawText,
@@ -189,6 +190,7 @@ export default function App() {
       cue_document: cueDocument,
       tags,
       font_size: fontSize,
+      is_note: isNote,
     });
 
     refreshSetlists();
@@ -574,6 +576,7 @@ export default function App() {
                   })
                 }
                 onOpenNewSong={(setlistId) => navigation.navigate('Editor', { setlistId })}
+                onOpenNewNote={(setlistId) => navigation.navigate('Editor', { setlistId, isNote: true })}
                 onReorderSetlists={handleReorderSetlists}
                 onReorderItems={handleReorderItems}
                 onReorderSongs={handleReorderSongs}
@@ -721,16 +724,25 @@ export default function App() {
           </Stack.Screen>
           <Stack.Screen
             name="Editor"
-            options={({ route }) => ({ title: route.params.song ? 'Edit Song' : 'New Song' })}
+            options={({ route }) => {
+              const isNote = route.params.isNote || route.params.song?.is_note;
+              return { title: `${route.params.song ? 'Edit' : 'New'} ${isNote ? 'Note' : 'Song'}` };
+            }}
           >
             {({ navigation, route }) => (
               <SongEditorScreen
                 initialSong={route.params.song}
+                isNote={route.params.isNote || route.params.song?.is_note}
                 commonTags={commonSongTags}
                 onCancel={() => navigation.goBack()}
                 onSave={(payload) =>
-                  handleSaveSong(route.params.setlistId, route.params.groupId, route.params.song, payload, () =>
-                    navigation.popToTop(),
+                  handleSaveSong(
+                    route.params.setlistId,
+                    route.params.groupId,
+                    route.params.song,
+                    route.params.isNote,
+                    payload,
+                    () => navigation.popToTop(),
                   )
                 }
                 onPlay={(song) => {
