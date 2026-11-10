@@ -178,6 +178,18 @@ export function flattenCueDocument(document: CueDocument): string {
     .join('\n');
 }
 
+export function insertCueTab(
+  text: string,
+  selection: { start: number; end: number },
+): { text: string; selection: { start: number; end: number } } {
+  const start = Math.max(0, Math.min(text.length, selection.start));
+  const end = Math.max(start, Math.min(text.length, selection.end));
+  return {
+    text: `${text.slice(0, start)}\t${text.slice(end)}`,
+    selection: { start: start + 1, end: start + 1 },
+  };
+}
+
 export function updateCueTextBlock(
   document: CueDocument,
   blockId: string,

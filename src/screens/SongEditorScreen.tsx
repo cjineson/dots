@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Pressable,
@@ -16,6 +16,7 @@ import {
   TAG_COLORS,
   flattenCueDocument,
   getVisibleCueBlocks,
+  insertCueTab,
   parseCueDocument,
   serializeCueDocument,
 } from '../lib/cueDocument';
@@ -45,6 +46,13 @@ const MIN_FONT_SIZE = 10;
 const MAX_FONT_SIZE = 64;
 const FONT_SIZE_STEP = 2;
 
+type CueTarget = { blockId: string; row?: number; column?: number };
+type CueSelection = { start: number; end: number };
+
+function targetKey(target: CueTarget): string {
+  return JSON.stringify([target.blockId, target.row, target.column]);
+}
+
 export default function SongEditorScreen({
   initialSong,
   commonTags,
@@ -63,6 +71,35 @@ export default function SongEditorScreen({
   const [tags, setTags] = useState<SongTag[]>(() => initialSong?.tags ?? []);
   const [tagName, setTagName] = useState('');
   const [tagColor, setTagColor] = useState<TagColor>(TAG_COLORS[1]);
+  const [activeTarget, setActiveTarget] = useState<CueTarget | null>(null);
+  const [selections, setSelections] = useState<Record<string, CueSelection>>({});
+  const [pendingSelection, setPendingSelection] = useState<{
+    key: string;
+    selection: CueSelection;
+  } | null>(null);
+  const cueInputs = useRef<Record<string, React.ComponentRef<typeof TextInput> | null>>({});
+
+  useEffect(() => {
+    if (!pendingSelection) return undefined;
+    cueInputs.current[pendingSelection.key]?.focus();
+    const frame = requestAnimationFrame(() => setPendingSelection(null));
+    return () => cancelAnimationFrame(frame);
+  }, [pendingSelection]);
+
+  const cueInputProps = (target: CueTarget) => {
+    const key = targetKey(target);
+    return {
+      ref: (input: React.ComponentRef<typeof TextInput> | null) => {
+        cueInputs.current[key] = input;
+      },
+      onFocus: () => setActiveTarget(target),
+      onSelectionChange: (event: { nativeEvent: { selection: CueSelection } }) => {
+        const selection = event.nativeEvent.selection;
+        setSelections((current) => ({ ...current, [key]: selection }));
+      },
+      selection: pendingSelection?.key === key ? pendingSelection.selection : undefined,
+    };
+  };
 
   const currentSong = useMemo(
     () => ({
@@ -149,6 +186,27 @@ export default function SongEditorScreen({
     updateBlock(block.id, (current) => ({ ...current, color }));
   };
 
+  const insertTab = (block: CueBlock) => {
+    if (!activeTarget || activeTarget.blockId !== block.id) return;
+    const key = targetKey(activeTarget);
+    const selection = selections[key];
+    if (!selection) return;
+    const text = block.type === 'table'
+      ? block.rows[activeTarget.row ?? -1]?.[activeTarget.column ?? -1]
+      : block.text;
+    if (text === undefined) return;
+    const result = insertCueTab(text, selection);
+    if (block.type === 'table') {
+      updateTableCell(block, activeTarget.row ?? -1, activeTarget.column ?? -1, result.text);
+    } else {
+      updateBlock(block.id, (current) =>
+        current.type === 'table' ? current : { ...current, text: result.text },
+      );
+    }
+    setSelections((current) => ({ ...current, [key]: result.selection }));
+    setPendingSelection({ key, selection: result.selection });
+  };
+
   const renderStyleControls = (block: CueBlock) => (
     <View style={styles.styleControls}>
       <Pressable
@@ -183,6 +241,19 @@ export default function SongEditorScreen({
           />
         ))}
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Insert tab at cursor"
+        disabled={!activeTarget || activeTarget.blockId !== block.id || !selections[targetKey(activeTarget)]}
+        onPress={() => insertTab(block)}
+        style={[
+          styles.styleButton,
+          (!activeTarget || activeTarget.blockId !== block.id || !selections[targetKey(activeTarget)]) &&
+            styles.disabledTagButton,
+        ]}
+      >
+        <Text style={styles.fontSizeValue}>Tab</Text>
+      </Pressable>
     </View>
   );
 
@@ -232,6 +303,8 @@ export default function SongEditorScreen({
               {row.map((cell, columnIndex) => (
                 <TextInput
                   key={`${block.id}-cell-${rowIndex}-${columnIndex}`}
+                  {...cueInputProps({ blockId: block.id, row: rowIndex, column: columnIndex })}
+                  accessibilityLabel={`Edit table cell ${rowIndex + 1}, ${columnIndex + 1}`}
                   value={cell}
                   onChangeText={(value) => updateTableCell(block, rowIndex, columnIndex, value)}
                   placeholder={rowIndex === 0 ? `Column ${columnIndex + 1}` : 'Cue'}
@@ -280,6 +353,8 @@ export default function SongEditorScreen({
         </View>
       ) : (
         <TextInput
+          {...cueInputProps({ blockId: block.id })}
+          accessibilityLabel={`Edit ${block.type} cue`}
           value={block.text}
           onChangeText={(text) =>
             updateBlock(block.id, (current) =>
@@ -621,6 +696,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   },
   styleControls: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 6,
     minHeight: 40,
