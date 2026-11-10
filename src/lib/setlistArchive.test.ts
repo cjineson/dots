@@ -73,6 +73,20 @@ const setlists: SetlistWithSongs[] = [
   },
 ];
 
+test('tab characters survive standalone song archive round trips', () => {
+  const text = 'C\tG\nAm\tF';
+  const cueDocument = { version: 1 as const, blocks: [{ id: 'cue', type: 'text' as const, text }] };
+  const archive = createSetlistArchive([], [], [{
+    id: 'song-with-tabs',
+    title: 'Tabs',
+    notes_raw_text: text,
+    cue_document: JSON.stringify(cueDocument),
+  }]);
+  const imported = parseSetlistArchive(JSON.stringify(archive));
+  assert.equal(imported.songs?.[0].notes_raw_text, text);
+  assert.deepEqual(imported.songs?.[0].cue_document, cueDocument);
+});
+
 test('createSetlistArchive writes the current format and cue document', () => {
   const archive = createSetlistArchive(setlists, [
     { id: 'group-1', name: 'The Band', order_index: 0 },
