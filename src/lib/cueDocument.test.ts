@@ -5,11 +5,29 @@ import {
   createCueDocumentFromText,
   flattenCueDocument,
   getVisibleCueBlocks,
+  insertCueTab,
   parseCueDocument,
   serializeCueDocument,
   updateCueTableCell,
   updateCueTextBlock,
 } from './cueDocument';
+
+test('tab insertion replaces the selection using UTF-16 offsets', () => {
+  assert.deepEqual(insertCueTab('A😀BC', { start: 3, end: 4 }), {
+    text: 'A😀\tC',
+    selection: { start: 4, end: 4 },
+  });
+  assert.deepEqual(insertCueTab('A\tB', { start: 3, end: 3 }), {
+    text: 'A\tB\t',
+    selection: { start: 4, end: 4 },
+  });
+});
+
+test('tabs survive cue document serialization and flattening', () => {
+  const document = createCueDocumentFromText('C\tG\nA\tB');
+  const restored = parseCueDocument(serializeCueDocument(document));
+  assert.equal(flattenCueDocument(restored), 'C\tG\nA\tB');
+});
 
 test('legacy multiline cue text becomes one text block', () => {
   const text = 'Chords: C G\nLyrics start here';
