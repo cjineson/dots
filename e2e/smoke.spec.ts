@@ -55,6 +55,7 @@ test('snapshot import previews and merges a changed song', async ({ page }) => {
       { id: 'song-1', title, notes_raw_text: 'C G', font_size: 18, cue_document: null, tags: null, group_id: null, sort_order: null, is_note: 0 },
     ],
   });
+
   const openSnapshot = async (title: string) => {
     const chooser = page.waitForEvent('filechooser');
     await page.getByRole('button', { name: 'Import', exact: true }).click();
@@ -72,7 +73,7 @@ test('snapshot import previews and merges a changed song', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Replace current library' })).not.toBeVisible();
 
   await openSnapshot('Updated');
-  await page.getByRole('button', { name: 'Preview merge (1 differences)' }).click();
+  await page.getByRole('button', { name: 'Preview merge' }).click();
   await page.getByRole('radio', { name: /Use snapshot/ }).click();
   await page.getByRole('button', { name: 'Apply merge' }).click();
   await page.getByRole('button', { name: 'Confirm and apply' }).click();
@@ -91,4 +92,41 @@ test('snapshot import previews and merges a changed song', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Play Updated' })).toHaveCount(2);
   await expect(page.getByRole('button', { name: 'Play Solo' })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Delete break from First' })).toHaveCount(1);
+});
+
+test('merge reviews suggested group and song matches from independent libraries', async ({ page }) => {
+  const snapshot = (prefix: string, text: string) => ({
+    format: 'dots-library-snapshot', version: 1, exportedAt: '2026-01-01T00:00:00.000Z',
+    groups: [{ id: `${prefix}-group`, name: 'Band', order_index: 0 }],
+    songs: [{ id: `${prefix}-song`, title: 'Song', notes_raw_text: text, font_size: 18, cue_document: null, tags: null, group_id: `${prefix}-group`, sort_order: 0, is_note: 0 }],
+    setlists: [],
+  });
+  const open = async (prefix: string, text: string) => {
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: 'Import', exact: true }).click();
+    await (await chooser).setFiles({ name: 'library.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(snapshot(prefix, text))) });
+    await expect(page.getByRole('button', { name: 'Preview merge' })).toBeVisible();
+  };
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open Settings' }).click();
+  await open('local', 'Original');
+  await page.getByRole('button', { name: 'Replace current library' }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm and apply' }).click();
+  await open('incoming', 'Changed');
+  await page.getByRole('button', { name: 'Preview merge' }).click();
+  await expect(page.getByText('Possible matches')).toBeVisible();
+  await expect(page.getByRole('button', { name: '2 matches to review' })).toBeDisabled();
+  await page.getByRole('radio', { name: 'Same item' }).nth(0).click();
+  await page.getByRole('radio', { name: 'Same item' }).nth(1).click();
+  await page.getByRole('button', { name: 'Review differences' }).click();
+  await expect(page.getByText('0 new items will be added.', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Compare details' }).click();
+  await expect(page.getByText(/Plain text:/).first()).toBeVisible();
+  await page.getByRole('radio', { name: 'Use snapshot' }).click();
+  await page.getByRole('button', { name: 'Apply merge' }).click();
+  await page.getByRole('button', { name: 'Confirm and apply' }).click();
+  await page.getByRole('link', { name: 'Dashboard, back' }).click();
+  await expect(page.getByRole('button', { name: 'Collapse Band group' })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Play Song' })).toHaveCount(1);
 });
