@@ -544,7 +544,7 @@ export default function LivePerformanceScreen({
             />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Add song tag"
+              accessibilityLabel={song?.is_note ? 'Add note tag' : 'Add song tag'}
               disabled={!tagName.trim()}
               onPress={addDraftTag}
               style={[styles.tagAddButton, !tagName.trim() && styles.disabledTagButton]}
@@ -651,7 +651,7 @@ export default function LivePerformanceScreen({
       {song && !isEditorPreview && !isCueEditing && zoomOpen && (
         <FontSizeZoomControl
           size={settings.barSize}
-          label="Song text size"
+          label={song?.is_note ? 'Note text size' : 'Song text size'}
           value={fontSize}
           onValueChange={(nextFontSize, persist) => {
             const updatedFontSize = clampFontSize(nextFontSize);

@@ -285,7 +285,7 @@ export default function SongEditorScreen({
     <View key={block.id} style={styles.blockCard}>
       <View style={styles.blockHeader}>
         <Text style={styles.blockType}>
-          {block.type === 'section' ? 'HEADING' : block.type === 'table' ? 'TABLE' : 'SONG TEXT'}
+          {block.type === 'section' ? 'HEADING' : block.type === 'table' ? 'TABLE' : isNote ? 'NOTE TEXT' : 'SONG TEXT'}
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -429,7 +429,7 @@ export default function SongEditorScreen({
             />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Add song tag"
+              accessibilityLabel={isNote ? 'Add note tag' : 'Add song tag'}
               disabled={!tagName.trim()}
               onPress={addTag}
               style={[styles.addTagButton, !tagName.trim() && styles.disabledTagButton]}
@@ -501,7 +501,7 @@ export default function SongEditorScreen({
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Add song text"
+          accessibilityLabel={isNote ? 'Add note text' : 'Add song text'}
           onPress={() => addTextBlock('text')}
           style={styles.addTextButton}
         >
