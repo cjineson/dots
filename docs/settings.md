@@ -18,6 +18,9 @@ All settings are saved on-device in the SQLite `app_settings` key/value table. R
 | Last exported | `last_export_at` | none | Set after a successful export share |
 | Backup reminder snooze | `backup_snoozed_until` | 7 days after first launch | Seeded on first launch (and after a settings reset) so the reminder is not immediate; also set by Remind me later / Dismiss |
 
-Settings also contains Export / Import, **Reset settings**, **Delete all setlists and songs** (double confirmation) and the app version.
+Settings also contains Export / Import, **Export full library snapshot** for manual
+transfer and previewed merge, **Reset settings**, **Delete all setlists and songs**
+(double confirmation) and the app version. See [data and archives](data-and-archives.md)
+for snapshot choices and backup limitations.
 
 Code: `src/lib/settings.ts` (types, defaults, parsing, reminder rules), `getAppSettings`/`saveAppSetting`/`resetAppSettings` in `src/lib/db.tsx`, UI in `src/screens/SettingsScreen.tsx`. To add a setting, extend `AppSettings`, `DEFAULT_SETTINGS`, the key map and `parseSettings`, add a test in `settings.test.ts`, then surface it in the screen.

@@ -32,6 +32,11 @@ PR numbers (`#n`) refer to the old `cjineson/gigbox` repo. The full PR descripti
 - The importer decodes UTF-8 and UTF-16 explicitly and can extract JSON from an Apple binary property list, because files arriving via iCloud/Files were wrapped that way. Failures show a selectable error dialog (#14).
 - Standalone-song group membership is not stored in archives (#53).
 - Any format change needs tests in `setlistArchive.test.ts` and must keep v1 import working.
+- Full-library snapshots are a separate versioned format. They preserve entity IDs
+  and shared-song links; previewed manual merge uses those IDs, retains
+  local-only items and requires explicit record-level choices. Deletions are
+  never inferred. Snapshots do not change the selective v6 archive or require
+  cloud accounts; device settings remain local.
 
 ## Views and interaction
 

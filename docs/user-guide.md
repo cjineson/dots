@@ -44,3 +44,11 @@ One cue box per song; long lines scale down to fit unless you set a manual size.
 
 ## Settings
 See [settings.md](settings.md).
+
+## Moving a library between devices
+Export a full-library snapshot from Settings and save it through the system share
+sheet. On the other device, return to the dashboard and import the file from
+Settings. You can replace the library, add separate copies, or preview a merge
+and choose between conflicting records. This is manual transfer, not automatic
+sync; keep separate backups and see [data and archives](data-and-archives.md)
+for details and limitations.

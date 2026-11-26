@@ -43,6 +43,7 @@ import {
   deleteSetlist,
   getAppSettings,
   getDashboardExpansionState,
+  getLibrarySnapshot,
   getSetlistGroups,
   getTagSize,
   getThemePreference,
@@ -55,6 +56,7 @@ import {
   renameSetlist,
   renameSetlistGroup,
   resetAppSettings,
+  replaceLibrarySnapshot,
   saveAppSetting,
   updateSetlistNotes,
   reorderItemsForSetlist,
@@ -73,12 +75,15 @@ import { createSetlistArchive, parseSetlistArchive } from './src/lib/setlistArch
 import { getCommonSongTags } from './src/lib/songTags';
 import { buildSongSearchEntries } from './src/lib/songSearch';
 import { decodeTextFile } from './src/lib/textEncoding';
+import { parseLibrarySnapshot } from './src/lib/librarySnapshot';
+import type { LibrarySnapshot } from './src/lib/librarySnapshot';
 import { loadDevSeedArchive } from './src/web/devSeed';
 import { clampTagSize, DEFAULT_TAG_SIZE } from './src/lib/fontSize';
 import { resolveTheme, ThemeProvider } from './src/themeContext';
 import type { ThemePreference } from './src/themeContext';
 import ExportScreen from './src/screens/ExportScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import SnapshotImportScreen from './src/screens/SnapshotImportScreen';
 import type { AppTheme } from './src/theme';
 import type {
   DashboardExpansionState,
@@ -124,6 +129,7 @@ export default function App() {
   const [startupError, setStartupError] = useState<string | null>(null);
   const [startupAttempt, setStartupAttempt] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
+  const [snapshotPreview, setSnapshotPreview] = useState<{ local: LibrarySnapshot; incoming: LibrarySnapshot } | null>(null);
   const commonSongTags = getCommonSongTags(setlists, standaloneSongs);
   const songSearchEntries = useMemo(
     () => buildSongSearchEntries(setlists, standaloneSongs, groups),
@@ -384,7 +390,17 @@ export default function App() {
     }
   };
 
-  const handleImportLibrary = async () => {
+  const handleExportSnapshot = async () => {
+    if (!(await Sharing.isAvailableAsync()) || !FileSystem.cacheDirectory) {
+      throw new Error('File sharing is not available on this device.');
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileUri = `${FileSystem.cacheDirectory}dots-snapshot-${timestamp}.json`;
+    await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(getLibrarySnapshot(), null, 2));
+    await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Save Dots library snapshot', UTI: 'public.json' });
+  };
+
+  const handleImportLibrary = async (allowSnapshot = true) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/json',
@@ -400,6 +416,20 @@ export default function App() {
         ? new Uint8Array(await (await fetch(asset.uri)).arrayBuffer())
         : await new File(asset.uri).bytes();
       const json = decodeTextFile(bytes);
+      let candidate: unknown;
+      try {
+        candidate = JSON.parse(json);
+      } catch {
+        throw new Error('The selected file is not valid JSON.');
+      }
+      if (typeof candidate === 'object' && candidate !== null && 'format' in candidate &&
+          candidate.format === 'dots-library-snapshot') {
+        if (!allowSnapshot) {
+          throw new Error('Return to the dashboard and close any editors before importing a library snapshot.');
+        }
+        setSnapshotPreview({ local: getLibrarySnapshot(), incoming: parseLibrarySnapshot(json) });
+        return;
+      }
       const importedLibrary = parseSetlistArchive(json);
       const conflicts = findImportConflicts(importedLibrary, setlists, standaloneSongs);
       const finishImport = (mode: 'copy' | 'replace') => {
@@ -582,7 +612,7 @@ export default function App() {
                 onReorderSongs={handleReorderSongs}
                 searchEntries={songSearchEntries}
                 onOpenSettings={() => navigation.navigate('Settings')}
-                onImportLibrary={handleImportLibrary}
+                onImportLibrary={() => void handleImportLibrary()}
                 backupReminder={needsBackupReminder(
                   settings.lastExportAt,
                   setlists.length > 0 || standaloneSongs.length > 0,
@@ -603,7 +633,12 @@ export default function App() {
                 themePreference={themePreference}
                 onThemePreferenceChange={handleThemePreferenceChange}
                 onExportLibrary={() => navigation.navigate('Export')}
-                onImportLibrary={handleImportLibrary}
+                onExportSnapshot={() => void handleExportSnapshot().catch((error: unknown) =>
+                  setImportError(`Snapshot export failed: ${error instanceof Error ? error.message : String(error)}`))}
+                onImportLibrary={() => {
+                  const routes = navigation.getState().routes;
+                  void handleImportLibrary(routes.slice(0, -1).every((route: { name: string }) => route.name === 'Dashboard'));
+                }}
                 settings={settings}
                 onSettingChange={handleSettingChange}
                 tagSize={tagSize}
@@ -787,6 +822,28 @@ export default function App() {
           </Stack.Screen>
         </Stack.Navigator>
       </NavigationContainer>
+      <Modal visible={snapshotPreview !== null} animationType="slide" onRequestClose={() => setSnapshotPreview(null)}>
+        {snapshotPreview && (
+          <SnapshotImportScreen
+            local={snapshotPreview.local}
+            incoming={snapshotPreview.incoming}
+            onCancel={() => setSnapshotPreview(null)}
+            onBackup={handleExportSnapshot}
+            onApply={(snapshot) => {
+              replaceLibrarySnapshot(snapshot, snapshotPreview.local);
+              setSnapshotPreview(null);
+              try {
+                refreshSetlists();
+                setDashboardExpansion(getDashboardExpansionState());
+              } catch (error) {
+                setStartupError(`The snapshot was imported, but the library could not be refreshed: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              Alert.alert('Library snapshot', 'Import complete.');
+            }}
+          />
+        )}
+      </Modal>
       <Modal
         animationType="fade"
         onRequestClose={() => setImportError(null)}
