@@ -33,6 +33,7 @@ type SettingsScreenProps = {
   themePreference: ThemePreference;
   onThemePreferenceChange: (preference: ThemePreference) => void;
   onExportLibrary: () => void;
+  onExportSnapshot: () => void;
   onImportLibrary: () => void;
   settings: AppSettings;
   onSettingChange: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
@@ -64,6 +65,7 @@ export default function SettingsScreen({
   themePreference,
   onThemePreferenceChange,
   onExportLibrary,
+  onExportSnapshot,
   onImportLibrary,
   settings,
   onSettingChange,
@@ -310,6 +312,18 @@ export default function SettingsScreen({
         >
           <MaterialCommunityIcons name="database-import" size={26} color={theme.colors.action_edit} />
           <Text style={styles.rowText}>Import</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Export full library snapshot"
+          style={styles.row}
+          onPress={onExportSnapshot}
+        >
+          <MaterialCommunityIcons name="database-export" size={26} color={theme.colors.action_primary} />
+          <View style={styles.rowBody}>
+            <Text style={styles.rowText}>Export full library snapshot</Text>
+            <Text style={styles.hint}>For manual transfer or merge between devices. Older Dots versions cannot import snapshots.</Text>
+          </View>
         </Pressable>
 
         <Text style={styles.sectionTitle}>Data</Text>

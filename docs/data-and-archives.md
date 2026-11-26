@@ -25,6 +25,46 @@ Import matches existing setlists by name and group (and songs in `partial` setli
 
 Version 5 per-setlist fields (all optional): `location`, `latitude`, `longitude` (validated ranges), `notes`, `date`, `time`, group name. Version 6 adds a root `songs` array for standalone songs; setlist items remain ordered songs and breaks. Songs carry cue document, text size and tags. Earlier versions lack some of these fields. Add tests in `setlistArchive.test.ts` for any format change and keep v1 import working.
 
+## Full-library snapshots
+
+Settings → **Export full library snapshot** opens the system share sheet. Save the
+JSON file to a location available on the device, such as iCloud Drive, Google
+Drive or Dropbox. Verify it was saved: opening the share sheet does not prove a
+backup was created. Dots does not sign in to a cloud provider or sync in the
+background. Availability depends on the platform and installed providers.
+Snapshot exports do not reset the existing backup reminder, because the app
+cannot confirm whether the share sheet saved the file.
+
+On the other device, return to the dashboard, open Settings → **Import** and
+select the snapshot. Its preview offers:
+
+- **Replace:** replace the entire library, including removing items absent from
+  the file. Export and verify a separate backup first; replacement is confirmed
+  twice.
+- **Add as copies:** retain the current library and add separate copies of the
+  snapshot's contents. Shared songs remain shared within the imported copies,
+  but edits to the copies do not update the originals.
+- **Preview merge:** match entities by their stable IDs, add incoming-only items,
+  and choose the device or snapshot version for each changed song, setlist or
+  group. Items found on only one device are kept; deletions are not inferred.
+  Items from both versions of a setlist are retained, with items absent from the
+  chosen version appended. A song choice affects every setlist linked to it.
+  Duplicate group names are renamed and listed before confirmation. This is not
+  a field-by-field merge or ongoing sync.
+
+Snapshots made from independently created libraries or old archives have
+different IDs even when titles match; those items are added rather than matched.
+Start by restoring a snapshot onto the second device when possible. A snapshot
+preserves songs, shared links, groups, ordering, cues, breaks and gig details;
+settings and dashboard display state stay local. The separate
+`dots-library-snapshot` version 1 format is not understood by older Dots
+versions. The existing selective v6 archive export and v1–v6 imports remain
+available. Neither snapshots nor manual merge replace independent backups.
+
+The current browser build uses an in-memory library that is lost on reload, and
+its system share support may be unavailable; it should not be relied on as
+durable storage.
+
 ## Backup and reset
 - Last export time and reminder snooze are stored in `app_settings`.
 - **Reset settings** clears `app_settings` only.

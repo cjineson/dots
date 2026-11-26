@@ -15,6 +15,8 @@ import { parseStoredSongTags } from './songTags';
 import { findVariantConflict } from './songCopy';
 import { deriveNoteTitle } from './noteTitle';
 import { makeId } from './uuid';
+import { parseLibrarySnapshot } from './librarySnapshot';
+import type { LibrarySnapshot, SnapshotGroup, SnapshotItem, SnapshotSetlist, SnapshotSong } from './librarySnapshot';
 import type {
   DashboardExpansionState,
   ImportedLibrary,
@@ -28,6 +30,77 @@ import type {
 } from '../types';
 
 const db = SQLite.openDatabaseSync('gigbox.db');
+
+export function getLibrarySnapshot(): LibrarySnapshot {
+  const groups = db.getAllSync<SnapshotGroup>(
+    'SELECT id, name, order_index FROM setlist_groups ORDER BY order_index, id',
+  );
+  const songs = db.getAllSync<SnapshotSong>(
+    'SELECT id, title, notes_raw_text, font_size, cue_document, tags, group_id, sort_order, is_note FROM songs ORDER BY id',
+  );
+  const setlists = db.getAllSync<Omit<SnapshotSetlist, 'items'>>(
+    'SELECT id, name, order_index, group_id, location, latitude, longitude, notes, date, time FROM setlists ORDER BY order_index, id',
+  ).map((setlist) => ({
+    ...setlist,
+    items: db.getAllSync<SnapshotItem>(
+      `SELECT 'song' AS kind, song_id AS id, sort_order, NULL AS duration_minutes
+       FROM setlist_songs WHERE setlist_id = ?
+       UNION ALL
+       SELECT 'break' AS kind, id, sort_order, duration_minutes
+       FROM setlist_breaks WHERE setlist_id = ?
+       ORDER BY sort_order, id`,
+      [setlist.id, setlist.id],
+    ).map((item) => item.kind === 'song'
+      ? { kind: 'song' as const, id: item.id, sort_order: item.sort_order }
+      : item),
+  }));
+  return parseLibrarySnapshot(JSON.stringify({
+    format: 'dots-library-snapshot', version: 1, exportedAt: new Date().toISOString(), groups, songs, setlists,
+  }));
+}
+
+export function replaceLibrarySnapshot(snapshot: LibrarySnapshot, expected: LibrarySnapshot): void {
+  const validated = parseLibrarySnapshot(JSON.stringify(snapshot));
+  db.withTransactionSync(() => {
+    const current = getLibrarySnapshot();
+    if (JSON.stringify({ ...current, exportedAt: '' }) !== JSON.stringify({ ...expected, exportedAt: '' })) {
+      throw new Error('The library changed since the preview. Open the snapshot again to review it.');
+    }
+    db.execSync('DELETE FROM setlist_songs; DELETE FROM setlist_breaks; DELETE FROM setlists; DELETE FROM songs; DELETE FROM setlist_groups;');
+    for (const group of validated.groups) {
+      db.runSync('INSERT INTO setlist_groups (id, name, order_index) VALUES (?, ?, ?)',
+        [group.id, group.name, group.order_index]);
+    }
+    for (const song of validated.songs) {
+      db.runSync(
+        'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags, group_id, sort_order, is_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [song.id, song.title, song.notes_raw_text, song.font_size, song.cue_document, song.tags, song.group_id, song.sort_order, song.is_note],
+      );
+    }
+    for (const setlist of validated.setlists) {
+      db.runSync(
+        'INSERT INTO setlists (id, name, order_index, group_id, location, latitude, longitude, notes, date, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [setlist.id, setlist.name, setlist.order_index, setlist.group_id, setlist.location, setlist.latitude, setlist.longitude, setlist.notes, setlist.date, setlist.time],
+      );
+      for (const item of setlist.items) {
+        if (item.kind === 'song') {
+          db.runSync('INSERT INTO setlist_songs (setlist_id, song_id, sort_order) VALUES (?, ?, ?)',
+            [setlist.id, item.id, item.sort_order]);
+        } else {
+          db.runSync('INSERT INTO setlist_breaks (id, setlist_id, sort_order, duration_minutes) VALUES (?, ?, ?, ?)',
+            [item.id, setlist.id, item.sort_order, item.duration_minutes]);
+        }
+      }
+    }
+    const expansion = getDashboardExpansionState();
+    const setlistIds = new Set(validated.setlists.map(({ id }) => id));
+    const groupIds = new Set(validated.groups.map(({ id }) => id));
+    saveDashboardExpansionState({
+      expandedSetlists: Object.fromEntries(Object.entries(expansion.expandedSetlists).filter(([id]) => setlistIds.has(id))),
+      collapsedGroups: Object.fromEntries(Object.entries(expansion.collapsedGroups).filter(([id]) => id === 'standalone-songs' || groupIds.has(id))),
+    });
+  });
+}
 
 export function initializeDatabase(): void {
   db.execSync(`
