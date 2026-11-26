@@ -33,9 +33,10 @@ PR numbers (`#n`) refer to the old `cjineson/gigbox` repo. The full PR descripti
 - Standalone-song group membership is not stored in archives (#53).
 - Any format change needs tests in `setlistArchive.test.ts` and must keep v1 import working.
 - Full-library snapshots are a separate versioned format. They preserve entity IDs
-  and shared-song links; previewed manual merge uses those IDs, retains
-  local-only items and requires explicit record-level choices. Deletions are
-  never inferred. Snapshots do not change the selective v6 archive or require
+  and shared-song links; previewed manual merge uses those IDs and asks before
+  matching different IDs by unique name or identical non-empty song text. It
+  retains local-only items and requires explicit record-level choices. Deletions
+  are never inferred. Snapshots do not change the selective v6 archive or require
   cloud accounts; device settings remain local.
 
 ## Views and interaction

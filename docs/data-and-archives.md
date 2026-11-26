@@ -44,17 +44,23 @@ select the snapshot. Its preview offers:
 - **Add as copies:** retain the current library and add separate copies of the
   snapshot's contents. Shared songs remain shared within the imported copies,
   but edits to the copies do not update the originals.
-- **Preview merge:** match entities by their stable IDs, add incoming-only items,
-  and choose the device or snapshot version for each changed song, setlist or
-  group. Items found on only one device are kept; deletions are not inferred.
+- **Preview merge:** match entities with the same stable ID automatically. For
+  unique names or identical non-empty song text with different IDs, review each
+  suggested match and choose whether it is the same item or should stay
+  separate. Ambiguous names and text are not matched automatically. Then choose
+  the device or snapshot version for each changed song, setlist or group.
+  Expand **Compare details** to inspect both versions. Items found on only one
+  device are kept; deletions are not inferred.
   Items from both versions of a setlist are retained, with items absent from the
   chosen version appended. A song choice affects every setlist linked to it.
   Duplicate group names are renamed and listed before confirmation. This is not
   a field-by-field merge or ongoing sync.
 
 Snapshots made from independently created libraries or old archives have
-different IDs even when titles match; those items are added rather than matched.
-Start by restoring a snapshot onto the second device when possible. A snapshot
+different IDs even when titles match. Suggested matches require your approval;
+other items are added separately. Already-existing duplicates on one device
+are not automatically combined. Start by restoring a snapshot onto the second
+device when possible. A snapshot
 preserves songs, shared links, groups, ordering, cues, breaks and gig details;
 settings and dashboard display state stay local. The separate
 `dots-library-snapshot` version 1 format is not understood by older Dots

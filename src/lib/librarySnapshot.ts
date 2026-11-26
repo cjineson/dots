@@ -1,4 +1,4 @@
-import { validateCueDocument } from './cueDocument';
+import { flattenCueDocument, parseCueDocument, validateCueDocument } from './cueDocument';
 import { MAX_FONT_SIZE, MIN_FONT_SIZE } from './fontSize';
 import { validateSongTags } from './songTags';
 
@@ -168,6 +168,76 @@ export type SnapshotChoices = Record<string, 'local' | 'incoming'>;
 
 export function snapshotConflictKey(kind: SnapshotConflict['kind'], id: string): string {
   return `${kind}:${id}`;
+}
+
+export type SnapshotMatch = {
+  kind: SnapshotConflict['kind'];
+  local: SnapshotGroup | SnapshotSong | SnapshotSetlist;
+  incoming: SnapshotGroup | SnapshotSong | SnapshotSetlist;
+};
+
+const matchName = (name: string) => name.trim().toLocaleLowerCase();
+
+export function suggestSnapshotMatches(local: LibrarySnapshot, incoming: LibrarySnapshot): SnapshotMatch[] {
+  const matches: SnapshotMatch[] = [];
+  function suggest<T extends SnapshotGroup | SnapshotSong | SnapshotSetlist>(
+    kind: SnapshotMatch['kind'], current: T[], received: T[], key: (item: T) => string,
+  ) {
+    const currentIds = new Set(current.map(({ id }) => id));
+    const receivedIds = new Set(received.map(({ id }) => id));
+    const available = current.filter(({ id }) => !receivedIds.has(id));
+    const newItems = received.filter(({ id }) => !currentIds.has(id));
+    for (const item of newItems) {
+      const name = key(item);
+      if (!name) continue;
+      const candidates = available.filter((candidate) => key(candidate) === name);
+      if (candidates.length === 1 && newItems.filter((candidate) => key(candidate) === name).length === 1) {
+        matches.push({ kind, local: candidates[0], incoming: item });
+      }
+    }
+  }
+  suggest('group', local.groups, incoming.groups, (group) => matchName(group.name));
+  suggest('song', local.songs, incoming.songs, (song) =>
+    song.title.trim() ? `${song.is_note}:${matchName(song.title)}` : '');
+  suggest('setlist', local.setlists, incoming.setlists, (setlist) => matchName(setlist.name));
+  const claimedLocal = new Set(matches.filter((match) => match.kind === 'song').map((match) => match.local.id));
+  const claimedIncoming = new Set(matches.filter((match) => match.kind === 'song').map((match) => match.incoming.id));
+  suggest('song', local.songs.filter(({ id }) => !claimedLocal.has(id)),
+    incoming.songs.filter(({ id }) => !claimedIncoming.has(id)), (song) => {
+      const text = song.cue_document ? flattenCueDocument(parseCueDocument(song.cue_document)) : song.notes_raw_text;
+      return text.trim() ? `${song.is_note}:${text.trim()}` : '';
+    });
+  return matches;
+}
+
+export function mapSnapshotMatches(
+  local: LibrarySnapshot, incoming: LibrarySnapshot, matches: SnapshotMatch[],
+): LibrarySnapshot {
+  const suggestions = suggestSnapshotMatches(local, incoming);
+  const ids = { group: new Map<string, string>(), song: new Map<string, string>(), setlist: new Map<string, string>() };
+  for (const match of matches) {
+    if (!suggestions.some((candidate) => candidate.kind === match.kind &&
+        candidate.local.id === match.local.id && candidate.incoming.id === match.incoming.id) ||
+        ids[match.kind].has(match.incoming.id) ||
+        [...ids[match.kind].values()].includes(match.local.id)) {
+      throw new Error('The selected matches are invalid. Review the snapshot again.');
+    }
+    ids[match.kind].set(match.incoming.id, match.local.id);
+  }
+  const groupId = (id: string | null) => id === null ? null : ids.group.get(id) ?? id;
+  return {
+    ...incoming,
+    groups: incoming.groups.map((group) => ({ ...group, id: ids.group.get(group.id) ?? group.id })),
+    songs: incoming.songs.map((song) => ({
+      ...song, id: ids.song.get(song.id) ?? song.id, group_id: groupId(song.group_id),
+    })),
+    setlists: incoming.setlists.map((setlist) => ({
+      ...setlist, id: ids.setlist.get(setlist.id) ?? setlist.id, group_id: groupId(setlist.group_id),
+      items: setlist.items.map((item) => item.kind === 'song'
+        ? { ...item, id: ids.song.get(item.id) ?? item.id }
+        : item),
+    })),
+  };
 }
 
 function uniqueGroupNames(groups: SnapshotGroup[]): { groups: SnapshotGroup[]; renamed: string[] } {
