@@ -1,8 +1,9 @@
 import { flattenCueDocument, parseCueDocument, validateCueDocument } from './cueDocument';
 import { MAX_FONT_SIZE, MIN_FONT_SIZE } from './fontSize';
 import { validateSongTags } from './songTags';
+import { isGroupImage } from './groupDetails';
 
-export type SnapshotGroup = { id: string; name: string; order_index: number };
+export type SnapshotGroup = { id: string; name: string; order_index: number; description?: string | null; image?: string | null };
 export type SnapshotSong = {
   id: string;
   title: string;
@@ -79,7 +80,9 @@ export function parseLibrarySnapshot(json: string): LibrarySnapshot {
   const groupNames = new Set<string>();
   for (const group of value.groups) {
     if (!isRecord(group) || !isId(group.id) || !isId(group.name) || group.name.includes('\0') || !isInteger(group.order_index) ||
-        groupIds.has(group.id) || groupNames.has(groupNameKey(group.name))) {
+        groupIds.has(group.id) || groupNames.has(groupNameKey(group.name)) ||
+        group.description !== undefined && !nullableString(group.description) ||
+        group.image !== undefined && group.image !== null && !isGroupImage(group.image)) {
       throw new Error('The snapshot contains an invalid or duplicate group.');
     }
     groupIds.add(group.id);
@@ -158,10 +161,23 @@ export function getSnapshotConflicts(local: LibrarySnapshot, incoming: LibrarySn
       }
     }
   }
-  compare('group', local.groups, incoming.groups);
+  compare('group', local.groups, inheritGroupDetails(local.groups, incoming.groups));
   compare('song', local.songs, incoming.songs);
   compare('setlist', local.setlists, incoming.setlists);
   return conflicts;
+}
+
+function inheritGroupDetails(local: SnapshotGroup[], incoming: SnapshotGroup[]): SnapshotGroup[] {
+  const byId = new Map(local.map((group) => [group.id, group]));
+  return incoming.map((group) => {
+    const current = byId.get(group.id);
+    if (!current) return group;
+    return {
+      ...group,
+      ...(group.description === undefined && current.description !== undefined ? { description: current.description } : {}),
+      ...(group.image === undefined && current.image !== undefined ? { image: current.image } : {}),
+    };
+  });
 }
 
 export type SnapshotChoices = Record<string, 'local' | 'incoming'>;
@@ -297,7 +313,7 @@ export function mergeLibrarySnapshots(
       items: [...selected.items, ...missing].map((item, sort_order) => ({ ...item, sort_order })),
     };
   });
-  const named = uniqueGroupNames(mergeRecords('group', local.groups, incoming.groups));
+  const named = uniqueGroupNames(mergeRecords('group', local.groups, inheritGroupDetails(local.groups, incoming.groups)));
   const snapshot: LibrarySnapshot = {
     ...local,
     groups: named.groups,

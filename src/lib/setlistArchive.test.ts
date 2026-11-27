@@ -511,6 +511,22 @@ test('a normal archive does not carry the cues marker', () => {
   assert.equal(parseSetlistArchive(JSON.stringify(archive)).cuesOmitted, undefined);
 });
 
+test('group descriptions and images round-trip and invalid details are rejected', () => {
+  const group = {
+    id: 'group-1', name: 'The Band', order_index: 0,
+    description: 'Our group', image: 'data:image/png;base64,AAAA',
+  };
+  const archive = createSetlistArchive(setlists, [group]);
+  assert.deepEqual(parseSetlistArchive(JSON.stringify(archive)).groupDetails, [
+    { name: group.name, description: group.description, image: group.image },
+  ]);
+  archive.groupDetails![0].image = 'https://example.com/image.png';
+  assert.throws(() => parseSetlistArchive(JSON.stringify(archive)), /invalid group details/);
+  archive.groupDetails![0].image = null;
+  archive.groupDetails![0].name = 'Missing group';
+  assert.throws(() => parseSetlistArchive(JSON.stringify(archive)), /invalid group details/);
+});
+
 test('restoreOmittedCues copies cues from the matching existing song, once each', () => {
   const cueDocument = JSON.stringify({
     version: 1,

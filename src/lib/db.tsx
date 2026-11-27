@@ -16,9 +16,11 @@ import { findVariantConflict } from './songCopy';
 import { deriveNoteTitle } from './noteTitle';
 import { makeId } from './uuid';
 import { parseLibrarySnapshot } from './librarySnapshot';
+import { isGroupImage } from './groupDetails';
 import type { LibrarySnapshot, SnapshotGroup, SnapshotItem, SnapshotSetlist, SnapshotSong } from './librarySnapshot';
 import type {
   DashboardExpansionState,
+  GroupDetails,
   ImportedLibrary,
   ImportedSetlist,
   Setlist,
@@ -33,7 +35,7 @@ const db = SQLite.openDatabaseSync('gigbox.db');
 
 export function getLibrarySnapshot(): LibrarySnapshot {
   const groups = db.getAllSync<SnapshotGroup>(
-    'SELECT id, name, order_index FROM setlist_groups ORDER BY order_index, id',
+    'SELECT id, name, order_index, description, image FROM setlist_groups ORDER BY order_index, id',
   );
   const songs = db.getAllSync<SnapshotSong>(
     'SELECT id, title, notes_raw_text, font_size, cue_document, tags, group_id, sort_order, is_note FROM songs ORDER BY id',
@@ -68,8 +70,8 @@ export function replaceLibrarySnapshot(snapshot: LibrarySnapshot, expected: Libr
     }
     db.execSync('DELETE FROM setlist_songs; DELETE FROM setlist_breaks; DELETE FROM setlists; DELETE FROM songs; DELETE FROM setlist_groups;');
     for (const group of validated.groups) {
-      db.runSync('INSERT INTO setlist_groups (id, name, order_index) VALUES (?, ?, ?)',
-        [group.id, group.name, group.order_index]);
+      db.runSync('INSERT INTO setlist_groups (id, name, order_index, description, image) VALUES (?, ?, ?, ?, ?)',
+        [group.id, group.name, group.order_index, group.description ?? null, group.image ?? null]);
     }
     for (const song of validated.songs) {
       db.runSync(
@@ -162,6 +164,12 @@ export function initializeDatabase(): void {
   `);
 
   const songColumns = db.getAllSync<{ name: string }>('PRAGMA table_info(songs)');
+  const groupColumns = db.getAllSync<{ name: string }>('PRAGMA table_info(setlist_groups)');
+  for (const column of ['description', 'image']) {
+    if (!groupColumns.some((existing) => existing.name === column)) {
+      db.execSync(`ALTER TABLE setlist_groups ADD COLUMN ${column} TEXT`);
+    }
+  }
   if (!songColumns.some((column) => column.name === 'font_size')) {
     db.execSync('ALTER TABLE songs ADD COLUMN font_size INTEGER NOT NULL DEFAULT 18');
   }
@@ -245,7 +253,7 @@ function migrateUngroupedSongsSetlist(): void {
 
 export function getSetlistGroups(): SetlistGroup[] {
   return db.getAllSync<SetlistGroup>(
-    'SELECT id, name, order_index FROM setlist_groups ORDER BY order_index ASC, name COLLATE NOCASE ASC',
+    'SELECT id, name, order_index, description, image FROM setlist_groups ORDER BY order_index ASC, name COLLATE NOCASE ASC',
   );
 }
 
@@ -383,33 +391,35 @@ export function saveDashboardExpansionState(state: DashboardExpansionState): voi
   );
 }
 
-export function createSetlistGroup(name: string): SetlistGroup {
+export function createSetlistGroup(name: string, details: GroupDetails = { description: null, image: null }): SetlistGroup {
   const cleanedName = name.trim();
   if (!cleanedName) {
     throw new Error('Group name cannot be empty.');
   }
+  if (details.image !== null && !isGroupImage(details.image)) throw new Error('The group image is invalid or too large.');
   const id = makeId();
   const orderIndex = db.getFirstSync<{ maxIndex: number | null }>(
     'SELECT MAX(order_index) AS maxIndex FROM setlist_groups',
   )?.maxIndex;
   db.runSync(
-    'INSERT INTO setlist_groups (id, name, order_index) VALUES (?, ?, ?)',
-    [id, cleanedName, (orderIndex ?? -1) + 1],
+    'INSERT INTO setlist_groups (id, name, order_index, description, image) VALUES (?, ?, ?, ?, ?)',
+    [id, cleanedName, (orderIndex ?? -1) + 1, details.description, details.image],
   );
-  return { id, name: cleanedName, order_index: (orderIndex ?? -1) + 1 };
+  return { id, name: cleanedName, order_index: (orderIndex ?? -1) + 1, ...details };
 }
 
-export function renameSetlistGroup(groupId: string, name: string): void {
+export function updateSetlistGroup(groupId: string, name: string, details: GroupDetails): void {
   const cleanedName = name.trim();
   if (!cleanedName) {
     throw new Error('Group name cannot be empty.');
   }
+  if (details.image !== null && !isGroupImage(details.image)) throw new Error('The group image is invalid or too large.');
   const result = db.runSync(
-    'UPDATE setlist_groups SET name = ? WHERE id = ?',
-    [cleanedName, groupId],
+    'UPDATE setlist_groups SET name = ?, description = ?, image = ? WHERE id = ?',
+    [cleanedName, details.description, details.image, groupId],
   );
   if (result.changes === 0) {
-    throw new Error('The group to rename could not be found.');
+    throw new Error('The group to update could not be found.');
   }
 }
 
@@ -1119,9 +1129,10 @@ export function importSetlists(library: ImportedLibrary, mode: ImportMode = 'cop
       const normalizedName = groupName.toLocaleLowerCase();
       if (!knownGroups.has(normalizedName)) {
         const groupId = makeId();
+        const details = library.groupDetails?.find((item) => item.name.toLocaleLowerCase() === normalizedName);
         db.runSync(
-          'INSERT INTO setlist_groups (id, name, order_index) VALUES (?, ?, ?)',
-          [groupId, groupName.trim(), nextGroupOrderIndex++],
+          'INSERT INTO setlist_groups (id, name, order_index, description, image) VALUES (?, ?, ?, ?, ?)',
+          [groupId, groupName.trim(), nextGroupOrderIndex++, details?.description ?? null, details?.image ?? null],
         );
         knownGroups.set(normalizedName, groupId);
       }

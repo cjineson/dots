@@ -54,7 +54,7 @@ import {
   importSetlists,
   initializeDatabase,
   renameSetlist,
-  renameSetlistGroup,
+  updateSetlistGroup,
   resetAppSettings,
   replaceLibrarySnapshot,
   saveAppSetting,
@@ -87,6 +87,7 @@ import SnapshotImportScreen from './src/screens/SnapshotImportScreen';
 import type { AppTheme } from './src/theme';
 import type {
   DashboardExpansionState,
+  GroupDetails,
   SetlistGroup,
   SetlistItem,
   Song,
@@ -235,14 +236,14 @@ export default function App() {
     refreshSetlists();
   };
 
-  const handleCreateSetlistGroup = (name: string) => {
-    const group = createSetlistGroup(name);
+  const handleCreateSetlistGroup = (name: string, details?: GroupDetails) => {
+    const group = createSetlistGroup(name, details);
     refreshSetlists();
     return group;
   };
 
-  const handleRenameSetlistGroup = (groupId: string, name: string) => {
-    renameSetlistGroup(groupId, name);
+  const handleUpdateSetlistGroup = (groupId: string, name: string, details: GroupDetails) => {
+    updateSetlistGroup(groupId, name, details);
     refreshSetlists();
   };
 
@@ -717,11 +718,11 @@ export default function App() {
                 <GroupEditorScreen
                   group={group}
                   onCancel={() => navigation.goBack()}
-                  onSave={(name) => {
+                  onSave={(name, details) => {
                     if (group) {
-                      handleRenameSetlistGroup(group.id, name);
+                      handleUpdateSetlistGroup(group.id, name, details);
                     } else {
-                      handleCreateSetlistGroup(name);
+                      handleCreateSetlistGroup(name, details);
                     }
                     navigation.goBack();
                   }}

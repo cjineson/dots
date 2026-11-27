@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { parseCueDocument } from '../lib/cueDocument';
 import {
   copyLibrarySnapshot, getSnapshotConflicts, mapSnapshotMatches, mergeLibrarySnapshots,
@@ -42,7 +42,7 @@ function describe(record: SnapshotConflict['local'], library: LibrarySnapshot): 
       : `Break${item.duration_minutes ? ` (${item.duration_minutes} min)` : ''}`).join('\n') || '(empty)';
     return `Name: ${record.name}\nGroup: ${group}\nOrder: ${record.order_index}\nLocation: ${record.location || 'None'}\nCoordinates: ${record.latitude ?? 'None'}, ${record.longitude ?? 'None'}\nDate: ${record.date || 'None'}\nTime: ${record.time || 'None'}\nNotes: ${record.notes || 'None'}\n\nItems:\n${items}`;
   }
-  return `Name: ${record.name}\nOrder: ${record.order_index}`;
+  return `Name: ${record.name}\nOrder: ${record.order_index}\nDescription: ${('description' in record ? record.description : undefined) || 'None'}\nImage: ${('image' in record ? record.image : undefined) ? 'Yes' : 'None'}`;
 }
 
 export default function SnapshotImportScreen({ local, incoming, onCancel, onBackup, onApply }: Props) {
@@ -56,6 +56,19 @@ export default function SnapshotImportScreen({ local, incoming, onCancel, onBack
   const [pending, setPending] = useState<{ title: string; message: string; snapshot: LibrarySnapshot; second: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+
+  // Track which group fields were originally in the incoming snapshot (to detect omitted vs empty)
+  const incomingGroupFields = useMemo(() => {
+    const fields = new Map<string, Set<'description' | 'image'>>();
+    for (const group of incoming.groups) {
+      const set = new Set<'description' | 'image'>();
+      if ('description' in group) set.add('description');
+      if ('image' in group) set.add('image');
+      fields.set(group.id, set);
+    }
+    return fields;
+  }, [incoming.groups]);
+
   const keyForMatch = (match: SnapshotMatch) => snapshotConflictKey(match.kind, match.incoming.id);
   const mapped = useMemo(() => mapSnapshotMatches(local, incoming,
     suggestions.filter((match) => matchChoices[keyForMatch(match)] === 'match')),
@@ -96,7 +109,23 @@ export default function SnapshotImportScreen({ local, incoming, onCancel, onBack
       <Text style={options.secondary ? styles.secondaryText : styles.primaryText}>{text}</Text>
     </Pressable>
   );
-  const details = (key: string, left: SnapshotConflict['local'], right: SnapshotConflict['incoming']) => (
+
+  const groupImagePreview = (image: string | null | undefined) => {
+    if (!image) return null;
+    return (
+      <View style={styles.imageBorder}>
+        <Image source={{ uri: image }} style={styles.groupImagePreview} resizeMode="contain" />
+      </View>
+    );
+  };
+
+  const fieldStatus = (value: unknown, omitted: boolean) => {
+    if (omitted) return ' (not in this snapshot version)';
+    if (value === null || value === undefined || value === '') return ' (empty)';
+    return '';
+  };
+
+  const details = (key: string, left: SnapshotConflict['local'], right: SnapshotConflict['incoming'], leftOmitted?: boolean, rightOmitted?: boolean) => (
     <>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: !!expanded[key] }}
         onPress={() => setExpanded((current) => ({ ...current, [key]: !current[key] }))} style={styles.detailsButton}>
@@ -106,9 +135,11 @@ export default function SnapshotImportScreen({ local, incoming, onCancel, onBack
       {expanded[key] && (
         <View style={styles.comparison}>
           <Text style={styles.section}>This device</Text>
-          <Text selectable style={styles.detailText}>{describe(left, local)}</Text>
+          <Text selectable style={styles.detailText}>{describe(left, local)}{fieldStatus(left, !!leftOmitted)}</Text>
+          {'image' in left && groupImagePreview(left.image)}
           <Text style={styles.section}>Snapshot</Text>
-          <Text selectable style={styles.detailText}>{describe(right, incoming)}</Text>
+          <Text selectable style={styles.detailText}>{describe(right, incoming)}{fieldStatus(right, !!rightOmitted)}</Text>
+          {'image' in right && groupImagePreview(right.image)}
         </View>
       )}
     </>
@@ -160,11 +191,12 @@ export default function SnapshotImportScreen({ local, incoming, onCancel, onBack
             <Text style={styles.hint}>These have similar names or identical text but different IDs. Are they the same? Compare details before choosing. Ambiguous matches are kept separate.</Text>
             {suggestions.map((match) => {
               const key = keyForMatch(match);
+              const rightOmitted = match.kind === 'group' && 'description' in match.incoming ? false : match.kind === 'group' ? !incomingGroupFields.get(match.incoming.id)?.has('description') : undefined;
               return (
                 <View key={key} style={styles.card}>
                   <Text style={styles.heading}>{match.kind}: {label(match.incoming)}</Text>
                   {label(match.local) !== label(match.incoming) && <Text style={styles.hint}>This device: {label(match.local)}</Text>}
-                  {details(key, match.local, match.incoming)}
+                  {details(key, match.local, match.incoming, false, rightOmitted)}
                   {option('Same item', matchChoices[key] === 'match', () => {
                     setMatchChoices((current) => ({ ...current, [key]: 'match' }));
                     setChoices({});
@@ -198,10 +230,12 @@ export default function SnapshotImportScreen({ local, incoming, onCancel, onBack
               const key = snapshotConflictKey(conflict.kind, conflict.id);
               const source = incoming[conflict.kind === 'group' ? 'groups' : conflict.kind === 'song' ? 'songs' : 'setlists']
                 .find((record) => record.id === suggestions.find((match) => keyForMatch(match) in matchChoices && matchChoices[keyForMatch(match)] === 'match' && match.kind === conflict.kind && match.local.id === conflict.id)?.incoming.id);
+              const incomingRecord = source ?? conflict.incoming;
+              const rightOmitted = conflict.kind === 'group' && 'description' in conflict.incoming ? false : conflict.kind === 'group' ? !incomingGroupFields.get(conflict.incoming.id)?.has('description') : undefined;
               return (
                 <View key={key} style={styles.card}>
                   <Text style={styles.heading}>{conflict.kind}: {label(conflict.local)}</Text>
-                  {details(key, conflict.local, source ?? conflict.incoming)}
+                  {details(key, conflict.local, incomingRecord, false, rightOmitted)}
                   {option('Use this device', choices[key] === 'local', () => setChoices((current) => ({ ...current, [key]: 'local' })))}
                   {option('Use snapshot', choices[key] === 'incoming', () => setChoices((current) => ({ ...current, [key]: 'incoming' })))}
                 </View>
@@ -239,4 +273,6 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   primaryText: { color: theme.colors.on_accent, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   secondaryText: { color: theme.colors.text_primary, fontSize: 15, fontWeight: '600', textAlign: 'center' },
   disabled: { opacity: 0.4 },
+  imageBorder: { borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border_contrast },
+  groupImagePreview: { width: '100%', height: 200 },
 });

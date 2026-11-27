@@ -3,6 +3,7 @@
 ## Dashboard
 - On first launch, choose **Group**, **Setlist**, or **Song** to start anywhere. Songs created on their own appear in the dashboard's **Songs** list; play or edit them there, or add them to a setlist later. Newly created setlists open expanded when you return to the dashboard.
 - Setlists can sit at the top level or inside a one-level **group**. New and copied setlists appear at the top.
+- Edit a group with its pencil to add a description and image; these appear when the group is expanded. Images default to a maximum dimension of 1024 pixels. Select **Original resolution** before choosing an image to retain its dimensions (it is still encoded for storage). Large images make backups larger.
 - When all setlists are collapsed, a ☰ handle appears on each setlist; long-press and drag it to reorder within its group (or the top level). The top-level + offers "Add new setlist" or "Add new setlist from existing" (a copy). Songs and breaks inside a setlist are reordered by long-pressing and dragging their ☰ handles.
 - When a setlist has a location, a small map-pin beside its location/date line opens the venue in Maps.
 - Expand a setlist to see its songs and breaks. Per-setlist buttons: play (opens the whole setlist), edit details, add (+: new song, copy song from another setlist, or break), delete (−).

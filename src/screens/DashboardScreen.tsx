@@ -975,7 +975,7 @@ export default function DashboardScreen({
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`Rename ${group.name} group`}
+                      accessibilityLabel={`Edit ${group.name} group`}
                       onPress={() => onOpenGroupEditor(group)}
                       style={styles.groupAction}
                     >
@@ -990,6 +990,13 @@ export default function DashboardScreen({
                       <MaterialCommunityIcons name="folder-remove" size={20} color={theme.colors.action_danger} />
                     </Pressable>
                   </View>
+                  {!collapsed && (group.image || group.description) && (
+                    <View style={styles.groupDetails}>
+                      {group.image && <Image source={{ uri: group.image }} style={styles.groupImage}
+                        resizeMode="contain" accessibilityLabel={`${group.name} group image`} />}
+                      {group.description && <Text style={styles.groupDescription}>{group.description}</Text>}
+                    </View>
+                  )}
                 </View>
               );
             }
@@ -1485,6 +1492,23 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  groupDetails: {
+    marginLeft: 32,
+    marginBottom: 8,
+    padding: 12,
+    gap: 10,
+    borderRadius: 10,
+    backgroundColor: theme.colors.surface_card,
+  },
+  groupImage: {
+    width: '100%',
+    height: 200,
+  },
+  groupDescription: {
+    color: theme.colors.text_primary,
+    fontSize: 14,
+    lineHeight: 20,
   },
   cardHeader: {
     flexDirection: 'row',

@@ -13,6 +13,7 @@ import type {
 import { parseCueDocument, validateCueDocument } from './cueDocument';
 import { MAX_FONT_SIZE, MIN_FONT_SIZE } from './fontSize';
 import { parseStoredSongTags, validateSongTags } from './songTags';
+import { isGroupImage } from './groupDetails';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -45,6 +46,11 @@ export function createSetlistArchive(
     // Importers use this to keep the cues they already have instead of blanking them.
     ...(includeCues ? {} : { cues: false as const }),
     groups: groups.map(({ name }) => name),
+    ...(groups.some((group) => group.description || group.image) ? {
+      groupDetails: groups.filter((group) => group.description || group.image).map((group) => ({
+        name: group.name, description: group.description ?? null, image: group.image ?? null,
+      })),
+    } : {}),
     songs: songs.map((song) => exportSong(song, includeCues)),
     setlists: setlists.map(({ name, group_name, location, latitude, longitude, notes, date, time, items, partial }) => ({
       name,
@@ -186,6 +192,28 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
     }
   }
 
+  let groupDetails: ImportedLibrary['groupDetails'];
+  if (value.groupDetails !== undefined) {
+    if ((value.version !== 5 && value.version !== 6) || !Array.isArray(value.groupDetails)) {
+      throw new Error('The Dots export has invalid group details.');
+    }
+    const seen = new Set<string>();
+    groupDetails = value.groupDetails.map((details) => {
+      if (!isRecord(details) || typeof details.name !== 'string') {
+        throw new Error('The Dots export has invalid group details.');
+      }
+      const normalizedName = details.name.toLocaleLowerCase();
+      if (!groups.some((name) => name.toLocaleLowerCase() === normalizedName) ||
+          seen.has(normalizedName) ||
+          !(details.description === null || typeof details.description === 'string') ||
+          !(details.image === null || isGroupImage(details.image))) {
+        throw new Error('The Dots export has invalid group details.');
+      }
+      seen.add(normalizedName);
+      return { name: details.name, description: details.description, image: details.image };
+    });
+  }
+
   const setlists = value.setlists.map((setlist, setlistIndex) => {
     if (!isRecord(setlist) || typeof setlist.name !== 'string' || !setlist.name.trim()) {
       throw new Error(`Setlist ${setlistIndex + 1} must have a name.`);
@@ -289,6 +317,7 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
 
   return {
     groups,
+    ...(groupDetails ? { groupDetails } : {}),
     setlists,
     ...(songs ? { songs } : {}),
     ...(value.cues === false ? { cuesOmitted: true as const } : {}),

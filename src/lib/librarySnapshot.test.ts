@@ -185,3 +185,24 @@ test('repeating a confirmed merge does not duplicate linked songs or setlist ite
   assert.deepEqual(second.setlists[0].items.map(({ id }) => id), ['song', 'remote-break']);
   assert.equal(second.setlists[1].items[0].id, 'song');
 });
+
+test('group details survive snapshot copies and merges with older snapshots', () => {
+  const local = library();
+  local.groups[0].description = 'Our band';
+  local.groups[0].image = 'data:image/png;base64,AAAA';
+  const older = library();
+  older.groups[0].name = 'Renamed band';
+  const conflict = getSnapshotConflicts(local, older);
+  assert.equal(conflict.length, 1);
+  const result = mergeLibrarySnapshots(local, older, { 'group:group': 'incoming' }).snapshot;
+  assert.equal(result.groups[0].name, 'Renamed band');
+  assert.equal(result.groups[0].description, 'Our band');
+  assert.equal(result.groups[0].image, 'data:image/png;base64,AAAA');
+  let counter = 0;
+  const copy = copyLibrarySnapshot(library(), local, () => `copy-${++counter}`).snapshot;
+  assert.equal(copy.groups[1].description, 'Our band');
+  assert.equal(copy.groups[1].image, 'data:image/png;base64,AAAA');
+  assert.deepEqual(parseLibrarySnapshot(JSON.stringify(local)), local);
+  local.groups[0].image = 'https://example.com/image.png';
+  assert.throws(() => parseLibrarySnapshot(JSON.stringify(local)), /invalid or duplicate group/);
+});
