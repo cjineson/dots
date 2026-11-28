@@ -3,8 +3,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
   LayoutChangeEvent,
   PanResponder,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -20,6 +22,7 @@ import SongTags from '../components/SongTags';
 import FontSizeZoomControl, { barMetrics } from '../components/FontSizeZoomControl';
 import PerformanceCueContent from '../components/PerformanceCueContent';
 import SongSearchPanel from '../components/SongSearchPanel';
+import { displaySongTitle } from '../lib/songTitle';
 import {
   TAG_COLORS,
   createCueDocumentFromText,
@@ -330,6 +333,7 @@ export default function LivePerformanceScreen({
 
   return (
     <SafeAreaView style={styles.screen}>
+      <KeyboardAvoidingView style={styles.keyboardArea} behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={isCueEditing}>
       <View style={styles.topBar}>
         {isCueEditing ? (
           <>
@@ -343,7 +347,7 @@ export default function LivePerformanceScreen({
                   />
                 )}
                 {!song?.title_derived && (
-                  <Text numberOfLines={1} style={styles.songTitle}>{song?.title ?? 'Break'}</Text>
+                  <Text numberOfLines={1} style={styles.songTitle}>{song ? displaySongTitle(song) : 'Break'}</Text>
                 )}
                 <Text style={styles.positionText}>Editing cues</Text>
               </View>
@@ -434,7 +438,7 @@ export default function LivePerformanceScreen({
                 )}
                 {!song?.title_derived && (
                   <Text numberOfLines={1} style={styles.songTitle}>
-                    {song?.title ?? 'Break'}
+                    {song ? displaySongTitle(song) : 'Break'}
                   </Text>
                 )}
                 {song && !isEditorPreview && settings.showPerformanceEditButton && (
@@ -694,6 +698,7 @@ export default function LivePerformanceScreen({
           )}
           <ScrollView
             ref={cueScrollRef}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.cueBlocks}
             scrollEventThrottle={32}
             onScroll={(event) => {
@@ -719,11 +724,15 @@ export default function LivePerformanceScreen({
           )}
         </View>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const createStyles = (theme: AppTheme) => StyleSheet.create({
+  keyboardArea: {
+    flex: 1,
+  },
   crawlPanel: {
     flexDirection: 'row',
     alignItems: 'center',

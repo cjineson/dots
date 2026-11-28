@@ -73,6 +73,20 @@ const setlists: SetlistWithSongs[] = [
   },
 ];
 
+test('artists round-trip for setlist and standalone songs, including cue-less exports', () => {
+  const song = { id: 'artist-song', title: 'Song', artist: 'The Artist', notes_raw_text: 'Lyrics' };
+  const list = { ...setlists[0], group_name: undefined, items: [{ kind: 'song' as const, song }] };
+  for (const includeCues of [true, false]) {
+    const archive = createSetlistArchive([list], [], [song], { includeCues });
+    const imported = parseSetlistArchive(JSON.stringify(archive));
+    assert.equal(imported.songs?.[0].artist, 'The Artist');
+    const item = imported.setlists[0].items[0];
+    assert.equal(item.type === 'song' && item.artist, 'The Artist');
+  }
+  const invalid = createSetlistArchive([], [], [song]);
+  assert.throws(() => parseSetlistArchive(JSON.stringify({ ...invalid, songs: [{ ...invalid.songs?.[0], artist: 123 }] })), /invalid/);
+});
+
 test('tab characters survive standalone song archive round trips', () => {
   const text = 'C\tG\nAm\tF';
   const cueDocument = { version: 1 as const, blocks: [{ id: 'cue', type: 'text' as const, text }] };
@@ -509,6 +523,22 @@ test('a normal archive does not carry the cues marker', () => {
   const archive = createSetlistArchive(setlists, [{ id: 'group-1', name: 'The Band', order_index: 0 }]);
   assert.equal('cues' in archive, false);
   assert.equal(parseSetlistArchive(JSON.stringify(archive)).cuesOmitted, undefined);
+});
+
+test('group descriptions and images round-trip and invalid details are rejected', () => {
+  const group = {
+    id: 'group-1', name: 'The Band', order_index: 0,
+    description: 'Our group', image: 'data:image/png;base64,AAAA',
+  };
+  const archive = createSetlistArchive(setlists, [group]);
+  assert.deepEqual(parseSetlistArchive(JSON.stringify(archive)).groupDetails, [
+    { name: group.name, description: group.description, image: group.image },
+  ]);
+  archive.groupDetails![0].image = 'https://example.com/image.png';
+  assert.throws(() => parseSetlistArchive(JSON.stringify(archive)), /invalid group details/);
+  archive.groupDetails![0].image = null;
+  archive.groupDetails![0].name = 'Missing group';
+  assert.throws(() => parseSetlistArchive(JSON.stringify(archive)), /invalid group details/);
 });
 
 test('restoreOmittedCues copies cues from the matching existing song, once each', () => {

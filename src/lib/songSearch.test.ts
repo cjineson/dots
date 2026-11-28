@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { buildSongSearchEntries, searchSongEntries } from './songSearch';
+import { displaySongTitle } from './songTitle';
 import type { SetlistWithSongs, Song } from '../types';
 
 const song = (id: string, title: string, extra: Partial<Song> = {}): Song => ({
@@ -50,4 +51,12 @@ test('matches titles and tags, prefix matches first', () => {
   assert.deepEqual(searchSongEntries(entries, 'acoustic').map((entry) => entry.song.id), ['a']);
   assert.deepEqual(searchSongEntries(entries, '  ').length, 0);
   assert.equal(searchSongEntries(entries, 'zzz').length, 0);
+});
+
+test('displays and searches the optional artist', () => {
+  const withArtist = song('d', 'A Song', { artist: 'The Artist' });
+  const entries = buildSongSearchEntries([], [withArtist], []);
+  assert.equal(displaySongTitle(withArtist), 'A Song - The Artist');
+  assert.equal(displaySongTitle(song('e', 'A Song', { artist: '  ' })), 'A Song');
+  assert.deepEqual(searchSongEntries(entries, 'song artist').map((entry) => entry.song.id), ['d']);
 });

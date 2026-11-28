@@ -3,6 +3,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -33,6 +35,7 @@ import SongTags from '../components/SongTags';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
 import { useScreenAwake } from '../lib/keepAwake';
+import { displaySongTitle } from '../lib/songTitle';
 import { NOTE_ICON, SONG_ICON } from '../lib/noteTitle';
 import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
 import { parseNotes, toggleChecklistLine } from '../lib/notes';
@@ -381,6 +384,7 @@ export default function FlowScreen({
 
   return (
     <SafeAreaView style={styles.screen}>
+      <KeyboardAvoidingView style={styles.keyboardArea} behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={isCueEditing}>
       <View style={styles.topBar}>
         <Pressable
           accessibilityRole="button"
@@ -577,6 +581,7 @@ export default function FlowScreen({
 
       <ScrollView
         ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
         scrollEventThrottle={32}
         onScroll={(event) => {
@@ -668,7 +673,7 @@ export default function FlowScreen({
                   <View style={styles.songTitleText} />
                 ) : (
                   <Text style={styles.songTitleText}>
-                    {song.title}
+                    {displaySongTitle(song)}
                   </Text>
                 )}
                 <SongTags
@@ -679,7 +684,7 @@ export default function FlowScreen({
                 {!isCueEditing && songHasCue(song) && (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`Toggle zoom controls for ${song.title}`}
+                    accessibilityLabel={`Toggle zoom controls for ${displaySongTitle(song)}`}
                     accessibilityState={{ expanded: !!openSongZoomIds[song.id] }}
                     onPress={() => {
                       setTagsOpen(false);
@@ -698,7 +703,7 @@ export default function FlowScreen({
               {!isCueEditing && songHasCue(song) && openSongZoomIds[song.id] && (
               <FontSizeZoomControl
                 size={settings.barSize}
-                label={`${song.title} text size`}
+                label={`${displaySongTitle(song)} text size`}
                 value={songFontSize(song)}
                 onValueChange={(nextFontSize, persist) =>
                   setSongFontSizeAndPersist(song.id, nextFontSize, persist)
@@ -718,6 +723,7 @@ export default function FlowScreen({
           );
         })}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -728,6 +734,9 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     backgroundColor: theme.colors.background,
     paddingHorizontal: 16,
     paddingBottom: 12,
+  },
+  keyboardArea: {
+    flex: 1,
   },
   topBar: {
     flexDirection: 'row',

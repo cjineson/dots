@@ -13,6 +13,7 @@ import type {
 import { parseCueDocument, validateCueDocument } from './cueDocument';
 import { MAX_FONT_SIZE, MIN_FONT_SIZE } from './fontSize';
 import { parseStoredSongTags, validateSongTags } from './songTags';
+import { isGroupImage } from './groupDetails';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -21,6 +22,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function exportSong(song: Song, includeCues: boolean): ArchiveSong {
   return {
     title: song.title_derived ? '' : song.title,
+    ...(song.artist ? { artist: song.artist } : {}),
     notes_raw_text: includeCues ? song.notes_raw_text : '',
     ...(song.is_note ? { note: true as const } : {}),
     font_size: song.font_size,
@@ -45,6 +47,11 @@ export function createSetlistArchive(
     // Importers use this to keep the cues they already have instead of blanking them.
     ...(includeCues ? {} : { cues: false as const }),
     groups: groups.map(({ name }) => name),
+    ...(groups.some((group) => group.description || group.image) ? {
+      groupDetails: groups.filter((group) => group.description || group.image).map((group) => ({
+        name: group.name, description: group.description ?? null, image: group.image ?? null,
+      })),
+    } : {}),
     songs: songs.map((song) => exportSong(song, includeCues)),
     setlists: setlists.map(({ name, group_name, location, latitude, longitude, notes, date, time, items, partial }) => ({
       name,
@@ -73,6 +80,7 @@ function parseSong(song: unknown, setlistName: string, songIndex: number) {
   if (
     !isRecord(song) ||
     typeof song.title !== 'string' ||
+    (song.artist !== undefined && typeof song.artist !== 'string') ||
     typeof song.notes_raw_text !== 'string' ||
     (song.note !== undefined && song.note !== true) ||
     (song.font_size !== undefined &&
@@ -108,6 +116,7 @@ function parseSong(song: unknown, setlistName: string, songIndex: number) {
   return {
     type: 'song' as const,
     title: song.title,
+    ...(song.artist !== undefined ? { artist: song.artist } : {}),
     notes_raw_text: song.notes_raw_text,
     ...(song.note === true ? { note: true as const } : {}),
     font_size: song.font_size,
@@ -184,6 +193,28 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
       normalizedGroups.add(normalizedGroup);
       groups.push(cleanedGroup);
     }
+  }
+
+  let groupDetails: ImportedLibrary['groupDetails'];
+  if (value.groupDetails !== undefined) {
+    if ((value.version !== 5 && value.version !== 6) || !Array.isArray(value.groupDetails)) {
+      throw new Error('The Dots export has invalid group details.');
+    }
+    const seen = new Set<string>();
+    groupDetails = value.groupDetails.map((details) => {
+      if (!isRecord(details) || typeof details.name !== 'string') {
+        throw new Error('The Dots export has invalid group details.');
+      }
+      const normalizedName = details.name.toLocaleLowerCase();
+      if (!groups.some((name) => name.toLocaleLowerCase() === normalizedName) ||
+          seen.has(normalizedName) ||
+          !(details.description === null || typeof details.description === 'string') ||
+          !(details.image === null || isGroupImage(details.image))) {
+        throw new Error('The Dots export has invalid group details.');
+      }
+      seen.add(normalizedName);
+      return { name: details.name, description: details.description, image: details.image };
+    });
   }
 
   const setlists = value.setlists.map((setlist, setlistIndex) => {
@@ -289,6 +320,7 @@ export function parseSetlistArchive(json: string): ImportedLibrary {
 
   return {
     groups,
+    ...(groupDetails ? { groupDetails } : {}),
     setlists,
     ...(songs ? { songs } : {}),
     ...(value.cues === false ? { cuesOmitted: true as const } : {}),

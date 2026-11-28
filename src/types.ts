@@ -18,11 +18,17 @@ export type SetlistGroup = {
   id: string;
   name: string;
   order_index: number;
+  description?: string | null;
+  image?: string | null;
 };
+
+export type GroupDetails = { description: string | null; image: string | null };
+export type ArchiveGroupDetails = GroupDetails & { name: string };
 
 export type Song = {
   id: string;
   title: string;
+  artist?: string;
   notes_raw_text: string;
   font_size?: number;
   cue_document?: string;
@@ -98,6 +104,7 @@ export type SetlistArchive = {
   exportedAt: string;
   cues?: false;
   groups: string[];
+  groupDetails?: ArchiveGroupDetails[];
   songs?: ArchiveSong[];
   setlists: Array<{
     name: string;
@@ -113,6 +120,7 @@ export type SetlistArchive = {
       | {
           type: 'song';
           title: string;
+          artist?: string;
           notes_raw_text: string;
           font_size?: number;
           cue_document?: CueDocument;
@@ -126,6 +134,7 @@ export type SetlistArchive = {
 
 export type ArchiveSong = {
   title: string;
+  artist?: string;
   notes_raw_text: string;
   note?: true;
   font_size?: number;
@@ -147,6 +156,7 @@ export type ImportedSetlist = {
     | {
         type: 'song';
         title: string;
+        artist?: string;
         notes_raw_text: string;
         font_size?: number;
         cue_document?: CueDocument;
@@ -159,6 +169,7 @@ export type ImportedSetlist = {
 
 export type ImportedLibrary = {
   groups: string[];
+  groupDetails?: ArchiveGroupDetails[];
   setlists: ImportedSetlist[];
   songs?: ArchiveSong[];
   cuesOmitted?: true;

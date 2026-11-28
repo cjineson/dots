@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -25,6 +27,7 @@ import SongTagsView from '../components/SongTags';
 import { makeId } from '../lib/uuid';
 import { undoAutoPeriod } from '../lib/autoPeriod';
 import { deriveNoteTitle } from '../lib/noteTitle';
+import { displaySongTitle } from '../lib/songTitle';
 import { useUnsavedChangesPrompt } from '../lib/useUnsavedChangesPrompt';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
@@ -37,6 +40,7 @@ type SongEditorScreenProps = {
   onCancel: () => void;
   onSave: (payload: {
     title: string;
+    artist: string;
     notesRawText: string;
     cueDocument: string;
     tags: SongTag[];
@@ -67,6 +71,8 @@ export default function SongEditorScreen({
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [title, setTitle] = useState(initialSong?.title_derived ? '' : initialSong?.title ?? '');
+  const [artist, setArtist] = useState(initialSong?.artist ?? '');
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [document, setDocument] = useState<CueDocument>(() =>
     initialSong?.cue_document
       ? parseCueDocument(initialSong.cue_document)
@@ -82,6 +88,7 @@ export default function SongEditorScreen({
     selection: CueSelection;
   } | null>(null);
   const cueInputs = useRef<Record<string, React.ComponentRef<typeof TextInput> | null>>({});
+  const screenRef = useRef<React.ComponentRef<typeof SafeAreaView>>(null);
 
   useEffect(() => {
     if (!pendingSelection) return undefined;
@@ -110,6 +117,7 @@ export default function SongEditorScreen({
     return {
       id: initialSong?.id ?? 'new-song',
       title: title.trim() || (isNote ? deriveNoteTitle(notesRawText) : 'Untitled Song'),
+      artist: isNote ? undefined : artist.trim() || undefined,
       ...(isNote && !title.trim() ? { title_derived: true } : {}),
       notes_raw_text: notesRawText,
       cue_document: serializeCueDocument(document),
@@ -117,16 +125,17 @@ export default function SongEditorScreen({
       tags,
       ...(isNote ? { is_note: true } : {}),
     };
-  }, [document, tags, title, initialSong, isNote]);
+  }, [document, tags, title, artist, initialSong, isNote, theme.typography.box_text_size]);
   const savePayload = () => ({
     title,
+    artist,
     notesRawText: currentSong.notes_raw_text,
     cueDocument: currentSong.cue_document,
     tags: currentSong.tags ?? [],
     fontSize: currentSong.font_size,
   });
   const { runSave } = useUnsavedChangesPrompt({
-    snapshot: JSON.stringify([title, currentSong.cue_document, tags]),
+    snapshot: JSON.stringify([title, artist, currentSong.cue_document, tags]),
     save: () => runSave(() => onSave(savePayload())),
   });
   const previewCueBlocks = useMemo(() => getVisibleCueBlocks(document), [document]);
@@ -399,7 +408,16 @@ export default function SongEditorScreen({
   );
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView
+      ref={screenRef}
+      style={styles.screen}
+      onLayout={() => screenRef.current?.measureInWindow((_x, y) => setKeyboardOffset(y))}
+    >
+      <KeyboardAvoidingView
+        style={styles.keyboardArea}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={keyboardOffset}
+      >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>Title</Text>
         <TextInput
@@ -413,6 +431,18 @@ export default function SongEditorScreen({
           <Text style={styles.helperText}>
             Optional. Without a title the note is named after its first line, and that name is hidden in the dashboard, Flow and performance headers.
           </Text>
+        )}
+        {!isNote && (
+          <>
+            <Text style={styles.label}>Artist (optional)</Text>
+            <TextInput
+              value={artist}
+              onChangeText={setArtist}
+              placeholder="Artist"
+              placeholderTextColor={theme.colors.text_secondary}
+              style={styles.input}
+            />
+          </>
         )}
 
         <Text style={styles.label}>Tags</Text>
@@ -530,7 +560,7 @@ export default function SongEditorScreen({
 
         <Text style={styles.label}>Performance preview</Text>
         <View style={styles.previewHeading}>
-          <Text numberOfLines={2} style={styles.previewSongTitle}>{currentSong.title}</Text>
+          <Text numberOfLines={2} style={styles.previewSongTitle}>{displaySongTitle(currentSong)}</Text>
           <SongTagsView tags={tags} />
         </View>
         <View style={styles.previewCueBox}>
@@ -571,6 +601,7 @@ export default function SongEditorScreen({
           <Text style={styles.saveButtonText}>Save</Text>
         </Pressable>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -581,6 +612,9 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
     backgroundColor: theme.colors.background,
     paddingHorizontal: 16,
     paddingTop: 16,
+  },
+  keyboardArea: {
+    flex: 1,
   },
   content: {
     paddingBottom: 12,

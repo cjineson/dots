@@ -61,7 +61,7 @@ export function searchSongEntries(entries: SongSearchEntry[], query: string): So
   }
   return entries
     .filter((entry) => {
-      const haystack = [entry.song.title, ...(entry.song.tags ?? []).map((tag) => tag.label)]
+      const haystack = [entry.song.title, entry.song.artist ?? '', ...(entry.song.tags ?? []).map((tag) => tag.label)]
         .join(' ')
         .toLocaleLowerCase();
       return terms.every((term) => haystack.includes(term));

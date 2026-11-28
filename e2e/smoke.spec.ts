@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { expect, test } from '@playwright/test';
 
 test('dashboard loads and opens Settings', async ({ page }) => {
@@ -37,6 +38,51 @@ test('song editor inserts a tab at the selection', async ({ page }) => {
   await page.getByRole('button', { name: 'Insert tab at cursor' }).last().click();
   await expect(cell).toHaveValue('E\tF');
   await expect(cell).toBeFocused();
+});
+
+test('group details save an image at the chosen resolution', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForTimeout(1000);
+  await page.getByRole('button', { name: 'Create a group', exact: true }).click({ force: true });
+  await page.getByLabel('Group name').fill('The Band');
+  await page.getByLabel('Group description').fill('Ready for the stage');
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1600;
+    canvas.height = 1200;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#123456';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const upload = async (button: string) => {
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: button }).click();
+    await (await chooser).setFiles({ name: 'logo.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') });
+    await expect(page.getByLabel('Group image preview')).toBeVisible();
+  };
+  const dimensions = () => page.getByLabel('Group image preview').locator('img').evaluate((element: HTMLImageElement) => [element.naturalWidth, element.naturalHeight]);
+  await upload('Add image');
+  await expect.poll(dimensions).toEqual([1024, 768]);
+  await page.getByRole('radio', { name: 'Original resolution' }).click();
+  await upload('Change image');
+  await expect.poll(dimensions).toEqual([1600, 1200]);
+  await page.getByRole('button', { name: 'Create group' }).click();
+  await expect(page.getByText('Ready for the stage')).toBeVisible();
+  const dashboardImage = page.getByLabel('The Band group image');
+  await expect(dashboardImage).toBeVisible();
+  await expect(dashboardImage).toHaveCSS('height', '150px');
+  await page.getByRole('button', { name: 'Collapse The Band group' }).click();
+  await expect(dashboardImage).toBeVisible();
+  await expect(dashboardImage).toHaveCSS('height', '150px');
+  await expect(page.getByText('Ready for the stage')).not.toBeVisible();
+  await page.getByRole('button', { name: 'Expand The Band group' }).click();
+  await expect(dashboardImage).toBeVisible();
+  await expect(page.getByText('Ready for the stage')).toBeVisible();
+  await page.getByRole('button', { name: 'Edit The Band group' }).click();
+  await expect(page.getByLabel('Group description')).toHaveValue('Ready for the stage');
+  await expect(page.getByLabel('Group image preview')).toHaveCSS('height', '150px');
+  await expect.poll(dimensions).toEqual([1600, 1200]);
 });
 
 test('snapshot import previews and merges a changed song', async ({ page }) => {
