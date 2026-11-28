@@ -26,6 +26,22 @@ function library(): LibrarySnapshot {
   };
 }
 
+test('snapshots preserve artists and inherit them when merging older snapshots', () => {
+  const local = library();
+  local.songs[0].artist = 'Artist';
+  const incoming = library();
+  assert.equal(parseLibrarySnapshot(JSON.stringify(local)).songs[0].artist, 'Artist');
+  assert.deepEqual(getSnapshotConflicts(local, incoming), []);
+  incoming.songs[0].notes_raw_text = 'Changed';
+  const merged = mergeLibrarySnapshots(local, incoming, { 'song:song': 'incoming' }).snapshot;
+  assert.equal(merged.songs[0].artist, 'Artist');
+  incoming.songs[0].artist = null;
+  assert.equal(mergeLibrarySnapshots(local, incoming, { 'song:song': 'incoming' }).snapshot.songs[0].artist, null);
+  assert.throws(() => parseLibrarySnapshot(JSON.stringify({
+    ...incoming, songs: [{ ...incoming.songs[0], artist: 42 }],
+  })), /invalid song/);
+});
+
 test('snapshot preserves grouped standalone songs and shared song references', () => {
   const original = library();
   assert.deepEqual(parseLibrarySnapshot(JSON.stringify(original)), original);

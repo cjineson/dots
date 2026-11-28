@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
 import { searchSongEntries } from '../lib/songSearch';
+import { displaySongTitle } from '../lib/songTitle';
 import type { SongSearchEntry } from '../lib/songSearch';
 
 type SongSearchPanelProps = {
@@ -58,11 +59,11 @@ export default function SongSearchPanel({ entries, onSelect, onClose }: SongSear
               <Pressable
                 key={entry.key}
                 accessibilityRole="button"
-                accessibilityLabel={`${entry.song.title}, in ${entry.location}`}
+                accessibilityLabel={`${displaySongTitle(entry.song)}, in ${entry.location}`}
                 onPress={() => onSelect(entry)}
                 style={styles.result}
               >
-                <Text numberOfLines={1} style={styles.resultTitle}>{entry.song.title}</Text>
+                <Text numberOfLines={1} style={styles.resultTitle}>{displaySongTitle(entry.song)}</Text>
                 <Text numberOfLines={1} style={styles.resultLocation}>{entry.location}</Text>
               </Pressable>
             ))

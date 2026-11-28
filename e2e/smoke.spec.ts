@@ -69,9 +69,19 @@ test('group details save an image at the chosen resolution', async ({ page }) =>
   await expect.poll(dimensions).toEqual([1600, 1200]);
   await page.getByRole('button', { name: 'Create group' }).click();
   await expect(page.getByText('Ready for the stage')).toBeVisible();
-  await expect(page.getByLabel('The Band group image')).toBeVisible();
+  const dashboardImage = page.getByLabel('The Band group image');
+  await expect(dashboardImage).toBeVisible();
+  await expect(dashboardImage).toHaveCSS('height', '150px');
+  await page.getByRole('button', { name: 'Collapse The Band group' }).click();
+  await expect(dashboardImage).toBeVisible();
+  await expect(dashboardImage).toHaveCSS('height', '150px');
+  await expect(page.getByText('Ready for the stage')).not.toBeVisible();
+  await page.getByRole('button', { name: 'Expand The Band group' }).click();
+  await expect(dashboardImage).toBeVisible();
+  await expect(page.getByText('Ready for the stage')).toBeVisible();
   await page.getByRole('button', { name: 'Edit The Band group' }).click();
   await expect(page.getByLabel('Group description')).toHaveValue('Ready for the stage');
+  await expect(page.getByLabel('Group image preview')).toHaveCSS('height', '150px');
   await expect.poll(dimensions).toEqual([1600, 1200]);
 });
 

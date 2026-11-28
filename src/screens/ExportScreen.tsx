@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { defaultExportFileName, exportFileName } from '../lib/exportFileName';
+import { displaySongTitle } from '../lib/songTitle';
 import {
   EMPTY_SELECTION,
   countSelection,
@@ -97,7 +98,7 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
               <Pressable
                 key={song.id}
                 accessibilityRole="checkbox"
-                accessibilityLabel={`Export song ${song.title}`}
+                accessibilityLabel={`Export song ${displaySongTitle(song)}`}
                 accessibilityState={{ checked: songChecked }}
                 onPress={() =>
                   setSelection(toggleSongSelection(selection, setlist, song.id, setlists))
@@ -105,7 +106,7 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
                 style={[styles.row, styles.songRow]}
               >
                 {renderCheck(songChecked)}
-                <Text style={styles.rowText}>{song.title}</Text>
+                <Text style={styles.rowText}>{displaySongTitle(song)}</Text>
               </Pressable>
             );
           })}
@@ -208,7 +209,7 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
                 <Pressable
                   key={song.id}
                   accessibilityRole="checkbox"
-                  accessibilityLabel={`Export standalone song ${song.title}`}
+                  accessibilityLabel={`Export standalone song ${displaySongTitle(song)}`}
                   accessibilityState={{ checked }}
                   onPress={() =>
                     setSelection({
@@ -221,7 +222,7 @@ export default function ExportScreen({ setlists, standaloneSongs, groups, onExpo
                   style={[styles.row, styles.songRow]}
                 >
                   {renderCheck(checked)}
-                  <Text style={styles.rowText}>{song.title}</Text>
+                  <Text style={styles.rowText}>{displaySongTitle(song)}</Text>
                 </Pressable>
               );
             })}

@@ -7,6 +7,7 @@ export type SnapshotGroup = { id: string; name: string; order_index: number; des
 export type SnapshotSong = {
   id: string;
   title: string;
+  artist?: string | null;
   notes_raw_text: string;
   font_size: number;
   cue_document: string | null;
@@ -93,6 +94,7 @@ export function parseLibrarySnapshot(json: string): LibrarySnapshot {
   for (const song of value.songs) {
     if (!isRecord(song) || !isId(song.id) || songIds.has(song.id) ||
         typeof song.title !== 'string' || typeof song.notes_raw_text !== 'string' ||
+        song.artist !== undefined && !nullableString(song.artist) ||
         typeof song.font_size !== 'number' || !Number.isFinite(song.font_size) ||
         song.font_size < MIN_FONT_SIZE || song.font_size > MAX_FONT_SIZE || !nullableString(song.cue_document) ||
         !nullableString(song.tags) || !nullableString(song.group_id) ||
@@ -162,9 +164,19 @@ export function getSnapshotConflicts(local: LibrarySnapshot, incoming: LibrarySn
     }
   }
   compare('group', local.groups, inheritGroupDetails(local.groups, incoming.groups));
-  compare('song', local.songs, incoming.songs);
+  compare('song', local.songs, inheritSongArtists(local.songs, incoming.songs));
   compare('setlist', local.setlists, incoming.setlists);
   return conflicts;
+}
+
+function inheritSongArtists(local: SnapshotSong[], incoming: SnapshotSong[]): SnapshotSong[] {
+  const byId = new Map(local.map((song) => [song.id, song]));
+  return incoming.map((song) => {
+    const current = byId.get(song.id);
+    return song.artist === undefined && current?.artist !== undefined
+      ? { ...current, ...song, artist: current.artist }
+      : song;
+  });
 }
 
 function inheritGroupDetails(local: SnapshotGroup[], incoming: SnapshotGroup[]): SnapshotGroup[] {
@@ -317,7 +329,7 @@ export function mergeLibrarySnapshots(
   const snapshot: LibrarySnapshot = {
     ...local,
     groups: named.groups,
-    songs: mergeRecords('song', local.songs, incoming.songs),
+    songs: mergeRecords('song', local.songs, inheritSongArtists(local.songs, incoming.songs)),
     setlists,
   };
   parseLibrarySnapshot(JSON.stringify(snapshot));

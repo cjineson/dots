@@ -175,12 +175,14 @@ export default function App() {
     isNote: boolean | undefined,
     {
       title,
+      artist,
       notesRawText,
       cueDocument,
       tags,
       fontSize,
     }: {
       title: string;
+      artist: string;
       notesRawText: string;
       cueDocument: string;
       tags: Song['tags'];
@@ -193,6 +195,7 @@ export default function App() {
       groupId,
       songId: existingSong?.id,
       title,
+      artist,
       notes_raw_text: notesRawText,
       cue_document: cueDocument,
       tags,

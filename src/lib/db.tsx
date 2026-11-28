@@ -38,7 +38,7 @@ export function getLibrarySnapshot(): LibrarySnapshot {
     'SELECT id, name, order_index, description, image FROM setlist_groups ORDER BY order_index, id',
   );
   const songs = db.getAllSync<SnapshotSong>(
-    'SELECT id, title, notes_raw_text, font_size, cue_document, tags, group_id, sort_order, is_note FROM songs ORDER BY id',
+    'SELECT id, title, artist, notes_raw_text, font_size, cue_document, tags, group_id, sort_order, is_note FROM songs ORDER BY id',
   );
   const setlists = db.getAllSync<Omit<SnapshotSetlist, 'items'>>(
     'SELECT id, name, order_index, group_id, location, latitude, longitude, notes, date, time FROM setlists ORDER BY order_index, id',
@@ -75,8 +75,8 @@ export function replaceLibrarySnapshot(snapshot: LibrarySnapshot, expected: Libr
     }
     for (const song of validated.songs) {
       db.runSync(
-        'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags, group_id, sort_order, is_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [song.id, song.title, song.notes_raw_text, song.font_size, song.cue_document, song.tags, song.group_id, song.sort_order, song.is_note],
+        'INSERT INTO songs (id, title, artist, notes_raw_text, font_size, cue_document, tags, group_id, sort_order, is_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [song.id, song.title, song.artist ?? null, song.notes_raw_text, song.font_size, song.cue_document, song.tags, song.group_id, song.sort_order, song.is_note],
       );
     }
     for (const setlist of validated.setlists) {
@@ -178,6 +178,9 @@ export function initializeDatabase(): void {
   }
   if (!songColumns.some((column) => column.name === 'tags')) {
     db.execSync('ALTER TABLE songs ADD COLUMN tags TEXT');
+  }
+  if (!songColumns.some((column) => column.name === 'artist')) {
+    db.execSync('ALTER TABLE songs ADD COLUMN artist TEXT');
   }
   if (!songColumns.some((column) => column.name === 'group_id')) {
     db.execSync('ALTER TABLE songs ADD COLUMN group_id TEXT');
@@ -691,10 +694,11 @@ function duplicateSongInSetlist(
       [setlistId, afterSortOrder],
     );
     db.runSync(
-      'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags, is_note) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO songs (id, title, artist, notes_raw_text, font_size, cue_document, tags, is_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
         copy.id,
         copy.title_derived ? '' : copy.title,
+        copy.artist ?? null,
         copy.notes_raw_text,
         copy.font_size ?? 18,
         copy.cue_document ?? null,
@@ -724,6 +728,7 @@ export function getSetlistsWithSongs(): SetlistWithSongs[] {
       id: string;
       sort_order: number;
       title: string | null;
+      artist: string | null;
       notes_raw_text: string | null;
       font_size: number | null;
       cue_document: string | null;
@@ -731,13 +736,13 @@ export function getSetlistsWithSongs(): SetlistWithSongs[] {
       is_note: number | null;
       duration_minutes: number | null;
     }>(
-      `SELECT 'song' AS kind, s.id, ss.sort_order, s.title, s.notes_raw_text,
+      `SELECT 'song' AS kind, s.id, ss.sort_order, s.title, s.artist, s.notes_raw_text,
               s.font_size, s.cue_document, s.tags, s.is_note, NULL AS duration_minutes
        FROM songs s
        INNER JOIN setlist_songs ss ON ss.song_id = s.id
        WHERE ss.setlist_id = ?
        UNION ALL
-       SELECT 'break' AS kind, id, sort_order, NULL, NULL, NULL, NULL, NULL, NULL, duration_minutes
+       SELECT 'break' AS kind, id, sort_order, NULL, NULL, NULL, NULL, NULL, NULL, NULL, duration_minutes
        FROM setlist_breaks
        WHERE setlist_id = ?
        ORDER BY sort_order ASC`,
@@ -762,6 +767,7 @@ export function getSetlistsWithSongs(): SetlistWithSongs[] {
         song: {
           id: row.id,
           ...songTitleFields(row.is_note === 1, row.title, row.notes_raw_text),
+          artist: row.artist ?? undefined,
           notes_raw_text: row.notes_raw_text,
           font_size: row.font_size ?? undefined,
           cue_document: row.cue_document ?? undefined,
@@ -791,6 +797,7 @@ export function getStandaloneSongs(): Song[] {
   const rows = db.getAllSync<{
     id: string;
     title: string | null;
+    artist: string | null;
     notes_raw_text: string | null;
     font_size: number | null;
     cue_document: string | null;
@@ -808,6 +815,7 @@ export function getStandaloneSongs(): Song[] {
     id: row.id,
     group_id: row.group_id,
     title: row.title ?? 'Untitled Song',
+    artist: row.artist ?? undefined,
     notes_raw_text: row.notes_raw_text ?? '',
     font_size: row.font_size ?? undefined,
     cue_document: row.cue_document ?? undefined,
@@ -880,6 +888,7 @@ export function getSongById(songId: string): Song | null {
   const row = db.getFirstSync<{
     id: string;
     title: string;
+    artist: string | null;
     notes_raw_text: string;
     font_size: number | null;
     cue_document: string | null;
@@ -890,6 +899,7 @@ export function getSongById(songId: string): Song | null {
     ? {
         id: row.id,
         ...songTitleFields(row.is_note === 1, row.title, row.notes_raw_text),
+        artist: row.artist ?? undefined,
         notes_raw_text: row.notes_raw_text,
         font_size: row.font_size ?? undefined,
         cue_document: row.cue_document ?? undefined,
@@ -904,6 +914,7 @@ export function saveSongForSetlist({
   groupId,
   songId,
   title,
+  artist,
   notes_raw_text,
   cue_document,
   tags,
@@ -916,6 +927,7 @@ export function saveSongForSetlist({
   font_size?: number;
   is_note?: boolean;
   title: string;
+  artist?: string;
   notes_raw_text: string;
   cue_document: string;
   tags: Song['tags'];
@@ -927,14 +939,16 @@ export function saveSongForSetlist({
     throw new Error('A note must be added to a setlist.');
   }
   const cleanedTitle = isNote ? title.trim() : title.trim() || 'Untitled Song';
+  const cleanedArtist = isNote ? null : artist?.trim() || null;
 
   if (setlistId && !isNote) {
     assertNoVariantConflict(setlistId, cleanedTitle, tags ?? [], id);
   }
 
   if (existing) {
-    db.runSync('UPDATE songs SET title = ?, notes_raw_text = ?, cue_document = ?, tags = ? WHERE id = ?', [
+    db.runSync('UPDATE songs SET title = ?, artist = ?, notes_raw_text = ?, cue_document = ?, tags = ? WHERE id = ?', [
       cleanedTitle,
+      cleanedArtist,
       notes_raw_text,
       cue_document,
       JSON.stringify(tags ?? []),
@@ -948,10 +962,11 @@ export function saveSongForSetlist({
       }
     }
     db.runSync(
-      'INSERT INTO songs (id, title, notes_raw_text, cue_document, tags, font_size, group_id, sort_order, is_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO songs (id, title, artist, notes_raw_text, cue_document, tags, font_size, group_id, sort_order, is_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         id,
         cleanedTitle,
+        cleanedArtist,
         notes_raw_text,
         cue_document,
         JSON.stringify(tags ?? []),
@@ -973,6 +988,7 @@ export function saveSongForSetlist({
   return {
     id,
     ...songTitleFields(isNote, cleanedTitle, notes_raw_text),
+    artist: cleanedArtist ?? undefined,
     notes_raw_text,
     cue_document,
     tags: tags ?? [],
@@ -1007,10 +1023,11 @@ function insertImportedItem(setlistId: string, item: ImportedItem, sortOrder: nu
     const songId = makeId();
     const isNote = item.note === true;
     db.runSync(
-      'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags, is_note) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO songs (id, title, artist, notes_raw_text, font_size, cue_document, tags, is_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
         songId,
         item.title.trim() || (isNote ? '' : 'Untitled Song'),
+        item.artist?.trim() || null,
         item.notes_raw_text,
         item.font_size ?? 18,
         item.cue_document ? JSON.stringify(item.cue_document) : null,
@@ -1033,10 +1050,11 @@ function insertImportedItem(setlistId: string, item: ImportedItem, sortOrder: nu
 
 function insertImportedStandaloneSong(song: NonNullable<ImportedLibrary['songs']>[number]): void {
   db.runSync(
-    'INSERT INTO songs (id, title, notes_raw_text, font_size, cue_document, tags, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO songs (id, title, artist, notes_raw_text, font_size, cue_document, tags, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [
       makeId(),
       song.title.trim() || 'Untitled Song',
+      song.artist?.trim() || null,
       song.notes_raw_text,
       song.font_size ?? 18,
       song.cue_document ? JSON.stringify(song.cue_document) : null,
@@ -1099,9 +1117,10 @@ function mergePartialSetlist(setlistId: string, setlist: ImportedSetlist, keepCu
     }
     claimed.add(match.id);
     db.runSync(
-      'UPDATE songs SET title = ?, notes_raw_text = ?, font_size = ?, cue_document = ?, tags = ? WHERE id = ?',
+      'UPDATE songs SET title = ?, artist = ?, notes_raw_text = ?, font_size = ?, cue_document = ?, tags = ? WHERE id = ?',
       [
         item.title.trim() || 'Untitled Song',
+        item.artist?.trim() || null,
         keepCues ? match.notes_raw_text : item.notes_raw_text,
         item.font_size ?? 18,
         keepCues
@@ -1227,9 +1246,10 @@ export function importSetlists(library: ImportedLibrary, mode: ImportMode = 'cop
       }
       claimedStandaloneIds.add(existing.id);
       db.runSync(
-        'UPDATE songs SET title = ?, notes_raw_text = ?, font_size = ?, cue_document = ?, tags = ? WHERE id = ?',
+        'UPDATE songs SET title = ?, artist = ?, notes_raw_text = ?, font_size = ?, cue_document = ?, tags = ? WHERE id = ?',
         [
           song.title.trim() || 'Untitled Song',
+          song.artist?.trim() || null,
           library.cuesOmitted ? existing.notes_raw_text : song.notes_raw_text,
           song.font_size ?? 18,
           library.cuesOmitted

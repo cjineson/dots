@@ -28,6 +28,7 @@ export type ArchiveGroupDetails = GroupDetails & { name: string };
 export type Song = {
   id: string;
   title: string;
+  artist?: string;
   notes_raw_text: string;
   font_size?: number;
   cue_document?: string;
@@ -119,6 +120,7 @@ export type SetlistArchive = {
       | {
           type: 'song';
           title: string;
+          artist?: string;
           notes_raw_text: string;
           font_size?: number;
           cue_document?: CueDocument;
@@ -132,6 +134,7 @@ export type SetlistArchive = {
 
 export type ArchiveSong = {
   title: string;
+  artist?: string;
   notes_raw_text: string;
   note?: true;
   font_size?: number;
@@ -153,6 +156,7 @@ export type ImportedSetlist = {
     | {
         type: 'song';
         title: string;
+        artist?: string;
         notes_raw_text: string;
         font_size?: number;
         cue_document?: CueDocument;

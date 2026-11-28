@@ -5,7 +5,7 @@
 | --- | --- |
 | `setlists` | `id, name, order_index, group_id` plus `location, date, time, latitude, longitude, notes` (added by migration) |
 | `setlist_groups` | One-level groups; unique case-insensitive names, optional description and embedded image |
-| `songs` | `title, notes_raw_text, font_size, cue_document, tags` (JSON); songs can be standalone |
+| `songs` | `title, artist, notes_raw_text, font_size, cue_document, tags` (JSON); songs can be standalone |
 | `setlist_songs` | Links songs to setlists with `sort_order`; a song may be standalone or in several setlists |
 | `setlist_breaks` | Breaks with `sort_order` and optional `duration_minutes` |
 | `dashboard_preferences` | Expanded setlists / collapsed groups (and the standalone Songs block, key `standalone-songs`) |
@@ -23,7 +23,7 @@ The archive discriminator remains `gigbox-setlists` for compatibility; existing 
 
 Import matches existing setlists by name and group (and songs in `partial` setlists by title). If anything would be overwritten, Dots warns first and lets you **Replace** the matches, **Add as copies**, or **Cancel**. Replacing a full setlist overwrites its details and songs; replacing a `partial` setlist only updates the songs it contains and adds new ones. Importing a file marked `"cues": false` keeps the cues and tags already on matching songs (matched by title within the replaced setlist, or among standalone songs) instead of blanking them; songs with no match are added without cues or tags. Only a full export with cues resets the backup reminder.
 
-Version 5 per-setlist fields (all optional): `location`, `latitude`, `longitude` (validated ranges), `notes`, `date`, `time`, group name. Version 6 adds a root `songs` array for standalone songs; setlist items remain ordered songs and breaks. Songs carry cue document, text size and tags. Earlier versions lack some of these fields. Add tests in `setlistArchive.test.ts` for any format change and keep v1 import working.
+Version 5 per-setlist fields (all optional): `location`, `latitude`, `longitude` (validated ranges), `notes`, `date`, `time`, group name. Version 6 adds a root `songs` array for standalone songs; setlist items remain ordered songs and breaks. Songs carry an optional artist, cue document, text size and tags. Earlier versions lack some of these fields. Older apps ignore the artist and may discard it when re-exporting. Add tests in `setlistArchive.test.ts` for any format change and keep v1 import working.
 
 Selective exports can include optional group descriptions and images. They are restored for new groups, but importing into an existing group does not overwrite its details. Older app versions ignore these fields and may discard them when re-exporting.
 
@@ -70,6 +70,8 @@ versions. The existing selective v6 archive export and v1–v6 imports remain
 available. Neither snapshots nor manual merge replace independent backups.
 
 Snapshots also include group descriptions and images. When merging an older snapshot that lacks these fields, the current group's details are retained. Replacing with an older snapshot has no group details to restore.
+
+Snapshots also include song artists. Merging an older snapshot without an artist field keeps the local artist on matched songs; replacing with an older snapshot clears artists.
 
 The current browser build uses an in-memory library that is lost on reload, and
 its system share support may be unavailable; it should not be relied on as

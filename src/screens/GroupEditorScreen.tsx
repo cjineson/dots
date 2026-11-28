@@ -192,7 +192,7 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 200,
+    height: 150,
     borderRadius: 10,
     backgroundColor: theme.colors.surface_card,
   },

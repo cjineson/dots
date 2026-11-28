@@ -8,6 +8,7 @@ import {
 } from '../lib/librarySnapshot';
 import type { LibrarySnapshot, SnapshotChoices, SnapshotConflict, SnapshotMatch } from '../lib/librarySnapshot';
 import { parseStoredSongTags } from '../lib/songTags';
+import { displaySongTitle } from '../lib/songTitle';
 import { makeId } from '../lib/uuid';
 import { useTheme } from '../themeContext';
 import type { AppTheme } from '../theme';
@@ -21,7 +22,7 @@ type Props = {
 };
 
 function label(record: SnapshotConflict['local']): string {
-  return 'name' in record ? record.name : record.title || '(untitled note)';
+  return 'name' in record ? record.name : record.title ? displaySongTitle({ title: record.title, artist: record.artist ?? undefined }) : '(untitled note)';
 }
 
 function describe(record: SnapshotConflict['local'], library: LibrarySnapshot): string {
@@ -33,7 +34,7 @@ function describe(record: SnapshotConflict['local'], library: LibrarySnapshot): 
       return `${block.type}${style ? ` (${style})` : ''}:\n${text}`;
     }).join('\n\n') : 'None';
     const group = library.groups.find(({ id }) => id === record.group_id)?.name ?? 'None';
-    return `Title: ${record.title || '(untitled)'}\nType: ${record.is_note ? 'Note' : 'Song'}\nGroup: ${group}\nOrder: ${record.sort_order ?? 'Not set'}\nText size: ${record.font_size}\nTags: ${tags}\n\nPlain text:\n${record.notes_raw_text || '(empty)'}\n\nCues:\n${cue}`;
+    return `Title: ${record.title || '(untitled)'}\nArtist: ${record.artist || 'None'}\nType: ${record.is_note ? 'Note' : 'Song'}\nGroup: ${group}\nOrder: ${record.sort_order ?? 'Not set'}\nText size: ${record.font_size}\nTags: ${tags}\n\nPlain text:\n${record.notes_raw_text || '(empty)'}\n\nCues:\n${cue}`;
   }
   if ('items' in record) {
     const group = library.groups.find(({ id }) => id === record.group_id)?.name ?? 'None';

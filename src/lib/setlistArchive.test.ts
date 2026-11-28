@@ -73,6 +73,20 @@ const setlists: SetlistWithSongs[] = [
   },
 ];
 
+test('artists round-trip for setlist and standalone songs, including cue-less exports', () => {
+  const song = { id: 'artist-song', title: 'Song', artist: 'The Artist', notes_raw_text: 'Lyrics' };
+  const list = { ...setlists[0], group_name: undefined, items: [{ kind: 'song' as const, song }] };
+  for (const includeCues of [true, false]) {
+    const archive = createSetlistArchive([list], [], [song], { includeCues });
+    const imported = parseSetlistArchive(JSON.stringify(archive));
+    assert.equal(imported.songs?.[0].artist, 'The Artist');
+    const item = imported.setlists[0].items[0];
+    assert.equal(item.type === 'song' && item.artist, 'The Artist');
+  }
+  const invalid = createSetlistArchive([], [], [song]);
+  assert.throws(() => parseSetlistArchive(JSON.stringify({ ...invalid, songs: [{ ...invalid.songs?.[0], artist: 123 }] })), /invalid/);
+});
+
 test('tab characters survive standalone song archive round trips', () => {
   const text = 'C\tG\nAm\tF';
   const cueDocument = { version: 1 as const, blocks: [{ id: 'cue', type: 'text' as const, text }] };

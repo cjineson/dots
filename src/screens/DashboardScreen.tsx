@@ -28,6 +28,7 @@ import { useTheme } from '../themeContext';
 import { TAG_COLORS } from '../lib/cueDocument';
 import { hasMapTarget, openInMaps } from '../lib/maps';
 import { NOTE_ICON, SONG_ICON } from '../lib/noteTitle';
+import { displaySongTitle } from '../lib/songTitle';
 import { BACKUP_REMIND_LATER_DAYS, BACKUP_REMINDER_DAYS } from '../lib/settings';
 import type { SongSearchEntry } from '../lib/songSearch';
 import type { AppTheme } from '../theme';
@@ -354,7 +355,7 @@ export default function DashboardScreen({
     if (usedElsewhere) {
       Alert.alert(
         `Remove ${song.is_note ? 'note' : 'song'} from setlist?`,
-        `"${song.title}" stays in your other setlists.`,
+        `"${displaySongTitle(song)}" stays in your other setlists.`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -368,7 +369,7 @@ export default function DashboardScreen({
     }
 
     if (song.is_note) {
-      Alert.alert('Delete note?', `Delete "${song.title}"? It isn't in any other setlist.`, [
+      Alert.alert('Delete note?', `Delete "${displaySongTitle(song)}"? It isn't in any other setlist.`, [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: run(() => onDeleteSong(setlistId, song.id)) },
       ]);
@@ -389,13 +390,13 @@ export default function DashboardScreen({
     });
     Alert.alert(
       'This is the last setlist for this song',
-      `"${song.title}" isn't in any other setlist. Keep it in your Songs list, or remove it permanently?`,
+      `"${displaySongTitle(song)}" isn't in any other setlist. Keep it in your Songs list, or remove it permanently?`,
       buttons,
     );
   };
 
   const confirmDeleteStandaloneSong = (song: Song) => {
-    Alert.alert('Remove song permanently?', `Delete "${song.title}" from your Songs list?`, [
+    Alert.alert('Remove song permanently?', `Delete "${displaySongTitle(song)}" from your Songs list?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -526,7 +527,7 @@ export default function DashboardScreen({
         {reorderEnabled && siblingCount > 1 && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Reorder ${song.title}`}
+            accessibilityLabel={`Reorder ${displaySongTitle(song)}`}
             onLongPress={drag}
             delayLongPress={180}
             style={styles.dragHandle}
@@ -536,17 +537,17 @@ export default function DashboardScreen({
         )}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Play ${song.title}`}
+          accessibilityLabel={`Play ${displaySongTitle(song)}`}
           style={styles.songHeading}
           onPress={() => onOpenPerformance([{ kind: 'song', song }], 0)}
         >
-          <Text style={styles.songTitle}>{song.title}</Text>
+          <Text style={styles.songTitle}>{displaySongTitle(song)}</Text>
           <SongTags tags={song.tags} compact />
         </Pressable>
         <View style={styles.songActions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Edit ${song.title}`}
+            accessibilityLabel={`Edit ${displaySongTitle(song)}`}
             style={styles.songIconButton}
             onPress={() => onOpenSongForEdit(undefined, song)}
           >
@@ -555,7 +556,7 @@ export default function DashboardScreen({
           {setlists.length > 0 && (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Add ${song.title} to a setlist`}
+              accessibilityLabel={`Add ${displaySongTitle(song)} to a setlist`}
               style={styles.songIconButton}
               onPress={() => setCopyingSong({ song })}
             >
@@ -568,7 +569,7 @@ export default function DashboardScreen({
           )}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Delete ${song.title}`}
+            accessibilityLabel={`Delete ${displaySongTitle(song)}`}
             style={styles.songIconButton}
             onPress={() => confirmDeleteStandaloneSong(song)}
           >
@@ -733,7 +734,7 @@ export default function DashboardScreen({
                         >
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel={`Reorder ${item.song.title}`}
+                            accessibilityLabel={`Reorder ${displaySongTitle(item.song)}`}
                             onLongPress={drag}
                             delayLongPress={180}
                             style={styles.dragHandle}
@@ -742,7 +743,7 @@ export default function DashboardScreen({
                           </Pressable>
                           <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel={`Play ${item.song.title}`}
+                            accessibilityLabel={`Play ${displaySongTitle(item.song)}`}
                             style={styles.songHeading}
                             onPress={() => onOpenPerformance(
                             setlist.items,
@@ -758,17 +759,17 @@ export default function DashboardScreen({
                             />
                             {item.song.is_note ? (
                               <Text numberOfLines={1} style={[styles.songTitle, styles.untitledNotePreview]}>
-                                {item.song.title}
+                                {displaySongTitle(item.song)}
                               </Text>
                             ) : (
-                              <Text style={styles.songTitle}>{item.song.title}</Text>
+                              <Text style={styles.songTitle}>{displaySongTitle(item.song)}</Text>
                             )}
                             <SongTags tags={item.song.tags} compact />
                           </Pressable>
                           <View style={styles.songActions}>
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel={`Edit ${item.song.title}`}
+                              accessibilityLabel={`Edit ${displaySongTitle(item.song)}`}
                               style={styles.songIconButton}
                               onPress={() => onOpenSongForEdit(setlist.id, item.song)}
                             >
@@ -776,7 +777,7 @@ export default function DashboardScreen({
                             </Pressable>
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel={`Copy ${item.song.title} to a setlist`}
+                              accessibilityLabel={`Copy ${displaySongTitle(item.song)} to a setlist`}
                               style={styles.songIconButton}
                               onPress={() => setCopyingSong({
                                 song: item.song,
@@ -787,7 +788,7 @@ export default function DashboardScreen({
                             </Pressable>
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel={`Delete ${item.song.title} from ${setlist.name}`}
+                              accessibilityLabel={`Delete ${displaySongTitle(item.song)} from ${setlist.name}`}
                               style={styles.songIconButton}
                               onPress={() => confirmDeleteSong(setlist.id, item.song)}
                             >
@@ -990,11 +991,11 @@ export default function DashboardScreen({
                       <MaterialCommunityIcons name="folder-remove" size={20} color={theme.colors.action_danger} />
                     </Pressable>
                   </View>
-                  {!collapsed && (group.image || group.description) && (
+                  {(group.image || (!collapsed && group.description)) && (
                     <View style={styles.groupDetails}>
                       {group.image && <Image source={{ uri: group.image }} style={styles.groupImage}
                         resizeMode="contain" accessibilityLabel={`${group.name} group image`} />}
-                      {group.description && <Text style={styles.groupDescription}>{group.description}</Text>}
+                      {!collapsed && group.description && <Text style={styles.groupDescription}>{group.description}</Text>}
                     </View>
                   )}
                 </View>
@@ -1123,7 +1124,7 @@ export default function DashboardScreen({
             keyboardDismissMode="on-drag"
           >
             <View style={styles.renameDialog}>
-              <Text style={styles.dialogTitle}>New version of “{variantFor?.song.title}”</Text>
+              <Text style={styles.dialogTitle}>New version of “{variantFor ? displaySongTitle(variantFor.song) : ''}”</Text>
               <Text style={styles.copyHint}>
                 Songs with the same title need different tags, e.g. Piano or Guitar. The copy has its
                 own chords and notes and can be edited separately.
@@ -1192,7 +1193,7 @@ export default function DashboardScreen({
                 {copyingSong?.sourceSetlistId ? 'Copy' : 'Add'} {copyingSong?.song.is_note ? 'note' : 'song'} to setlist
               </Text>
               <Text style={styles.copyHint}>
-                Choose a destination for “{copyingSong?.song.title}”.
+                Choose a destination for “{copyingSong ? displaySongTitle(copyingSong.song) : ''}”.
               </Text>
               <SongTags tags={copyingSong?.song.tags} compact wrapCompact />
               <ScrollView style={styles.destinationList}>
@@ -1275,7 +1276,7 @@ export default function DashboardScreen({
                     <Pressable
                       key={song.id}
                       accessibilityRole="button"
-                      accessibilityLabel={`Copy ${song.title}`}
+                      accessibilityLabel={`Copy ${displaySongTitle(song)}`}
                       onPress={() => {
                         if (picker?.kind !== 'copy-song') {
                           return;
@@ -1294,7 +1295,7 @@ export default function DashboardScreen({
                         size={22}
                         color={theme.colors.action_primary}
                       />
-                      <Text numberOfLines={1} style={styles.destinationText}>{song.title}</Text>
+                      <Text numberOfLines={1} style={styles.destinationText}>{displaySongTitle(song)}</Text>
                       <SongTags tags={song.tags} compact />
                     </Pressable>
                   ))
@@ -1503,7 +1504,7 @@ const createStyles = (theme: AppTheme, screenWidth: number) => StyleSheet.create
   },
   groupImage: {
     width: '100%',
-    height: 200,
+    height: 150,
   },
   groupDescription: {
     color: theme.colors.text_primary,
